@@ -20,7 +20,9 @@ dependencies:
   flutter:
     sdk: flutter
   cupertino_icons: ^0.1.2
-  flare_flutter: 1.6.4
+  flare_flutter: ^1.6.4
+  rxdart: ^0.22.6
+  dio: ^3.0.4
 
 dev_dependencies:
   flutter_test:

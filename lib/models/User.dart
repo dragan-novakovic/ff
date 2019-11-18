@@ -14,4 +14,13 @@ class User {
         username = json['username'],
         password = json['password'],
         createdOnTimestamp = json['created_on'];
+
+  @override
+  String toString() {
+    return '''USER {
+      id: ${this.id},
+      email: ${this.email},
+      username: ${this.username}
+      }''';
+  }
 }

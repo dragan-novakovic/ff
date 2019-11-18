@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'package:dio/dio.dart';
 
 class ApiProvider<T> {
-  final String _baseline = "http://localhost:8080";
+  final String _baseline = "http://10.0.2.2:8080";
   final Dio _dio = Dio();
 
   //Future<T> getOne() async {}
@@ -15,14 +15,16 @@ class ApiProvider<T> {
     Map<String, dynamic> data,
   }) async {
     try {
-      Response response = await _dio.post(_baseline + endpoint,
-          data: json.encode(data),
-          options: Options(headers: {"Content-Type": "application/json"}));
+      // print("API begin " + _baseline + endpoint);
+      Response response =
+          await _dio.post(_baseline + endpoint, data: json.encode(data));
 
-      print(response);
+      // print('printing response');
+      // print('b' + response.data.toString());
+
       return response.data;
     } catch (e) {
-      print(e);
+      print("Error" + e.toString());
       return e;
     }
   }

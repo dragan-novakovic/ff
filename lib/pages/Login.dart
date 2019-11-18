@@ -1,5 +1,6 @@
 import 'package:ff/blocs/UserBloc.dart';
 import 'package:ff/models/User.dart';
+import 'package:ff/pages/Dashboard.dart';
 import 'package:flutter/material.dart';
 
 class Login extends StatefulWidget {
@@ -80,17 +81,18 @@ Widget submitButton(LoginBloc bloc) {
         onPressed: snapshot.hasData
             ? () async {
                 User user = await bloc.submit();
-                print('HMMM____user: $user');
+                //  print('Me: $user');
 
                 if (user != null) {
-                  // Navigator.push(
-                  //   context,
-                  //   MaterialPageRoute(
-                  //     builder: (context) => Chat(
-                  //       user: user,
-                  //     ),
-                  //   ),
-                  // );
+                  // print("AM going");
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => Dashboard(
+                        user: user,
+                      ),
+                    ),
+                  );
                 }
               }
             : null,

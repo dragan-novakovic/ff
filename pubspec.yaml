@@ -23,6 +23,8 @@ dependencies:
   flare_flutter: ^1.6.4
   rxdart: ^0.22.6
   dio: ^3.0.4
+  responsive_scaffold: ^1.1.1
+  cached_network_image: ^1.1.1
 
 dev_dependencies:
   flutter_test:

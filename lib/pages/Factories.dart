@@ -23,8 +23,6 @@ class _FactoriesPageState extends State<FactoriesPage> {
     return StreamBuilder<List<Factory>>(
         stream: bloc.factories.stream,
         builder: (context, snapshot) {
-          print(snapshot);
-
           if (snapshot.hasData) {
             return ResponsiveListScaffold.builder(
               scaffoldKey: _scaffoldKey,
@@ -48,6 +46,13 @@ class _FactoriesPageState extends State<FactoriesPage> {
                   leading: Text('${_factory.level}'),
                   title: Text('${_factory.name}'),
                   subtitle: Text('${_factory.goldPerDay}'),
+                  trailing: IconButton(
+                    icon: Icon(Icons.add_box),
+                    tooltip: 'Increase volume by 10',
+                    onPressed: () {
+                      // update amount of companies
+                    },
+                  ),
                 );
               },
             );

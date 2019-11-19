@@ -1,6 +1,7 @@
 //import 'package:cached_network_image/cached_network_image.dart';
 import 'package:ff/models/User.dart';
 import 'package:ff/pages/Factories.dart';
+import 'package:ff/utils/Utils.dart';
 import 'package:flutter/material.dart';
 import 'package:responsive_scaffold/responsive_scaffold.dart';
 
@@ -26,7 +27,7 @@ class DashboardState extends State<Dashboard> {
                     begin: Alignment.centerLeft,
                     end: Alignment.centerRight,
                     stops: [0.5, 0.9],
-                    colors: [Colors.red, Colors.deepOrange.shade300])),
+                    colors: [Colors.blue.shade300, Colors.lightBlue])),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.center,
@@ -36,15 +37,15 @@ class DashboardState extends State<Dashboard> {
                   children: <Widget>[
                     CircleAvatar(
                       minRadius: 60,
-                      backgroundColor: Colors.deepOrange.shade300,
+                      backgroundColor: Colors.white,
                       child: CircleAvatar(
                           backgroundImage: NetworkImage(
-                              "http://via.placeholder.com/350x150")),
+                              "http://via.placeholder.com/400x400")),
                     ),
                   ],
                 ),
                 SizedBox(
-                  height: 10,
+                  height: 20,
                 ),
                 Text(
                   '${widget.user.username}',
@@ -52,7 +53,7 @@ class DashboardState extends State<Dashboard> {
                 ),
                 Text(
                   '${widget.user.email}',
-                  style: TextStyle(fontSize: 14.0, color: Colors.red.shade700),
+                  style: TextStyle(fontSize: 14.0, color: Colors.grey.shade900),
                 ),
               ],
             ),
@@ -63,7 +64,7 @@ class DashboardState extends State<Dashboard> {
               children: <Widget>[
                 Expanded(
                   child: Container(
-                    color: Colors.deepOrange.shade300,
+                    color: Colors.deepPurple,
                     child: ListTile(
                       title: Text(
                         "50",
@@ -76,17 +77,17 @@ class DashboardState extends State<Dashboard> {
                       subtitle: Text(
                         "FACTORIES",
                         textAlign: TextAlign.center,
-                        style: TextStyle(color: Colors.red),
+                        style: TextStyle(color: Colors.deepPurple.shade200),
                       ),
                     ),
                   ),
                 ),
                 Expanded(
                   child: Container(
-                    color: Colors.red,
+                    color: Colors.deepPurple.shade400,
                     child: ListTile(
                       title: Text(
-                        "34524",
+                        Utils.number(int.parse("34524")),
                         textAlign: TextAlign.center,
                         style: TextStyle(
                             color: Colors.white,
@@ -96,7 +97,7 @@ class DashboardState extends State<Dashboard> {
                       subtitle: Text(
                         "GOLD",
                         textAlign: TextAlign.center,
-                        style: TextStyle(color: Colors.white70),
+                        style: TextStyle(color: Colors.deepPurple.shade900),
                       ),
                     ),
                   ),
@@ -108,7 +109,7 @@ class DashboardState extends State<Dashboard> {
             child: ListTile(
               title: Text(
                 "Development",
-                style: TextStyle(color: Colors.deepOrange, fontSize: 12.0),
+                style: TextStyle(color: Colors.blue, fontSize: 12.0),
               ),
               subtitle: Text(
                 "Factories",

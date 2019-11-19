@@ -24,3 +24,17 @@ class User {
       }''';
   }
 }
+
+class PlayerData {
+  final int energy;
+  final int gold;
+  final int exp;
+
+  PlayerData(this.energy, this.exp, this.gold);
+}
+
+class PlayerFactories {
+  final int amount;
+
+  PlayerFactories(this.amount);
+}

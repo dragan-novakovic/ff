@@ -36,6 +36,8 @@ class LoginBloc extends Object with Validators {
     }
   }
 
+  // Future<PlayerFactories> getAll() async {}
+
   void dispose() {
     _emailController.close();
     _passwordController.close();

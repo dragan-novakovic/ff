@@ -25,6 +25,7 @@ dependencies:
   dio: ^3.0.4
   responsive_scaffold: ^1.1.1
   cached_network_image: ^1.1.1
+  intl: ^0.16.0
 
 dev_dependencies:
   flutter_test:

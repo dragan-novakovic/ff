@@ -8,7 +8,16 @@ class ApiProvider<T> {
 
   //Future<T> getOne() async {}
 
-  //Future<T> getAll() async {}
+  Future<dynamic> getAll(String endpoint) async {
+    try {
+      Response response = await _dio.get(_baseline + endpoint);
+
+      return response.data;
+    } catch (e) {
+      print("Error" + e.toString());
+      return e.toString();
+    }
+  }
 
   Future<T> post(
     String endpoint, {

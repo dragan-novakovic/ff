@@ -1,5 +1,6 @@
 //import 'package:cached_network_image/cached_network_image.dart';
 import 'package:ff/models/User.dart';
+import 'package:ff/pages/Factories.dart';
 import 'package:flutter/material.dart';
 import 'package:responsive_scaffold/responsive_scaffold.dart';
 
@@ -103,48 +104,23 @@ class DashboardState extends State<Dashboard> {
               ],
             ),
           ),
-          ListTile(
-            title: Text(
-              "Email",
-              style: TextStyle(color: Colors.deepOrange, fontSize: 12.0),
+          InkWell(
+            child: ListTile(
+              title: Text(
+                "Development",
+                style: TextStyle(color: Colors.deepOrange, fontSize: 12.0),
+              ),
+              subtitle: Text(
+                "Factories",
+                style: TextStyle(fontSize: 18.0),
+              ),
             ),
-            subtitle: Text(
-              "ram@kumar.com",
-              style: TextStyle(fontSize: 18.0),
-            ),
-          ),
-          Divider(),
-          ListTile(
-            title: Text(
-              "Phone",
-              style: TextStyle(color: Colors.deepOrange, fontSize: 12.0),
-            ),
-            subtitle: Text(
-              "+977 9818225533",
-              style: TextStyle(fontSize: 18.0),
-            ),
-          ),
-          Divider(),
-          ListTile(
-            title: Text(
-              "Twitter",
-              style: TextStyle(color: Colors.deepOrange, fontSize: 12.0),
-            ),
-            subtitle: Text(
-              "@ramkumar",
-              style: TextStyle(fontSize: 18.0),
-            ),
-          ),
-          Divider(),
-          ListTile(
-            title: Text(
-              "Facebook",
-              style: TextStyle(color: Colors.deepOrange, fontSize: 12.0),
-            ),
-            subtitle: Text(
-              "facebook.com/ramkumar",
-              style: TextStyle(fontSize: 18.0),
-            ),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => FactoriesPage()),
+              );
+            },
           ),
           Divider(),
         ],

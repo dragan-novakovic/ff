@@ -1,10 +1,11 @@
 import 'dart:async';
-
+import 'package:localstorage/localstorage.dart';
 import 'package:ff/models/User.dart';
 import 'package:ff/services/api.dart';
 import 'package:rxdart/rxdart.dart';
 
 class LoginBloc extends Object with Validators {
+  final api = ApiProvider();
   final _emailController = BehaviorSubject<String>();
   final _passwordController = BehaviorSubject<String>();
 
@@ -22,14 +23,18 @@ class LoginBloc extends Object with Validators {
   Future<User> submit() async {
     final validEmail = _emailController.value;
     final validPassword = _passwordController.value;
-    final api = ApiProvider();
+    final LocalStorage storage = new LocalStorage('local_storage');
 
     // print('Email is $validEmail, and password is $validPassword');
     try {
       dynamic json = await api.post("/login",
           data: {"email": validEmail, "password": validPassword});
 
-      return User.fromJson(json);
+      storage.setItem('profile', json);
+
+      User result = User.fromJson(json);
+      // print(result);
+      return result;
     } catch (e) {
       print('Error: $e');
       return null;

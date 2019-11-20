@@ -64,40 +64,40 @@ class DashboardState extends State<Dashboard> {
               children: <Widget>[
                 Expanded(
                   child: Container(
-                    color: Colors.deepPurple,
+                    color: Colors.white,
                     child: ListTile(
                       title: Text(
-                        "50",
+                        '${widget.user.playerData.energy}',
                         textAlign: TextAlign.center,
                         style: TextStyle(
-                            color: Colors.white,
+                            color: Colors.blue,
                             fontWeight: FontWeight.bold,
                             fontSize: 24.0),
                       ),
                       subtitle: Text(
-                        "FACTORIES",
+                        "ENERGY",
                         textAlign: TextAlign.center,
-                        style: TextStyle(color: Colors.deepPurple.shade200),
+                        style: TextStyle(color: Colors.grey),
                       ),
                     ),
                   ),
                 ),
                 Expanded(
                   child: Container(
-                    color: Colors.deepPurple.shade400,
+                    color: Colors.white,
                     child: ListTile(
                       title: Text(
-                        Utils.number(int.parse("34524")),
+                        Utils.number(widget.user.playerData.gold),
                         textAlign: TextAlign.center,
                         style: TextStyle(
-                            color: Colors.white,
+                            color: Colors.blue,
                             fontWeight: FontWeight.bold,
                             fontSize: 24.0),
                       ),
                       subtitle: Text(
                         "GOLD",
                         textAlign: TextAlign.center,
-                        style: TextStyle(color: Colors.deepPurple.shade900),
+                        style: TextStyle(color: Colors.grey),
                       ),
                     ),
                   ),
@@ -119,7 +119,9 @@ class DashboardState extends State<Dashboard> {
             onTap: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => FactoriesPage()),
+                MaterialPageRoute(
+                    builder: (context) =>
+                        FactoriesPage(userId: widget.user.id)),
               );
             },
           ),

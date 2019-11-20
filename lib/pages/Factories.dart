@@ -1,9 +1,12 @@
 import 'package:ff/blocs/FactoryBloc.dart';
 import 'package:ff/models/Factory.dart';
+import 'package:ff/models/User.dart';
 import 'package:flutter/material.dart';
 import 'package:responsive_scaffold/responsive_scaffold.dart';
 
 class FactoriesPage extends StatefulWidget {
+  FactoriesPage({@required this.userId});
+  final String userId;
   @override
   _FactoriesPageState createState() => _FactoriesPageState();
 }
@@ -16,6 +19,7 @@ class _FactoriesPageState extends State<FactoriesPage> {
   void initState() {
     super.initState();
     bloc.getAll();
+    bloc.getUserFactories(widget.userId);
   }
 
   @override
@@ -24,38 +28,63 @@ class _FactoriesPageState extends State<FactoriesPage> {
         stream: bloc.factories.stream,
         builder: (context, snapshot) {
           if (snapshot.hasData) {
-            return ResponsiveListScaffold.builder(
-              scaffoldKey: _scaffoldKey,
-              detailBuilder: (BuildContext context, int index, bool tablet) {
-                return DetailsScreen(
-                  body: new BodyDetails(
-                      tablet: tablet, index: index, data: snapshot.data),
-                );
-              },
-              nullItems: Center(child: CircularProgressIndicator()),
-              emptyItems: Center(child: Text("No Items Found")),
-              slivers: <Widget>[
-                SliverAppBar(
-                  title: Text("Factories"),
-                ),
-              ],
-              itemCount: snapshot.data.length,
-              itemBuilder: (BuildContext context, int index) {
-                Factory _factory = snapshot.data[index];
-                return ListTile(
-                  leading: Text('${_factory.level}'),
-                  title: Text('${_factory.name}'),
-                  subtitle: Text('${_factory.goldPerDay}'),
-                  trailing: IconButton(
-                    icon: Icon(Icons.add_box),
-                    tooltip: 'Increase volume by 10',
-                    onPressed: () {
-                      // update amount of companies
-                    },
-                  ),
-                );
-              },
-            );
+            return StreamBuilder<List<PlayerFactory>>(
+                stream: bloc.playerFactories.stream,
+                builder: (context, playerFsnapshot) {
+                  if (playerFsnapshot.hasData) {
+                    return ResponsiveListScaffold.builder(
+                      scaffoldKey: _scaffoldKey,
+                      detailBuilder:
+                          (BuildContext context, int index, bool tablet) {
+                        return DetailsScreen(
+                          body: new BodyDetails(
+                              tablet: tablet,
+                              index: index,
+                              data: snapshot.data),
+                        );
+                      },
+                      nullItems: Center(child: CircularProgressIndicator()),
+                      emptyItems: Center(child: Text("No Items Found")),
+                      slivers: <Widget>[
+                        SliverAppBar(
+                          title: Text("Factories"),
+                        ),
+                      ],
+                      itemCount: snapshot.data.length,
+                      itemBuilder: (BuildContext context, int index) {
+                        Factory _factory = snapshot.data[index];
+                        bool hasData = false;
+                        PlayerFactory _playerFactory;
+                        print("Q");
+                        print(playerFsnapshot.data);
+                        if (playerFsnapshot.data.length != 0) {
+                          _playerFactory = playerFsnapshot.data.firstWhere(
+                              (pf) => pf.factoryId == _factory.id,
+                              orElse: () => null);
+                          if (_playerFactory != null) {
+                            hasData = true;
+                          }
+                        }
+
+                        return ListTile(
+                          leading: Text(
+                              'No: ${hasData ? _playerFactory.amount : 0}'),
+                          title: Text('${_factory.name}'),
+                          subtitle: Text('${_factory.goldPerDay}'),
+                          trailing: IconButton(
+                            icon: Icon(Icons.add_box),
+                            tooltip: 'Increase volume by 10',
+                            onPressed: () {
+                              bloc.buyFactorie(widget.userId, _factory.id);
+                            },
+                          ),
+                        );
+                      },
+                    );
+                  } else {
+                    return Center(child: CircularProgressIndicator());
+                  }
+                });
           }
           return Center(child: CircularProgressIndicator());
         });

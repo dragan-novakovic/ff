@@ -27,6 +27,7 @@ dependencies:
   cached_network_image: ^1.1.1
   intl: ^0.16.0
   localstorage: ^3.0.0
+  get_it: ^3.0.3
 
 dev_dependencies:
   flutter_test:

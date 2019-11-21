@@ -1,4 +1,5 @@
 import 'package:ff/blocs/FactoryBloc.dart';
+import 'package:ff/blocs/rootBloc.dart';
 import 'package:ff/models/Factory.dart';
 import 'package:ff/models/User.dart';
 import 'package:flutter/material.dart';
@@ -13,23 +14,31 @@ class FactoriesPage extends StatefulWidget {
 
 class _FactoriesPageState extends State<FactoriesPage> {
   var _scaffoldKey = new GlobalKey<ScaffoldState>();
-  final bloc = FactoryBloc();
+  FactoryBloc bloc;
 
   @override
   void initState() {
     super.initState();
+    bloc = sl.get<FactoryBloc>();
     bloc.getAll();
     bloc.getUserFactories(widget.userId);
   }
 
   @override
+  void didUpdateWidget(FactoriesPage oldWidget) {
+    print("UPDATE?");
+    bloc.getUserFactories(widget.userId);
+    super.didUpdateWidget(oldWidget);
+  }
+
+  @override
   Widget build(BuildContext context) {
     return StreamBuilder<List<Factory>>(
-        stream: bloc.factories.stream,
+        stream: bloc.factories,
         builder: (context, snapshot) {
           if (snapshot.hasData) {
             return StreamBuilder<List<PlayerFactory>>(
-                stream: bloc.playerFactories.stream,
+                stream: bloc.playerFactories,
                 builder: (context, playerFsnapshot) {
                   if (playerFsnapshot.hasData) {
                     return ResponsiveListScaffold.builder(
@@ -55,8 +64,7 @@ class _FactoriesPageState extends State<FactoriesPage> {
                         Factory _factory = snapshot.data[index];
                         bool hasData = false;
                         PlayerFactory _playerFactory;
-                        print("Q");
-                        print(playerFsnapshot.data);
+                        print(playerFsnapshot.data[0].amount);
                         if (playerFsnapshot.data.length != 0) {
                           _playerFactory = playerFsnapshot.data.firstWhere(
                               (pf) => pf.factoryId == _factory.id,
@@ -75,19 +83,26 @@ class _FactoriesPageState extends State<FactoriesPage> {
                             icon: Icon(Icons.add_box),
                             tooltip: 'Increase volume by 10',
                             onPressed: () {
-                              bloc.buyFactorie(widget.userId, _factory.id);
+                              sl
+                                  .get<FactoryBloc>()
+                                  .buyFactorie(widget.userId, _factory.id);
                             },
                           ),
                         );
                       },
                     );
-                  } else {
-                    return Center(child: CircularProgressIndicator());
                   }
+                  return Center(child: CircularProgressIndicator());
                 });
           }
           return Center(child: CircularProgressIndicator());
         });
+  }
+
+  @override
+  void dispose() {
+    bloc.dispose();
+    super.dispose();
   }
 }
 

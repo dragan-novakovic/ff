@@ -20,7 +20,7 @@ class FactoryBloc extends Object {
       dynamic json = await api.getAll("/factories");
       List<Factory> response = Factories.fromJson(json).factories;
 
-      _factories.sink.add(response);
+      _factories.add(response);
       return response;
     } catch (e) {
       print('Error: $e');
@@ -34,7 +34,7 @@ class FactoryBloc extends Object {
       List<PlayerFactory> response =
           PlayerFactories.fromJson(json).playerFactories;
 
-      _playerFactories.sink.add(response);
+      _playerFactories.add(response);
       return response;
     } catch (e) {
       print('Error: $e');
@@ -44,13 +44,10 @@ class FactoryBloc extends Object {
 
   Future<void> buyFactorie(String userId, String factoryId) async {
     try {
-      dynamic json = await api.post("/buyFactories",
+      await api.post("/buyFactories",
           data: {"user_id": userId, "factory_id": factoryId});
 
-      PlayerFactory response = PlayerFactory.fromJson(json);
-      //print(response);
-      // _playerFactories.sink.add(response);
-      // return response;
+      getUserFactories(userId);
     } catch (e) {
       print('Error: $e');
       return null;
@@ -58,7 +55,7 @@ class FactoryBloc extends Object {
   }
 
   dispose() {
-    _factories.close();
-    _playerFactories.close();
+    // _factories.close();
+    // _playerFactories.close();
   }
 }

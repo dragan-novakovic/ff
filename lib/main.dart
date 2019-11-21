@@ -1,7 +1,12 @@
+import 'package:ff/blocs/rootBloc.dart';
 import 'package:ff/pages/Login.dart';
 import 'package:flutter/material.dart';
 
-void main() => runApp(MyApp());
+void main() {
+  WidgetsFlutterBinding.ensureInitialized();
+  setUpLocators();
+  runApp(MyApp());
+}
 
 class MyApp extends StatelessWidget {
   @override

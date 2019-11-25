@@ -4,8 +4,6 @@ import 'package:ff/models/User.dart';
 import 'package:ff/pages/Dashboard.dart';
 import 'package:flutter/material.dart';
 
-import 'Register.dart';
-
 class MyCustomClipper extends CustomClipper<Path> {
   @override
   Path getClip(Size size) {
@@ -36,12 +34,12 @@ class MyCustomClipper extends CustomClipper<Path> {
   }
 }
 
-class Login extends StatefulWidget {
+class Register extends StatefulWidget {
   @override
   _LoginState createState() => _LoginState();
 }
 
-class _LoginState extends State<Login> {
+class _LoginState extends State<Register> {
   LoginBloc _loginBloc = LoginBloc();
 
   @override
@@ -66,7 +64,7 @@ class _LoginState extends State<Login> {
               child: Column(
                 children: <Widget>[
                   Text(
-                    "E - GAME",
+                    "E - GAME ",
                     textScaleFactor: 1.5,
                     style: TextStyle(
                         color: Colors.white, fontWeight: FontWeight.bold),
@@ -80,6 +78,7 @@ class _LoginState extends State<Login> {
             child: Column(
               children: <Widget>[
                 emailField(_loginBloc),
+                usernameField(_loginBloc),
                 passwordField(_loginBloc),
                 submitButton(_loginBloc)
               ],
@@ -101,6 +100,23 @@ Widget emailField(LoginBloc bloc) {
         decoration: InputDecoration(
           hintText: 'ypu@example.com',
           labelText: 'Email Address',
+          errorText: snapshot.error,
+        ),
+      );
+    },
+  );
+}
+
+Widget usernameField(LoginBloc bloc) {
+  return StreamBuilder(
+    stream: bloc.username,
+    builder: (context, snapshot) {
+      return TextField(
+        onChanged: bloc.changeUsername,
+        keyboardType: TextInputType.text,
+        decoration: InputDecoration(
+          hintText: 'Username',
+          labelText: 'Username',
           errorText: snapshot.error,
         ),
       );
@@ -134,7 +150,7 @@ Widget submitButton(LoginBloc bloc) {
               margin: EdgeInsets.only(top: 30),
               child: SigninButton(
                 child: Text(
-                  "Login",
+                  "Register",
                   style: TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.bold,
@@ -143,7 +159,7 @@ Widget submitButton(LoginBloc bloc) {
                 ),
                 onPressed: snapshot.hasData
                     ? () async {
-                        User user = await bloc.submit();
+                        User user = await bloc.register();
                         if (user != null) {
                           Navigator.push(
                             context,
@@ -163,18 +179,13 @@ Widget submitButton(LoginBloc bloc) {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: <Widget>[
-                  Text("Don't have an Account ?"),
+                  Text("Already have an Account ?"),
                   InkWell(
                     onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => Register(),
-                        ),
-                      );
+                      print("Hello");
                     },
                     child: Text(
-                      "Register here",
+                      "Login here",
                       style: TextStyle(color: Colors.blueAccent),
                     ),
                   )

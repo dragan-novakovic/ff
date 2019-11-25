@@ -4,6 +4,8 @@ import 'package:ff/models/User.dart';
 import 'package:ff/pages/Dashboard.dart';
 import 'package:flutter/material.dart';
 
+import 'Login.dart';
+
 class MyCustomClipper extends CustomClipper<Path> {
   @override
   Path getClip(Size size) {
@@ -159,17 +161,13 @@ Widget submitButton(LoginBloc bloc) {
                 ),
                 onPressed: snapshot.hasData
                     ? () async {
-                        User user = await bloc.register();
-                        if (user != null) {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => Dashboard(
-                                user: user,
-                              ),
-                            ),
-                          );
-                        }
+                        await bloc.register();
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => Login(),
+                          ),
+                        );
                       }
                     : null,
               ),

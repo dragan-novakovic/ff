@@ -43,21 +43,19 @@ class LoginBloc extends Object with Validators {
     }
   }
 
-  Future<User> register() async {
+  Future<void> register() async {
     final validEmail = _emailController.value;
     final validPassword = _passwordController.value;
     final validUsername = _usernameController.value;
 
     try {
-      dynamic json = await api.post("/user", data: {
+      await api.post("/user", data: {
         "email": validEmail,
         "username": validUsername,
         "password": validPassword
       });
-
-      User result = User.fromJson(json);
-      return result;
     } catch (e) {
+      // Propagate Error
       print('Error: $e');
       return null;
     }

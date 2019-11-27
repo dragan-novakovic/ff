@@ -1,7 +1,5 @@
 import 'package:ff/blocs/UserBloc.dart';
 import 'package:ff/components/signin_button.dart';
-import 'package:ff/models/User.dart';
-import 'package:ff/pages/Dashboard.dart';
 import 'package:flutter/material.dart';
 
 import 'Login.dart';

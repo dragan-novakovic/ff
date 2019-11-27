@@ -136,122 +136,33 @@ class DashboardState extends State<Dashboard> {
         icon: Icon(Icons.search),
         onPressed: () {},
       ),
-      body: Center(
-        child: GridView.count(
-          primary: false,
-          crossAxisSpacing: 10.0,
-          crossAxisCount: 3,
-          children: <Widget>[
-            Container(
-              color: Colors.blue.shade100,
-              margin: EdgeInsets.all(5.0),
-              alignment: Alignment.center,
-              child: Text(
-                "Grid Elemanı",
-                textAlign: TextAlign.center,
+      body: Column(
+        children: <Widget>[
+          Center(
+            child: Container(
+                color: Colors.blueAccent,
+                margin: EdgeInsets.all(8),
+                height: 100,
+                width: MediaQuery.of(context).size.width - 40,
+                child: Text("News")),
+          ),
+          Column(
+            children: <Widget>[
+              Container(
+                child: ListTile(
+                  title: Text("You did't work today"),
+                  leading: Icon(Icons.access_time),
+                ),
               ),
-            ),
-            Container(
-              color: Colors.blue.shade100,
-              margin: EdgeInsets.all(5.0),
-              alignment: Alignment.center,
-              child: Text(
-                "Grid Elemanı",
-                textAlign: TextAlign.center,
-              ),
-            ),
-            Container(
-              color: Colors.blue.shade100,
-              margin: EdgeInsets.all(5.0),
-              alignment: Alignment.center,
-              child: Text(
-                "Grid Elemanı",
-                textAlign: TextAlign.center,
-              ),
-            ),
-            Container(
-              color: Colors.blue.shade100,
-              margin: EdgeInsets.all(5.0),
-              alignment: Alignment.center,
-              child: Text(
-                "Grid Elemanı",
-                textAlign: TextAlign.center,
-              ),
-            ),
-            Container(
-              color: Colors.blue.shade100,
-              margin: EdgeInsets.all(5.0),
-              alignment: Alignment.center,
-              child: Text(
-                "Grid Elemanı",
-                textAlign: TextAlign.center,
-              ),
-            ),
-            Container(
-              color: Colors.blue.shade100,
-              margin: EdgeInsets.all(5.0),
-              alignment: Alignment.center,
-              child: Text(
-                "Grid Elemanı",
-                textAlign: TextAlign.center,
-              ),
-            ),
-            Container(
-              color: Colors.blue.shade100,
-              margin: EdgeInsets.all(5.0),
-              alignment: Alignment.center,
-              child: Text(
-                "Grid Elemanı",
-                textAlign: TextAlign.center,
-              ),
-            ),
-            Container(
-              color: Colors.blue.shade100,
-              margin: EdgeInsets.all(5.0),
-              alignment: Alignment.center,
-              child: Text(
-                "Grid Elemanı",
-                textAlign: TextAlign.center,
-              ),
-            ),
-            Container(
-              color: Colors.blue.shade100,
-              margin: EdgeInsets.all(5.0),
-              alignment: Alignment.center,
-              child: Text(
-                "Grid Elemanı",
-                textAlign: TextAlign.center,
-              ),
-            ),
-            Container(
-              color: Colors.blue.shade100,
-              margin: EdgeInsets.all(5.0),
-              alignment: Alignment.center,
-              child: Text(
-                "Grid Elemanı",
-                textAlign: TextAlign.center,
-              ),
-            ),
-            Container(
-              color: Colors.blue.shade100,
-              margin: EdgeInsets.all(5.0),
-              alignment: Alignment.center,
-              child: Text(
-                "Grid Elemanı",
-                textAlign: TextAlign.center,
-              ),
-            ),
-            Container(
-              color: Colors.blue.shade100,
-              margin: EdgeInsets.all(5.0),
-              alignment: Alignment.center,
-              child: Text(
-                "Grid Elemanı",
-                textAlign: TextAlign.center,
-              ),
-            ),
-          ],
-        ),
+              Container(
+                child: ListTile(
+                  title: Text("You did't train today"),
+                  leading: Icon(Icons.access_time),
+                ),
+              )
+            ],
+          ),
+        ],
       ),
     );
   }

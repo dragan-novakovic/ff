@@ -28,6 +28,8 @@ dependencies:
   intl: ^0.16.0
   localstorage: ^3.0.0
   get_it: ^3.0.3
+  giffy_dialog: ^1.6.1
+  percent_indicator: ^2.1.1+1
 
 dev_dependencies:
   flutter_test:
@@ -36,8 +38,9 @@ dev_dependencies:
 flutter:
   uses-material-design: true
   assets:
-    - assets/images/
     - assets/
+    - assets/images/
+    - assets/images/factories/
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/assets-and-images/#resolution-aware.
   # For details regarding adding assets from package dependencies, see

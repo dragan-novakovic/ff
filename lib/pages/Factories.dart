@@ -2,7 +2,9 @@ import 'package:ff/blocs/FactoryBloc.dart';
 import 'package:ff/blocs/rootBloc.dart';
 import 'package:ff/models/Factory.dart';
 import 'package:ff/models/User.dart';
+import 'package:ff/utils/ImageSelector.dart';
 import 'package:flutter/material.dart';
+import 'package:giffy_dialog/giffy_dialog.dart';
 import 'package:responsive_scaffold/responsive_scaffold.dart';
 
 class FactoriesPage extends StatefulWidget {
@@ -73,19 +75,44 @@ class _FactoriesPageState extends State<FactoriesPage> {
                             hasData = true;
                           }
                         }
+                        // Text(
+                        //       'No: ${hasData ? _playerFactory.amount : 0}')
 
                         return ListTile(
-                          leading: Text(
-                              'No: ${hasData ? _playerFactory.amount : 0}'),
+                          leading: ImageSelector.getImage(_factory.name),
                           title: Text('${_factory.name}'),
-                          subtitle: Text('${_factory.goldPerDay}'),
+                          subtitle: Text('''${_factory.goldPerDay} gold/h
+Amount: ${hasData ? _playerFactory.amount : 0}                          '''),
+                          isThreeLine: true,
                           trailing: IconButton(
                             icon: Icon(Icons.add_box),
-                            tooltip: 'Increase volume by 10',
+                            tooltip: 'Buy',
                             onPressed: () {
-                              sl
-                                  .get<FactoryBloc>()
-                                  .buyFactorie(widget.userId, _factory.id);
+                              showDialog(
+                                  context: context,
+                                  builder: (_) => NetworkGiffyDialog(
+                                        image: Image.network(
+                                          "https://raw.githubusercontent.com/Shashank02051997/FancyGifDialog-Android/master/GIF's/gif14.gif",
+                                          fit: BoxFit.cover,
+                                        ),
+                                        entryAnimation: EntryAnimation.TOP_LEFT,
+                                        title: Text(
+                                          'Granny Eating Chocolate',
+                                          textAlign: TextAlign.center,
+                                          style: TextStyle(
+                                              fontSize: 22.0,
+                                              fontWeight: FontWeight.w600),
+                                        ),
+                                        description: Text(
+                                          'This is a granny eating chocolate dialog box. This library helps you easily create fancy giffy dialog.',
+                                          textAlign: TextAlign.center,
+                                        ),
+                                        onOkButtonPressed: () {
+                                          sl.get<FactoryBloc>().buyFactorie(
+                                              widget.userId, _factory.id);
+                                          Navigator.of(context).pop();
+                                        },
+                                      ));
                             },
                           ),
                         );
@@ -120,10 +147,6 @@ class BodyDetails extends StatelessWidget {
         title: Text("Details"),
         automaticallyImplyLeading: !tablet,
         actions: [
-          IconButton(
-            icon: Icon(Icons.share),
-            onPressed: () {},
-          ),
           IconButton(
             icon: Icon(Icons.delete),
             onPressed: () {

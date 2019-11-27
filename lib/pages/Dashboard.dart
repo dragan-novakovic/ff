@@ -3,6 +3,7 @@ import 'package:ff/models/User.dart';
 import 'package:ff/pages/Factories.dart';
 import 'package:ff/utils/Utils.dart';
 import 'package:flutter/material.dart';
+import 'package:percent_indicator/circular_percent_indicator.dart';
 import 'package:responsive_scaffold/responsive_scaffold.dart';
 
 class Dashboard extends StatefulWidget {
@@ -35,12 +36,24 @@ class DashboardState extends State<Dashboard> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: <Widget>[
-                    CircleAvatar(
-                      minRadius: 60,
+                    CircularPercentIndicator(
+                      radius: 100.0,
+                      lineWidth: 10.0,
+                      percent: 0.1,
+                      center: CircleAvatar(
+                        radius: 40,
+                        child: ClipOval(
+                          child: Image.network(
+                            'https://placeimg.com/200/200/people',
+                            width: 100,
+                            height: 100,
+                            fit: BoxFit.fill,
+                          ),
+                        ),
+                      ),
+                      reverse: true,
                       backgroundColor: Colors.white,
-                      child: CircleAvatar(
-                          backgroundImage: NetworkImage(
-                              "http://via.placeholder.com/400x400")),
+                      progressColor: Colors.blue.shade900,
                     ),
                   ],
                 ),
@@ -106,26 +119,53 @@ class DashboardState extends State<Dashboard> {
             ),
           ),
           InkWell(
-            child: ListTile(
+            child: ExpansionTile(
               title: Text(
-                "Development",
+                "My Buildings",
                 style: TextStyle(color: Colors.blue, fontSize: 12.0),
               ),
-              subtitle: Text(
-                "Factories",
-                style: TextStyle(fontSize: 18.0),
-              ),
+              children: <Widget>[
+                navTile(context, widget,
+                    title: "Development", subtitle: "Factories"),
+                navTile(context, widget,
+                    title: "Development", subtitle: "Buildings"),
+                navTile(context, widget,
+                    title: "Development", subtitle: "Storage")
+              ],
             ),
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                    builder: (context) =>
-                        FactoriesPage(userId: widget.user.id)),
-              );
-            },
           ),
-          Divider(),
+          InkWell(
+            child: ExpansionTile(
+              title: Text(
+                "Market",
+                style: TextStyle(color: Colors.blue, fontSize: 12.0),
+              ),
+              children: <Widget>[
+                navTile(context, widget,
+                    title: "Development", subtitle: "Factories"),
+                navTile(context, widget,
+                    title: "Development", subtitle: "Buildings"),
+                navTile(context, widget,
+                    title: "Development", subtitle: "Storage")
+              ],
+            ),
+          ),
+          InkWell(
+            child: ExpansionTile(
+              title: Text(
+                "Channels",
+                style: TextStyle(color: Colors.blue, fontSize: 12.0),
+              ),
+              children: <Widget>[
+                navTile(context, widget,
+                    title: "Development", subtitle: "Factories"),
+                navTile(context, widget,
+                    title: "Development", subtitle: "Buildings"),
+                navTile(context, widget,
+                    title: "Development", subtitle: "Storage")
+              ],
+            ),
+          ),
         ],
       ),
       endIcon: Icons.filter_list,
@@ -167,3 +207,23 @@ class DashboardState extends State<Dashboard> {
     );
   }
 }
+
+Widget navTile(context, widget, {String title, String subtitle}) => InkWell(
+      child: ListTile(
+        title: Text(
+          title,
+          style: TextStyle(color: Colors.blue, fontSize: 12.0),
+        ),
+        subtitle: Text(
+          subtitle,
+          style: TextStyle(fontSize: 18.0),
+        ),
+      ),
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+              builder: (context) => FactoriesPage(userId: widget.user.id)),
+        );
+      },
+    );

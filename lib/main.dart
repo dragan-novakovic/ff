@@ -1,5 +1,6 @@
 import 'package:ff/blocs/rootBloc.dart';
 import 'package:ff/pages/Login.dart';
+import 'package:ff/pages/Missions.dart';
 import 'package:flutter/material.dart';
 
 void main() {
@@ -16,7 +17,13 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         primarySwatch: Colors.blue,
       ),
-      home: Login(),
+      initialRoute: '/',
+      routes: {
+        // When navigating to the "/" route, build the FirstScreen widget.
+        '/': (context) => Login(),
+        // When navigating to the "/second" route, build the SecondScreen widget.
+        '/missions': (context) => MissionsPage(),
+      },
     );
   }
 }

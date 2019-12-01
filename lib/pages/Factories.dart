@@ -176,7 +176,7 @@ class BodyDetails extends StatelessWidget {
             Row(
               children: <Widget>[
                 Padding(
-                  padding: const EdgeInsets.all(32.0),
+                  padding: const EdgeInsets.all(30.0),
                   child: Container(
                     child: ImageSelector.getImage('any', 1),
                   ),
@@ -185,47 +185,98 @@ class BodyDetails extends StatelessWidget {
                   height: 150,
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: <Widget>[
-                      Center(
-                        child: Text("Name: ${data[index].name}"),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.max,
+                        children: <Widget>[
+                          Text(
+                            "Name:    ",
+                            style: TextStyle(fontWeight: FontWeight.w600),
+                          ),
+                          Text("${data[index].name}")
+                        ],
                       ),
-                      Center(
-                        child: Text("Price: 222 gold"),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.start,
+                        children: <Widget>[
+                          Text("Level:",
+                              style: TextStyle(fontWeight: FontWeight.w600)),
+                          if (data[index].level != null)
+                            ..._renderLvls(data[index].level)
+                        ],
+                      ),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.start,
+                        children: <Widget>[
+                          Text("Price:    ",
+                              style: TextStyle(fontWeight: FontWeight.w600)),
+                          Text("${data[index].price} "),
+                          ImageSelector.getIcon('gold-s')
+                        ],
                       ),
                     ],
                   ),
                 ),
               ],
             ),
+            Divider(),
             Padding(
               padding: const EdgeInsets.only(left: 50, right: 50, top: 50),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: <Widget>[
-                  Column(
-                    children: <Widget>[
-                      Text("Weapons"),
-                      ImageSelector.getIcon('weapon'),
-                      Text("+5")
-                    ],
+                  Container(
+                    decoration: BoxDecoration(
+                        border: Border.all(color: Colors.grey, width: 1)),
+                    child: Column(
+                      children: <Widget>[
+                        Text("Weapons"),
+                        Container(
+                          height: 100,
+                          child: ImageSelector.getIcon('weapon'),
+                        ),
+                        Text("+5")
+                      ],
+                    ),
                   ),
-                  Column(
-                    children: <Widget>[
-                      Text("Gold"),
-                      ImageSelector.getIcon('gold-l'),
-                      Text("+5")
-                    ],
+                  Container(
+                    decoration: BoxDecoration(
+                        border: Border.all(color: Colors.grey, width: 1)),
+                    child: Column(
+                      children: <Widget>[
+                        Text("Gold"),
+                        Container(
+                          height: 100,
+                          child: ImageSelector.getIcon('gold-l'),
+                        ),
+                        Text("+5")
+                      ],
+                    ),
                   ),
                 ],
               ),
             ),
-            RaisedButton(
-              onPressed: () {},
-              child: Text("UPGRADE"),
+            Padding(
+              padding: const EdgeInsets.only(top: 60),
+              child: RaisedButton(
+                onPressed: () {},
+                child: Text("UPGRADE"),
+              ),
             )
           ],
         ),
       ),
     );
   }
+}
+
+List<Widget> _renderLvls(int lvl) {
+  List<Widget> starList = new List(5);
+  print(lvl);
+  starList.fillRange(0, lvl, Icon(Icons.star));
+  return starList
+      .map((item) => item == null ? Icon(Icons.star_border) : item)
+      .toList();
 }

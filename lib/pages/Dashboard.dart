@@ -206,6 +206,7 @@ Widget dashboardDrawer(context, widget) => ListView(
             ),
             children: <Widget>[
               navTile(context, widget, title: "Channel", subtitle: "Global"),
+              navTile(context, widget, title: "Channel", subtitle: "Guild"),
             ],
           ),
         ),

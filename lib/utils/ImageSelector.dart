@@ -27,6 +27,8 @@ class ImageSelector {
         return img('assets/images/store_2.png');
       case "exp":
         return img('assets/images/xp-s.png');
+      case "energy":
+        return img('assets/images/energy.png');
       default:
         return img('assets/images/xp-s.png');
     }

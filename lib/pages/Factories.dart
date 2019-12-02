@@ -1,5 +1,6 @@
 import 'package:ff/blocs/FactoryBloc.dart';
 import 'package:ff/blocs/rootBloc.dart';
+import 'package:ff/components/itemCard.dart';
 import 'package:ff/models/Factory.dart';
 import 'package:ff/models/User.dart';
 import 'package:ff/utils/ImageSelector.dart';
@@ -221,48 +222,62 @@ class BodyDetails extends StatelessWidget {
                 ),
               ],
             ),
-            Divider(),
+            Divider(
+              thickness: 2,
+              indent: 20,
+              endIndent: 20,
+              color: Colors.black26,
+            ),
             Padding(
               padding: const EdgeInsets.only(left: 50, right: 50, top: 50),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: <Widget>[
-                  Container(
-                    decoration: BoxDecoration(
-                        border: Border.all(color: Colors.grey, width: 1)),
-                    child: Column(
-                      children: <Widget>[
-                        Text("Weapons"),
-                        Container(
-                          height: 100,
-                          child: ImageSelector.getIcon('weapon'),
-                        ),
-                        Text("+5")
-                      ],
-                    ),
+                  ItemCard(
+                    text: "Weapons",
+                    amount: "+5",
+                    img: "weapon",
                   ),
-                  Container(
-                    decoration: BoxDecoration(
-                        border: Border.all(color: Colors.grey, width: 1)),
-                    child: Column(
-                      children: <Widget>[
-                        Text("Gold"),
-                        Container(
-                          height: 100,
-                          child: ImageSelector.getIcon('gold-l'),
-                        ),
-                        Text("+5")
-                      ],
-                    ),
-                  ),
+                  ItemCard(
+                    text: "Gold",
+                  )
                 ],
               ),
             ),
             Padding(
               padding: const EdgeInsets.only(top: 60),
-              child: RaisedButton(
-                onPressed: () {},
-                child: Text("UPGRADE"),
+              child: Container(
+                width: 200,
+                child: RaisedButton(
+                  color: Colors.blue,
+                  textColor: Colors.white,
+                  onPressed: () {
+                    showDialog(
+                        context: context,
+                        builder: (_) => NetworkGiffyDialog(
+                              image: Image.network(
+                                "https://techcrunch.com/wp-content/uploads/2015/08/safe_image.gif",
+                                fit: BoxFit.cover,
+                              ),
+                              entryAnimation: EntryAnimation.TOP_LEFT,
+                              title: Text(
+                                'Upgrading Factory',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                    fontSize: 22.0,
+                                    fontWeight: FontWeight.w600),
+                              ),
+                              description: Text(
+                                'Should have mini itemCards with new numbers, or info missing resourses, Picture of next lvl factory',
+                                textAlign: TextAlign.center,
+                              ),
+                              onOkButtonPressed: () {
+                                Navigator.of(context).pop();
+                              },
+                            ));
+                  },
+                  child: Text("UPGRADE"),
+                ),
               ),
             )
           ],
@@ -275,7 +290,13 @@ class BodyDetails extends StatelessWidget {
 List<Widget> _renderLvls(int lvl) {
   List<Widget> starList = new List(5);
   print(lvl);
-  starList.fillRange(0, lvl, Icon(Icons.star));
+  starList.fillRange(
+      0,
+      lvl,
+      Icon(
+        Icons.star,
+        color: Colors.black54,
+      ));
   return starList
       .map((item) => item == null ? Icon(Icons.star_border) : item)
       .toList();

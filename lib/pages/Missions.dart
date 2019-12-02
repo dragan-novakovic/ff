@@ -1,3 +1,4 @@
+import 'package:ff/components/itemCard.dart';
 import 'package:flutter/material.dart';
 
 import 'package:responsive_scaffold/responsive_scaffold.dart';
@@ -25,18 +26,20 @@ class _MissionsState extends State<MissionsPage> {
             title: Text("Missions"),
           ),
         ],
-        itemCount: 5,
+        itemCount: 3,
         itemBuilder: (BuildContext context, int index) {
-          return ListTile(
-            leading: Icon(Icons.check_circle),
-            title: Text("Campign $index"),
-            subtitle: Text("Reqirments:\n 10x Weapons 10 Food 10 Energy"),
-            isThreeLine: true,
-            trailing: RaisedButton(
-              onPressed: () {},
-              child: Text("Battle"),
-            ),
-          );
+          return index == 0
+              ? MissionItem()
+              : ListTile(
+                  leading: Icon(Icons.check_circle),
+                  title: Text("Campign $index"),
+                  subtitle: Text("Reqirments:\n 10x Weapons 10 Food 10 Energy"),
+                  isThreeLine: true,
+                  trailing: RaisedButton(
+                    onPressed: () {},
+                    child: Text("Battle"),
+                  ),
+                );
         },
         bottomNavigationBar: BottomAppBar(
           elevation: 0.0,
@@ -103,3 +106,77 @@ _detailScreen(tablet, context, index) => DetailsScreen(
         ),
       ),
     );
+
+class MissionItem extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return (Container(
+      height: 120,
+      margin: EdgeInsets.only(left: 8, right: 8, top: 10),
+      decoration:
+          BoxDecoration(border: Border.all(width: 1, color: Colors.black54)),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: <Widget>[
+          Column(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: <Widget>[
+              Text(
+                "Campign 1",
+                style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 1),
+              ),
+              Row(
+                children: <Widget>[
+                  Text("Requirments:    "),
+                  ItemCard(
+                    height: 40,
+                    mini: true,
+                    amount: "50",
+                    img: "food",
+                  ),
+                  ItemCard(
+                    height: 40,
+                    mini: true,
+                    amount: "50",
+                    img: "weapon",
+                  ),
+                  ItemCard(
+                    height: 40,
+                    mini: true,
+                    amount: "50",
+                    img: "exp",
+                  ),
+                  ItemCard(
+                    height: 40,
+                    mini: true,
+                    amount: "50",
+                    img: "energy",
+                  )
+                ],
+              )
+            ],
+          ),
+          Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: <Widget>[
+              Container(
+                width: 80,
+                height: 50,
+                margin: EdgeInsets.only(right: 10),
+                child: RaisedButton(
+                  onPressed: () {},
+                  child: Text("Battle"),
+                ),
+              ),
+            ],
+          )
+        ],
+      ),
+    ));
+  }
+}

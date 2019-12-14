@@ -91,7 +91,7 @@ _listItem(context, snapshot, index, playerFsnapshot, widget) {
   Factory _factory = snapshot.data[index];
   bool hasData = false;
   PlayerFactory _playerFactory;
-  print(playerFsnapshot.data[0].amount);
+  //print(playerFsnapshot.data[0].amount);
   if (playerFsnapshot.data.length != 0) {
     _playerFactory = playerFsnapshot.data
         .firstWhere((pf) => pf.factoryId == _factory.id, orElse: () => null);
@@ -137,7 +137,9 @@ Amount: ${_playerFactory.amount}'''),
                         ));
               }),
         )
-      : null;
+      : Center(
+          child: Text("U dont own any company"),
+        );
 }
 
 class BodyDetails extends StatelessWidget {

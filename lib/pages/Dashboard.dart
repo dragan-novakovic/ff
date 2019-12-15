@@ -217,14 +217,63 @@ Widget endDashboardDrawer(context, widget) => ListView(children: <Widget>[]);
 
 Widget dashboardBody(context, widget) => Column(
       children: <Widget>[
-        Center(
-          child: Container(
-              color: Colors.blueAccent,
-              margin: EdgeInsets.all(8),
-              height: 100,
-              width: MediaQuery.of(context).size.width - 40,
-              child: Text("News")),
-        ),
+        Container(
+            decoration: BoxDecoration(
+                borderRadius: BorderRadius.all(Radius.circular(10)),
+                color: Colors.blueAccent),
+            margin: EdgeInsets.all(8),
+            height: 160,
+            width: MediaQuery.of(context).size.width - 40,
+            child: Column(children: <Widget>[
+              Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: Container(
+                    alignment: Alignment.topLeft,
+                    child: Text(
+                      "News:",
+                      style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold),
+                    )),
+              ),
+              Expanded(
+                child: ListView(
+                  scrollDirection: Axis.vertical,
+                  children: <Widget>[
+                    ListTile(
+                      title: Text("Added Player Inventory"),
+                      dense: true,
+                      leading: Icon(
+                        Icons.fiber_manual_record,
+                        color: Colors.black,
+                        size: 16,
+                      ),
+                    ),
+                    ListTile(
+                      title: Text(
+                          "New factory resourses, added weapon quality and gold reward"),
+                      dense: true,
+                      leading: Icon(
+                        Icons.fiber_manual_record,
+                        color: Colors.black,
+                        size: 16,
+                      ),
+                    ),
+                    ListTile(
+                      title: Text(
+                          "Storage implemented, with maximum starting capacity of 100"),
+                      dense: true,
+                      leading: Icon(
+                        Icons.fiber_manual_record,
+                        color: Colors.black,
+                        size: 16,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ])),
         Column(
           children: <Widget>[
             Container(

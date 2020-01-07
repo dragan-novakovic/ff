@@ -221,7 +221,7 @@ Widget dashboardBody(context, widget) => Column(
             decoration: BoxDecoration(
                 borderRadius: BorderRadius.all(Radius.circular(10)),
                 color: Colors.blueAccent),
-            margin: EdgeInsets.all(8),
+            margin: EdgeInsets.all(12),
             height: 160,
             width: MediaQuery.of(context).size.width - 40,
             child: Column(children: <Widget>[

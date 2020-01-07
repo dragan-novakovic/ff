@@ -6,6 +6,7 @@ import 'package:ff/models/User.dart';
 import 'package:ff/utils/ImageSelector.dart';
 import 'package:flutter/material.dart';
 import 'package:giffy_dialog/giffy_dialog.dart';
+import 'package:intl/intl.dart';
 import 'package:responsive_scaffold/responsive_scaffold.dart';
 
 class FactoriesPage extends StatefulWidget {
@@ -54,13 +55,44 @@ class _FactoriesPageState extends State<FactoriesPage> {
                       emptyItems: Center(child: Text("No Items Found")),
                       slivers: <Widget>[
                         SliverAppBar(
-                          title: Text("Factories"),
+                          title: Text("Your Factories"),
                         ),
                       ],
                       floatingActionButton: FloatingActionButton(
                         child: Icon(Icons.add),
                         tooltip: "Buy new Factory",
-                        onPressed: () {},
+                        onPressed: () {
+                          showModalBottomSheet(
+                              context: context,
+                              builder: (BuildContext bc) {
+                                List<ListTile> starterFactories = snapshot.data
+                                    .where((fact) => fact.level == 1)
+                                    .map(
+                                      (fact) => ListTile(
+                                          leading: ImageSelector.getImage(
+                                              fact.name, 1),
+                                          title: Text(fact.name),
+                                          trailing: RaisedButton(
+                                            child: Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: <Widget>[
+                                                Text(fact.price.toString()),
+                                                ImageSelector.getIcon('gold-s')
+                                              ],
+                                            ),
+                                            onPressed: () {},
+                                          ),
+                                          onTap: () => {}),
+                                    )
+                                    .toList();
+
+                                return Container(
+                                  child: new Wrap(
+                                    children: <Widget>[...starterFactories],
+                                  ),
+                                );
+                              });
+                        },
                       ),
                       itemCount: snapshot.data.length,
                       itemBuilder: (BuildContext context, int index) {
@@ -90,6 +122,7 @@ _factoryDetails(tablet, index, snapshot) => DetailsScreen(
 _listItem(context, snapshot, index, playerFsnapshot, widget) {
   Factory _factory = snapshot.data[index];
   bool hasData = false;
+  List<Widget> factories = [];
   PlayerFactory _playerFactory;
   //print(playerFsnapshot.data[0].amount);
   if (playerFsnapshot.data.length != 0) {
@@ -97,49 +130,56 @@ _listItem(context, snapshot, index, playerFsnapshot, widget) {
         .firstWhere((pf) => pf.factoryId == _factory.id, orElse: () => null);
     if (_playerFactory != null) {
       hasData = true;
+
+      for (int i = 0; i < _playerFactory.amount; i++) {
+        factories.add(
+          ListTile(
+            leading: ImageSelector.getImage(_factory.name, _factory.level),
+            title: Text('${_factory.name}'),
+            subtitle: Text('''${_factory.goldPerDay} gold/h'''),
+            isThreeLine: false,
+            trailing: RaisedButton(
+                child: Text("Work"),
+                onPressed: () {
+                  showDialog(
+                      context: context,
+                      builder: (_) => NetworkGiffyDialog(
+                            image: Image.network(
+                              "https://raw.githubusercontent.com/Shashank02051997/FancyGifDialog-Android/master/GIF's/gif14.gif",
+                              fit: BoxFit.cover,
+                            ),
+                            entryAnimation: EntryAnimation.TOP_LEFT,
+                            title: Text(
+                              'Granny Eating Chocolate',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                  fontSize: 22.0, fontWeight: FontWeight.w600),
+                            ),
+                            description: Text(
+                              'This is a granny eating chocolate dialog box. This library helps you easily create fancy giffy dialog.',
+                              textAlign: TextAlign.center,
+                            ),
+                            onOkButtonPressed: () {
+                              sl
+                                  .get<FactoryBloc>()
+                                  .buyFactorie(widget.userId, _factory.id);
+                              Navigator.of(context).pop();
+                            },
+                          ));
+                }),
+          ),
+        );
+      }
     }
   }
 
+  print(factories);
+  print(factories.length);
   return hasData
-      ? ListTile(
-          leading: ImageSelector.getImage(_factory.name, _factory.level),
-          title: Text('${_factory.name}'),
-          subtitle: Text('''${_factory.goldPerDay} gold/h
-Amount: ${_playerFactory.amount}'''),
-          isThreeLine: true,
-          trailing: RaisedButton(
-              child: Text("Work"),
-              onPressed: () {
-                showDialog(
-                    context: context,
-                    builder: (_) => NetworkGiffyDialog(
-                          image: Image.network(
-                            "https://raw.githubusercontent.com/Shashank02051997/FancyGifDialog-Android/master/GIF's/gif14.gif",
-                            fit: BoxFit.cover,
-                          ),
-                          entryAnimation: EntryAnimation.TOP_LEFT,
-                          title: Text(
-                            'Granny Eating Chocolate',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                                fontSize: 22.0, fontWeight: FontWeight.w600),
-                          ),
-                          description: Text(
-                            'This is a granny eating chocolate dialog box. This library helps you easily create fancy giffy dialog.',
-                            textAlign: TextAlign.center,
-                          ),
-                          onOkButtonPressed: () {
-                            sl
-                                .get<FactoryBloc>()
-                                .buyFactorie(widget.userId, _factory.id);
-                            Navigator.of(context).pop();
-                          },
-                        ));
-              }),
+      ? Column(
+          children: <Widget>[...factories],
         )
-      : Center(
-          child: Text("U dont own any company"),
-        );
+      : null;
 }
 
 class BodyDetails extends StatelessWidget {
@@ -236,12 +276,13 @@ class BodyDetails extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: <Widget>[
                   ItemCard(
-                    text: "Weapons",
-                    amount: "+5",
-                    img: "weapon",
+                    text: "${toBeginningOfSentenceCase(data[index].product)}s",
+                    amount: "+${data[index].productAmount}",
+                    img: data[index].product,
                   ),
                   ItemCard(
                     text: "Gold",
+                    amount: "+${data[index].goldPerDay}/day",
                   )
                 ],
               ),

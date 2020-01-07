@@ -80,7 +80,12 @@ class _FactoriesPageState extends State<FactoriesPage> {
                                                 ImageSelector.getIcon('gold-s')
                                               ],
                                             ),
-                                            onPressed: () {},
+                                            onPressed: () {
+                                              sl.get<FactoryBloc>().buyFactorie(
+                                                    widget.userId,
+                                                    fact.id,
+                                                  );
+                                            },
                                           ),
                                           onTap: () => {}),
                                     )
@@ -173,8 +178,6 @@ _listItem(context, snapshot, index, playerFsnapshot, widget) {
     }
   }
 
-  print(factories);
-  print(factories.length);
   return hasData
       ? Column(
           children: <Widget>[...factories],

@@ -54,6 +54,19 @@ class FactoryBloc extends Object {
     }
   }
 
+  Future<String> upgradeFactory(String userId, String factoryId) async {
+    try {
+      String response = await api.post("/upgradefactory",
+          data: {"user_id": userId, "factory_id": factoryId});
+
+      //  getUserFactories(userId); refetch?
+      return response;
+    } catch (e) {
+      print('Error: $e');
+      return null;
+    }
+  }
+
   dispose() {
     // _factories.close();
     // _playerFactories.close();

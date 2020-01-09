@@ -30,7 +30,7 @@ class _FactoriesPageState extends State<FactoriesPage> {
 
   @override
   void didUpdateWidget(FactoriesPage oldWidget) {
-    print("UPDATE?");
+    // print("UPDATE?");
     bloc.getUserFactories(widget.userId);
     super.didUpdateWidget(oldWidget);
   }
@@ -49,7 +49,14 @@ class _FactoriesPageState extends State<FactoriesPage> {
                       scaffoldKey: _scaffoldKey,
                       detailBuilder:
                           (BuildContext context, int index, bool tablet) {
-                        return _factoryDetails(tablet, index, snapshot);
+                        return DetailsScreen(
+                          body: new BodyDetails(
+                            tablet: tablet,
+                            index: index,
+                            data: snapshot.data,
+                            userData: widget.userId,
+                          ),
+                        );
                       },
                       nullItems: Center(child: CircularProgressIndicator()),
                       emptyItems: Center(child: Text("No Items Found")),
@@ -120,10 +127,6 @@ class _FactoriesPageState extends State<FactoriesPage> {
   }
 }
 
-_factoryDetails(tablet, index, snapshot) => DetailsScreen(
-      body: new BodyDetails(tablet: tablet, index: index, data: snapshot.data),
-    );
-
 _listItem(context, snapshot, index, playerFsnapshot, widget) {
   Factory _factory = snapshot.data[index];
   bool hasData = false;
@@ -189,7 +192,10 @@ class BodyDetails extends StatelessWidget {
   final bool tablet;
   final int index;
   final List<Factory> data;
-  BodyDetails({Key key, this.tablet, this.index, this.data}) : super(key: key);
+  final String userData;
+  BodyDetails(
+      {Key key, this.tablet, this.index, this.data, @required this.userData})
+      : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -317,7 +323,11 @@ class BodyDetails extends StatelessWidget {
                                 'Should have mini itemCards with new numbers, or info missing resourses, Picture of next lvl factory',
                                 textAlign: TextAlign.center,
                               ),
-                              onOkButtonPressed: () {
+                              onOkButtonPressed: () async {
+                                String response = await sl
+                                    .get<FactoryBloc>()
+                                    .upgradeFactory(userData, data[index].id);
+                                print(response);
                                 Navigator.of(context).pop();
                               },
                             ));
@@ -335,7 +345,6 @@ class BodyDetails extends StatelessWidget {
 
 List<Widget> _renderLvls(int lvl) {
   List<Widget> starList = new List(5);
-  print(lvl);
   starList.fillRange(
       0,
       lvl,

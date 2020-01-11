@@ -3,6 +3,8 @@ import 'package:ff/pages/Login.dart';
 import 'package:ff/pages/Missions.dart';
 import 'package:flutter/material.dart';
 
+import 'pages/Inventory.dart';
+
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
   setUpLocators();
@@ -21,7 +23,7 @@ class MyApp extends StatelessWidget {
       routes: {
         // When navigating to the "/" route, build the FirstScreen widget.
         '/': (context) => Login(),
-        // When navigating to the "/second" route, build the SecondScreen widget.
+        '/storage': (context) => StoragePage(),
         '/missions': (context) => MissionsPage(),
       },
     );

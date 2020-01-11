@@ -31,7 +31,7 @@ class DashboardState extends State<Dashboard> {
 }
 
 Widget navTile(context, widget,
-        {String title, String subtitle, String route}) =>
+        {String title, String subtitle, String route, String props}) =>
     InkWell(
       child: ListTile(
         title: Text(
@@ -45,7 +45,12 @@ Widget navTile(context, widget,
       ),
       onTap: () {
         if (route != null) {
-          Navigator.pushNamed(context, route);
+          if (props != null) {
+            Navigator.pushNamed(context, route, arguments: {'id': props});
+          } else {
+            Navigator.pushNamed(context, route);
+          }
+
           return;
         }
         Navigator.push(
@@ -169,7 +174,10 @@ Widget dashboardDrawer(context, widget) => ListView(
               navTile(context, widget,
                   title: "Development", subtitle: "Buildings"),
               navTile(context, widget,
-                  title: "Development", subtitle: "Storage"),
+                  title: "Development",
+                  subtitle: "Storage",
+                  route: '/storage',
+                  props: widget.user.id),
             ],
           ),
         ),

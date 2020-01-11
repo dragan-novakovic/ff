@@ -61,6 +61,19 @@ class LoginBloc extends Object with Validators {
     }
   }
 
+  Future<void> get_inventory(String userInventoryId) async {
+    try {
+      Inventory userInventory = await api.post("/user", data: {
+        "user_inventory_id": userInventoryId,
+      });
+
+      return userInventory;
+    } catch (e) {
+      print('Error: $e');
+      return null;
+    }
+  }
+
   void dispose() {
     _emailController.close();
     _passwordController.close();

@@ -1,47 +1,25 @@
-class Factories {
-  final List<Factory> factories;
-
-  Factories(this.factories);
-
-  Factories.fromJson(List<dynamic> json)
-      : factories = (json).map((fc) => Factory.fromJson((fc))).toList();
-
-  @override
-  String toString() {
-    return '''FACTORY List {
-      factories: ${this.factories},
-      }''';
-  }
-}
-
 class UserInventory {
   final String id;
-  final int level;
-  final int goldPerDay;
-  final int price;
-  final String name;
-  final int productAmount;
-  final String product;
+  final int capacity;
+  final int specialCurrency;
+  final int foodQ1;
+  final int weaponQ1;
 
-  Factory(this.id, this.level, this.goldPerDay, this.price, this.name,
-      this.product, this.productAmount);
+  UserInventory(
+      this.id, this.capacity, this.specialCurrency, this.foodQ1, this.weaponQ1);
 
-  Factory.fromJson(Map<String, dynamic> json)
+  UserInventory.fromJson(Map<String, dynamic> json)
       : id = json['id'],
-        level = json['level'],
-        goldPerDay = json['gold_per_day'],
-        price = json['price'],
-        productAmount = json['product_amount'],
-        product = json['product'],
-        name = json['name'];
+        capacity = json['capacity'],
+        specialCurrency = json['special_currency'],
+        foodQ1 = json['food_q1'],
+        weaponQ1 = json['weapon_q1'];
 
   @override
   String toString() {
-    return '''FACTORY {
+    return '''INVENTORY {
       id: ${this.id},
-      level: ${this.level},
-      name: ${this.name},
-      price: ${this.price}
+      capacity: ${this.capacity},
       }''';
   }
 }

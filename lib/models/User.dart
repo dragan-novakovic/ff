@@ -33,13 +33,20 @@ class PlayerData {
   final int energy;
   final int gold;
   final int exp;
+  //last updated?
+  //gold_acc
+  final String inventoryId;
+  final String statsId;
 
-  PlayerData(this.id, this.energy, this.exp, this.gold);
+  PlayerData(this.id, this.energy, this.exp, this.gold, this.inventoryId,
+      this.statsId);
 
   PlayerData.fromJson(Map<String, dynamic> json)
       : id = json['id'],
         energy = json['energy'],
         gold = json['gold'],
+        inventoryId = json["player_inventory_id"],
+        statsId = json['player_stats_id'],
         exp = json['exp'];
 
   @override
@@ -49,6 +56,8 @@ class PlayerData {
       energy: ${this.energy},
       gold: ${this.gold},
       exp: ${this.exp}
+      inventoryId: ${this.inventoryId},
+      statsId: ${this.statsId}
       }''';
   }
 }

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:ff/models/Inventory.dart';
 import 'package:localstorage/localstorage.dart';
 import 'package:ff/models/User.dart';
 import 'package:ff/services/api.dart';
@@ -9,7 +10,9 @@ class LoginBloc extends Object with Validators {
   final _emailController = BehaviorSubject<String>();
   final _passwordController = BehaviorSubject<String>();
   final _usernameController = BehaviorSubject<String>();
+  final _inventory = BehaviorSubject<UserInventory>();
 
+  BehaviorSubject<UserInventory> get inventory => _inventory;
   Observable<String> get email =>
       _emailController.stream.transform(validateEmail);
   Observable<String> get password =>
@@ -61,13 +64,16 @@ class LoginBloc extends Object with Validators {
     }
   }
 
-  Future<void> get_inventory(String userInventoryId) async {
+  Future<void> getInventory(String userInventoryId) async {
     try {
-      Inventory userInventory = await api.post("/user", data: {
-        "user_inventory_id": userInventoryId,
+      dynamic json = await api.post("/storage", data: {
+        "inventory_id": userInventoryId,
       });
 
-      return userInventory;
+      UserInventory userInventory = UserInventory.fromJson(json);
+      //  print(userInventory);
+      _inventory.add(userInventory);
+      // return userInventory;
     } catch (e) {
       print('Error: $e');
       return null;
@@ -78,6 +84,7 @@ class LoginBloc extends Object with Validators {
     _emailController.close();
     _passwordController.close();
     _usernameController.close();
+    //_inventory.close();
   }
 }
 

@@ -177,7 +177,7 @@ Widget dashboardDrawer(context, widget) => ListView(
                   title: "Development",
                   subtitle: "Storage",
                   route: '/storage',
-                  props: widget.user.id),
+                  props: widget.user.playerData.inventoryId),
             ],
           ),
         ),

@@ -2,11 +2,10 @@
 import 'package:ff/blocs/UserBloc.dart';
 import 'package:ff/blocs/rootBloc.dart';
 import 'package:ff/models/Inventory.dart';
-import 'package:ff/models/User.dart';
 import 'package:ff/utils/ImageSelector.dart';
 import 'package:ff/utils/Utils.dart';
 import 'package:flutter/material.dart';
-import 'package:percent_indicator/circular_percent_indicator.dart';
+import 'package:intl/intl.dart';
 import 'package:percent_indicator/linear_percent_indicator.dart';
 
 class StoragePage extends StatefulWidget {
@@ -36,7 +35,6 @@ class StoragePageState extends State<StoragePage> {
       body: StreamBuilder<UserInventory>(
           stream: bloc.inventory,
           builder: (context, snapshot) {
-            print(snapshot);
             return Column(
               children: <Widget>[
                 Row(
@@ -61,40 +59,10 @@ class StoragePageState extends State<StoragePage> {
                 Expanded(
                   child: GridView.count(
                     crossAxisCount: 3,
-                    children: List.generate(100, (index) {
-                      return Container(
-                        margin: EdgeInsets.all(10.0),
-                        padding: EdgeInsets.all(2.0),
-                        decoration: BoxDecoration(
-                            border: Border.all(color: Colors.blueAccent)),
-                        child: Column(
-                          children: <Widget>[
-                            Container(
-                              child: Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceEvenly,
-                                children: <Widget>[
-                                  Text(
-                                    'Food',
-                                  ),
-                                  Text(
-                                    'Q1',
-                                  )
-                                ],
-                              ),
-                            ),
-                            Container(
-                              height: 70,
-                              child: ImageSelector.getIcon('weapon'),
-                            ),
-                            Container(
-                                child: Center(
-                              child: Text("1,000"),
-                            ))
-                          ],
-                        ),
-                      );
-                    }),
+                    children: [
+                      itemSlot("food", snapshot.data?.foodQ1, "Q1"),
+                      itemSlot("weapon", snapshot.data?.weaponQ1, "Q1"),
+                    ],
                   ),
                 ),
               ],
@@ -103,3 +71,48 @@ class StoragePageState extends State<StoragePage> {
     );
   }
 }
+
+Widget itemSlot(String item, int amount, String quality) => Container(
+      margin: EdgeInsets.all(10.0),
+      padding: EdgeInsets.all(2.0),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: new BorderRadius.all(new Radius.circular(10.0)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.8),
+            blurRadius: 30.0,
+            spreadRadius: 2.0,
+            offset: Offset(
+              10.0,
+              10.0,
+            ),
+          )
+        ],
+      ),
+      child: Column(
+        children: <Widget>[
+          Container(
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: <Widget>[
+                Text(
+                  toBeginningOfSentenceCase(item),
+                ),
+                Text(
+                  quality,
+                )
+              ],
+            ),
+          ),
+          Container(
+            height: 70,
+            child: ImageSelector.getIcon(item),
+          ),
+          Container(
+              child: Center(
+            child: Text(amount.toString()),
+          ))
+        ],
+      ),
+    );

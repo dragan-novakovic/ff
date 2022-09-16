@@ -27,7 +27,7 @@ class LoginBloc extends Object with Validators {
   Function(String) get changePassword => _passwordController.sink.add;
   Function(String) get changeUsername => _usernameController.sink.add;
 
-  Future<User> submit() async {
+  Future<User?> submit() async {
     final validEmail = _emailController.value;
     final validPassword = _passwordController.value;
     final LocalStorage storage = new LocalStorage('local_storage');

@@ -19,9 +19,9 @@ class ApiProvider<T> {
     }
   }
 
-  Future<T> post(
+  Future post(
     String endpoint, {
-    Map<String, dynamic> data,
+    Map<String, dynamic>? data,
   }) async {
     try {
       // print("API begin " + _baseline + endpoint);

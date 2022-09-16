@@ -23,13 +23,13 @@ class MyApp extends StatelessWidget {
       routes: {
         // When navigating to the "/" route, build the FirstScreen widget.
         '/': (context) => Login(),
-        '/storage': (context) {
-          final dynamic args = ModalRoute.of(context).settings.arguments;
-          return StoragePage(
-            inventoryId: args['id'],
-          );
-        },
-        '/missions': (context) => MissionsPage(),
+        // '/storage': (context) {
+        //   final dynamic args = ModalRoute.of(context)?.settings.arguments;
+        //   return StoragePage(
+        //     inventoryId: args['id'],
+        //   );
+        // },
+        // '/missions': (context) => MissionsPage(),
       },
     );
   }

@@ -15,7 +15,7 @@ class FactoryBloc extends Object {
   BehaviorSubject<List<Factory>> get factories => _factories;
   BehaviorSubject<List<PlayerFactory>> get playerFactories => _playerFactories;
 
-  Future<List<Factory>> getAll() async {
+  Future<List<Factory>?> getAll() async {
     try {
       dynamic json = await api.getAll("/factories");
       List<Factory> response = Factories.fromJson(json).factories;
@@ -28,7 +28,7 @@ class FactoryBloc extends Object {
     }
   }
 
-  Future<List<PlayerFactory>> getUserFactories(String userId) async {
+  Future<List<PlayerFactory>?> getUserFactories(String userId) async {
     try {
       dynamic json = await api.post("/factories", data: {"id": userId});
       List<PlayerFactory> response =
@@ -54,7 +54,7 @@ class FactoryBloc extends Object {
     }
   }
 
-  Future<String> upgradeFactory(String userId, String factoryId) async {
+  Future<String?> upgradeFactory(String userId, String factoryId) async {
     try {
       String response = await api.post("/upgradefactory",
           data: {"user_id": userId, "factory_id": factoryId});
@@ -67,7 +67,7 @@ class FactoryBloc extends Object {
     }
   }
 
-  Future<String> workFactory(String userId, String factoryId) async {
+  Future<String?> workFactory(String userId, String factoryId) async {
     try {
       String response = await api.post("/workFactories",
           data: {"user_id": userId, "factory_id": factoryId});

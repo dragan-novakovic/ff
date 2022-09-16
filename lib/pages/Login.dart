@@ -1,7 +1,7 @@
 import 'package:ff/blocs/UserBloc.dart';
 import 'package:ff/components/signin_button.dart';
 import 'package:ff/models/User.dart';
-import 'package:ff/pages/Dashboard.dart';
+//import 'package:ff/pages/Dashboard.dart';
 import 'package:flutter/material.dart';
 
 import 'Register.dart';
@@ -101,7 +101,7 @@ Widget emailField(LoginBloc bloc) {
         decoration: InputDecoration(
           hintText: 'ypu@example.com',
           labelText: 'Email Address',
-          errorText: snapshot.error,
+          //errorText: // snapshot.error,
         ),
       );
     },
@@ -118,7 +118,7 @@ Widget passwordField(LoginBloc bloc) {
           decoration: InputDecoration(
             hintText: 'Password',
             labelText: 'Password',
-            errorText: snapshot.error,
+            // errorText: snapshot.error,
           ),
         );
       });
@@ -133,6 +133,7 @@ Widget submitButton(LoginBloc bloc) {
             Container(
               margin: EdgeInsets.only(top: 30),
               child: SigninButton(
+                onPressed: () {},
                 child: Text(
                   "Login",
                   style: TextStyle(
@@ -141,21 +142,6 @@ Widget submitButton(LoginBloc bloc) {
                       fontSize: 20,
                       fontFamily: 'Roboto'),
                 ),
-                onPressed: snapshot.hasData
-                    ? () async {
-                        User user = await bloc.submit();
-                        if (user != null) {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => Dashboard(
-                                user: user,
-                              ),
-                            ),
-                          );
-                        }
-                      }
-                    : null,
               ),
             ),
             Padding(
@@ -166,12 +152,12 @@ Widget submitButton(LoginBloc bloc) {
                   Text("Don't have an Account ?"),
                   InkWell(
                     onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => Register(),
-                        ),
-                      );
+                      // Navigator.push(
+                      //   context,
+                      //   MaterialPageRoute(
+                      //     builder: (context) => Register(),
+                      //   ),
+                      // );
                     },
                     child: Text(
                       "Register here",

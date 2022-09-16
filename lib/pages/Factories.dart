@@ -79,7 +79,7 @@ class _FactoriesPageState extends State<FactoriesPage> {
                                           leading: ImageSelector.getImage(
                                               fact.name, 1),
                                           title: Text(fact.name),
-                                          trailing: RaisedButton(
+                                          trailing: ElevatedButton(
                                             child: Row(
                                               mainAxisSize: MainAxisSize.min,
                                               children: <Widget>[
@@ -146,7 +146,7 @@ _listItem(context, snapshot, index, playerFsnapshot, widget) {
             title: Text('${_factory.name}'),
             subtitle: Text('''${_factory.goldPerDay} gold/h'''),
             isThreeLine: false,
-            trailing: RaisedButton(
+            trailing: ElevatedButton(
                 child: Text("Work"),
                 onPressed: () {
                   sl.get<FactoryBloc>().workFactory(widget.userId, _factory.id);
@@ -276,9 +276,8 @@ class BodyDetails extends StatelessWidget {
               padding: const EdgeInsets.only(top: 60),
               child: Container(
                 width: 200,
-                child: RaisedButton(
-                  color: Colors.blue,
-                  textColor: Colors.white,
+                child: ElevatedButton(
+                  style: ButtonStyle(),
                   onPressed: () {
                     showDialog(
                         context: context,

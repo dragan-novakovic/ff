@@ -35,7 +35,7 @@ class _MissionsState extends State<MissionsPage> {
                   title: Text("Campign $index"),
                   subtitle: Text("Reqirments:\n 10x Weapons 10 Food 10 Energy"),
                   isThreeLine: true,
-                  trailing: RaisedButton(
+                  trailing: ElevatedButton(
                     onPressed: () {},
                     child: Text("Battle"),
                   ),
@@ -168,7 +168,7 @@ class MissionItem extends StatelessWidget {
                 width: 80,
                 height: 50,
                 margin: EdgeInsets.only(right: 10),
-                child: RaisedButton(
+                child: ElevatedButton(
                   onPressed: () {},
                   child: Text("Battle"),
                 ),

@@ -13,15 +13,14 @@ class LoginBloc extends Object with Validators {
   final _inventory = BehaviorSubject<UserInventory>();
 
   BehaviorSubject<UserInventory> get inventory => _inventory;
-  Observable<String> get email =>
-      _emailController.stream.transform(validateEmail);
-  Observable<String> get password =>
+  Stream<String> get email => _emailController.stream.transform(validateEmail);
+  Stream<String> get password =>
       _passwordController.stream.transform(validatePassword);
-  Observable<String> get username => _usernameController.stream;
-  Observable<bool> get submitValid =>
-      Observable.combineLatest2(email, password, (e, p) => true);
-  Observable<bool> get submitValidRegister =>
-      Observable.combineLatest3(email, password, username, (e, p, u) => true);
+  Stream<String> get username => _usernameController.stream;
+  Stream<bool> get submitValid =>
+      Rx.combineLatest2(email, password, (e, p) => true);
+  Stream<bool> get submitValidRegister =>
+      Rx.combineLatest3(email, password, username, (e, p, u) => true);
 
   // change data
   Function(String) get changeEmail => _emailController.sink.add;

@@ -1,0 +1,40 @@
+{
+  "project_info": {
+    "project_number": "635296622270",
+    "firebase_url": "https://e-tron-7a216.firebaseio.com",
+    "project_id": "e-tron-7a216",
+    "storage_bucket": "e-tron-7a216.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:635296622270:android:15263ceab271d789b060ef",
+        "android_client_info": {
+          "package_name": "com.example.ff"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "635296622270-es4pgraisd641hkcfuqd6pbbmqvcl10g.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCADU82Pla6OiJbpxojao_AOfYMZE0IqZw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "635296622270-es4pgraisd641hkcfuqd6pbbmqvcl10g.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

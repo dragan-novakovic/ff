@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CLIENT_ID</key>
+	<string>635296622270-hkosor88c0qb9575sqaqgolfjafe8h2i.apps.googleusercontent.com</string>
+	<key>REVERSED_CLIENT_ID</key>
+	<string>com.googleusercontent.apps.635296622270-hkosor88c0qb9575sqaqgolfjafe8h2i</string>
+	<key>API_KEY</key>
+	<string>AIzaSyBU-PZQyse7PpCGPvi4v79d9u2ko74hanc</string>
+	<key>GCM_SENDER_ID</key>
+	<string>635296622270</string>
+	<key>PLIST_VERSION</key>
+	<string>1</string>
+	<key>BUNDLE_ID</key>
+	<string>com.example.ff</string>
+	<key>PROJECT_ID</key>
+	<string>e-tron-7a216</string>
+	<key>STORAGE_BUCKET</key>
+	<string>e-tron-7a216.appspot.com</string>
+	<key>IS_ADS_ENABLED</key>
+	<false></false>
+	<key>IS_ANALYTICS_ENABLED</key>
+	<false></false>
+	<key>IS_APPINVITE_ENABLED</key>
+	<true></true>
+	<key>IS_GCM_ENABLED</key>
+	<true></true>
+	<key>IS_SIGNIN_ENABLED</key>
+	<true></true>
+	<key>GOOGLE_APP_ID</key>
+	<string>1:635296622270:ios:8c098f5395931d39b060ef</string>
+	<key>DATABASE_URL</key>
+	<string>https://e-tron-7a216.firebaseio.com</string>
+</dict>
+</plist>

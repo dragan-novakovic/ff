@@ -27,7 +27,7 @@ dependencies:
   cached_network_image: ^3.2.2
   intl: ^0.17.0
   localstorage: ^4.0.0+1
-  get_it: ^3.0.3
+  get_it: ^7.1.2
   giffy_dialog: ^1.8.0
   percent_indicator: ^2.1.1+1
 

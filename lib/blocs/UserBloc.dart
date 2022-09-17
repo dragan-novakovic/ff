@@ -2,9 +2,8 @@ import 'dart:async';
 import 'package:ff/models/Inventory.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:localstorage/localstorage.dart';
-import 'package:ff/models/User.dart';
+//import 'package:ff/models/User.dart';
 import 'package:rxdart/rxdart.dart';
-
 
 class Validators {
   final validateEmail =
@@ -27,12 +26,14 @@ class Validators {
 }
 
 class LoginBloc extends Object with Validators {
+  final _firebaseAuth = FirebaseAuth.instance;
   final _emailController = BehaviorSubject<String>();
   final _passwordController = BehaviorSubject<String>();
   final _usernameController = BehaviorSubject<String>();
   final _inventory = BehaviorSubject<UserInventory>();
 
   BehaviorSubject<UserInventory> get inventory => _inventory;
+  Stream<dynamic> get authStateChange => _firebaseAuth.authStateChanges();
   Stream<String> get email => _emailController.stream.transform(validateEmail);
   Stream<String> get password =>
       _passwordController.stream.transform(validatePassword);
@@ -52,44 +53,45 @@ class LoginBloc extends Object with Validators {
     final validPassword = _passwordController.value;
     final LocalStorage storage = new LocalStorage('local_storage');
     // print('Email is $validEmail, and password is $validPassword');
-   try {
-  final credential = await FirebaseAuth.instance.signInWithEmailAndPassword(
-    email: validEmail!,
-    password: validPassword!
-  );
-} on FirebaseAuthException catch (e) {
-  if (e.code == 'user-not-found') {
-    print('No user found for that email.');
-  } else if (e.code == 'wrong-password') {
-    print('Wrong password provided for that user.');
-  }
-}
+    try {
+      final credential = await FirebaseAuth.instance.signInWithEmailAndPassword(
+          email: validEmail!, password: validPassword!);
 
+      print(credential.toString());
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'user-not-found') {
+        print('No user found for that email.');
+      } else if (e.code == 'wrong-password') {
+        print('Wrong password provided for that user.');
+      }
+    }
   }
 
-  Future<void> register() async {
+  Future<String> register() async {
     final validEmail = _emailController.value;
     final validPassword = _passwordController.value;
-    final validUsername = _usernameController.value;
+    // final validUsername = _usernameController.value;
 
-  try {
-  final credential = await FirebaseAuth.instance.createUserWithEmailAndPassword(
-    email: validEmail!,
-    password: validPassword!,
-  );
-} on FirebaseAuthException catch (e) {
-  if (e.code == 'weak-password') {
-    print('The password provided is too weak.');
-  } else if (e.code == 'email-already-in-use') {
-    print('The account already exists for that email.');
+    try {
+      final credential =
+          await FirebaseAuth.instance.createUserWithEmailAndPassword(
+        email: validEmail!,
+        password: validPassword!,
+      );
+
+      return "OK";
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'weak-password') {
+        return ('The password provided is too weak.');
+      } else if (e.code == 'email-already-in-use') {
+        return ('The account already exists for that email.');
+      }
+    } catch (e) {
+      print(e);
+      throw (e);
+    } finally {
+      print("Register tried");
+      return "Zasto?";
+    }
   }
-} catch (e) {
-  print(e);
 }
-
-
-}
-
-
-
-

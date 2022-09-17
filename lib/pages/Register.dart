@@ -157,7 +157,9 @@ Widget submitButton(LoginBloc bloc) {
                       fontSize: 20,
                       fontFamily: 'Roboto'),
                 ),
-                onPressed: () {},
+                onPressed: () async {
+                  await bloc.register();
+                },
               ),
             ),
             Padding(
@@ -168,7 +170,12 @@ Widget submitButton(LoginBloc bloc) {
                   Text("Already have an Account ?"),
                   InkWell(
                     onTap: () {
-                      print("Hello");
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => Login(),
+                        ),
+                      );
                     },
                     child: Text(
                       "Login here",

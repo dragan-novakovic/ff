@@ -133,7 +133,9 @@ Widget submitButton(LoginBloc bloc) {
             Container(
               margin: EdgeInsets.only(top: 30),
               child: SigninButton(
-                onPressed: () {},
+                onPressed: () async {
+                  await bloc.submit();
+                },
                 child: Text(
                   "Login",
                   style: TextStyle(

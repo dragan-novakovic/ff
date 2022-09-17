@@ -1,13 +1,15 @@
 import 'package:ff/blocs/rootBloc.dart';
 import 'package:ff/pages/Login.dart';
-import 'package:ff/pages/Missions.dart';
+import 'package:firebase_core/firebase_core.dart';
+//import 'package:ff/pages/Missions.dart';
 import 'package:flutter/material.dart';
 
-import 'pages/Inventory.dart';
+// import 'pages/Inventory.dart';
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  setUpLocators();
+  await Firebase.initializeApp();
+
   runApp(MyApp());
 }
 

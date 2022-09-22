@@ -4,7 +4,7 @@ class SigninButton extends StatelessWidget {
   final Widget child;
   final double width;
   final double height;
-  final Function onPressed;
+  final void Function()? onPressed;
 
   const SigninButton({
     Key? key,
@@ -30,7 +30,7 @@ class SigninButton extends StatelessWidget {
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-            onTap: () {},
+            onTap: this.onPressed,
             child: Center(
               child: child,
             )),

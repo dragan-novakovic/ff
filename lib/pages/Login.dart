@@ -101,7 +101,7 @@ Widget emailField(LoginBloc bloc) {
         decoration: InputDecoration(
           hintText: 'ypu@example.com',
           labelText: 'Email Address',
-          //errorText: // snapshot.error,
+          //  errorText: null,
         ),
       );
     },
@@ -112,13 +112,19 @@ Widget passwordField(LoginBloc bloc) {
   return StreamBuilder(
       stream: bloc.password,
       builder: (context, snapshot) {
+        String? err = null;
+
+        if (snapshot.hasError) {
+          err = snapshot.error.toString();
+        }
+
         return TextField(
           obscureText: true,
           onChanged: bloc.changePassword,
           decoration: InputDecoration(
             hintText: 'Password',
             labelText: 'Password',
-            // errorText: snapshot.error,
+            errorText: snapshot.error.toString(),
           ),
         );
       });
@@ -128,13 +134,17 @@ Widget submitButton(LoginBloc bloc) {
   return StreamBuilder(
       stream: bloc.submitValid,
       builder: (context, snapshot) {
+        print("Q");
+        print(snapshot.data.toString());
         return Column(
           children: <Widget>[
             Container(
               margin: EdgeInsets.only(top: 30),
               child: SigninButton(
-                onPressed: () async {
-                  await bloc.submit();
+                onPressed: () {
+                  print("SUMBIT?1");
+                  // bloc.submit();
+                  print("SUMBIT?");
                 },
                 child: Text(
                   "Login",

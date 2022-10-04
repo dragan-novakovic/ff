@@ -134,7 +134,6 @@ Widget submitButton(LoginBloc bloc) {
   return StreamBuilder(
       stream: bloc.submitValid,
       builder: (context, snapshot) {
-        print("Q");
         print(snapshot.data.toString());
         return Column(
           children: <Widget>[
@@ -142,9 +141,8 @@ Widget submitButton(LoginBloc bloc) {
               margin: EdgeInsets.only(top: 30),
               child: SigninButton(
                 onPressed: () {
-                  print("SUMBIT?1");
-                  // bloc.submit();
-                  print("SUMBIT?");
+                  print("SUMBMITING DATA");
+                  bloc.submit();
                 },
                 child: Text(
                   "Login",

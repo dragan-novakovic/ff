@@ -351,7 +351,7 @@ packages:
       name: percent_indicator
       url: "https://pub.dartlang.org"
     source: hosted
-    version: "2.1.1+1"
+    version: "4.2.2"
   platform:
     dependency: transitive
     description:
@@ -373,13 +373,13 @@ packages:
       url: "https://pub.dartlang.org"
     source: hosted
     version: "4.2.4"
-  responsive_scaffold:
+  responsive_scaffold_nullsafe:
     dependency: "direct main"
     description:
-      name: responsive_scaffold
+      name: responsive_scaffold_nullsafe
       url: "https://pub.dartlang.org"
     source: hosted
-    version: "1.3.0+2"
+    version: "1.0.1"
   rxdart:
     dependency: "direct main"
     description:
@@ -393,7 +393,7 @@ packages:
       name: scroll_to_index
       url: "https://pub.dartlang.org"
     source: hosted
-    version: "1.0.6"
+    version: "2.1.1"
   sky_engine:
     dependency: transitive
     description: flutter

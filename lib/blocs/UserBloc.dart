@@ -49,22 +49,20 @@ class LoginBloc extends Object with Validators {
   Function(String) get changeUsername => _usernameController.sink.add;
 
   Future<void> submit() async {
-    print('GGGG');
     final validEmail = _emailController.value;
     final validPassword = _passwordController.value;
-    final LocalStorage storage = new LocalStorage('local_storage');
+    // final LocalStorage storage = new LocalStorage('local_storage');
     print('Email is $validEmail, and password is $validPassword');
     try {
       final credential = await FirebaseAuth.instance.signInWithEmailAndPassword(
           email: validEmail!, password: validPassword!);
-
-      print(credential.toString());
     } on FirebaseAuthException catch (e) {
       if (e.code == 'user-not-found') {
         print('No user found for that email.');
       } else if (e.code == 'wrong-password') {
         print('Wrong password provided for that user.');
       }
+      print(e.toString());
     }
   }
 

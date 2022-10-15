@@ -1,5 +1,6 @@
 import 'package:ff/blocs/rootBloc.dart';
 import 'package:ff/models/User.dart';
+import 'package:ff/pages/Chat/ChatView.dart';
 import 'package:ff/pages/Dashboard.dart';
 import 'package:ff/pages/Login.dart';
 import 'package:firebase_auth/firebase_auth.dart' as FB;
@@ -61,6 +62,7 @@ class _MyAppState extends State<MyApp> {
         //   );
         // },
         // '/missions': (context) => MissionsPage(),
+        '/inbox': (context) => ChatView()
       },
     );
   }

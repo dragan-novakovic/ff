@@ -7,7 +7,12 @@
 - Armory (Gear?)
 - Battle Regions ( Rewards Gold and Special Resurse, useses wep and energy, strength requirements)
 - Market
-- Channels
+
+## - Channels
+
+-BBM style
+-DM, and group
+
 - Profile page Info
 
 ## Using:
@@ -15,6 +20,5 @@
 - RxDart
 - Get_it
 - Bloc
-
 
 https://www.facebook.com/charuwaka/videos/2807396325978185

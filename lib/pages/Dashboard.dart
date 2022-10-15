@@ -1,5 +1,6 @@
 //import 'package:cached_network_image/cached_network_image.dart';
 import 'package:ff/models/User.dart';
+import 'package:ff/pages/Chat/ChatView.dart';
 //import 'package:ff/pages/Factories.dart';
 import 'package:ff/utils/Utils.dart';
 import 'package:flutter/material.dart';
@@ -219,6 +220,8 @@ Widget dashboardDrawer(context, widget) => ListView(
             children: <Widget>[
               navTile(context, widget, title: "Channel", subtitle: "Global"),
               navTile(context, widget, title: "Channel", subtitle: "Guild"),
+              navTile(context, widget,
+                  title: 'Chat', subtitle: "Inbox", route: '/inbox')
             ],
           ),
         ),

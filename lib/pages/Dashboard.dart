@@ -69,7 +69,7 @@ Widget navTile(context, widget,
 Widget dashboardDrawer(context, widget) => ListView(
       children: <Widget>[
         Container(
-          height: 200,
+          height: 250,
           decoration: BoxDecoration(
               gradient: LinearGradient(
                   begin: Alignment.centerLeft,
@@ -88,12 +88,12 @@ Widget dashboardDrawer(context, widget) => ListView(
                     lineWidth: 10.0,
                     percent: 0.1,
                     center: CircleAvatar(
-                      radius: 50,
+                      radius: 90,
                       child: ClipOval(
                         child: Image.network(
                           'https://placeimg.com/200/200/people',
-                          width: 100,
-                          height: 100,
+                          width: 200,
+                          height: 200,
                           fit: BoxFit.fill,
                         ),
                       ),
@@ -103,9 +103,6 @@ Widget dashboardDrawer(context, widget) => ListView(
                     progressColor: Colors.blue.shade900,
                   ),
                 ],
-              ),
-              SizedBox(
-                height: 20,
               ),
               Text(
                 '${widget.user.username}',

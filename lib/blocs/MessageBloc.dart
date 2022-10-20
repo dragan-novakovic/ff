@@ -1,18 +1,14 @@
 import 'dart:async';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ff/models/MessageModel.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:rxdart/rxdart.dart';
 
 class MessageBloc extends Object {
-  final _firebaseAuth = FirebaseAuth.instance;
-  final _emailController = BehaviorSubject<String>();
+  final _messagesCollection = FirebaseFirestore.instance.collection('messages');
   final _usernameController = BehaviorSubject<String>();
 
-  Stream<dynamic> get authStateChange => _firebaseAuth.authStateChanges();
   Stream<String> get username => _usernameController.stream;
-
-  // change data
-  Function(String) get changeEmail => _emailController.sink.add;
 
   Future<List<Message>> fetchMessages() async {
     return [Message("test")];

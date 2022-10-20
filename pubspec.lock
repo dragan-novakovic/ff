@@ -85,13 +85,6 @@ packages:
       url: "https://pub.dartlang.org"
     source: hosted
     version: "3.0.2"
-  cupertino_icons:
-    dependency: "direct main"
-    description:
-      name: cupertino_icons
-      url: "https://pub.dartlang.org"
-    source: hosted
-    version: "1.0.5"
   dio:
     dependency: "direct main"
     description:
@@ -162,20 +155,6 @@ packages:
       url: "https://pub.dartlang.org"
     source: hosted
     version: "1.7.2"
-  flare_dart:
-    dependency: transitive
-    description:
-      name: flare_dart
-      url: "https://pub.dartlang.org"
-    source: hosted
-    version: "2.3.4"
-  flare_flutter:
-    dependency: "direct main"
-    description:
-      name: flare_flutter
-      url: "https://pub.dartlang.org"
-    source: hosted
-    version: "2.0.6"
   flutter:
     dependency: "direct main"
     description: flutter
@@ -212,13 +191,6 @@ packages:
       url: "https://pub.dartlang.org"
     source: hosted
     version: "7.2.0"
-  giffy_dialog:
-    dependency: "direct main"
-    description:
-      name: giffy_dialog
-      url: "https://pub.dartlang.org"
-    source: hosted
-    version: "1.8.0"
   http:
     dependency: transitive
     description:
@@ -247,13 +219,6 @@ packages:
       url: "https://pub.dartlang.org"
     source: hosted
     version: "0.6.4"
-  localstorage:
-    dependency: "direct main"
-    description:
-      name: localstorage
-      url: "https://pub.dartlang.org"
-    source: hosted
-    version: "4.0.0+1"
   matcher:
     dependency: transitive
     description:

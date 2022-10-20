@@ -61,7 +61,6 @@ class _MyAppState extends State<MyApp> {
         //     inventoryId: args['id'],
         //   );
         // },
-        // '/missions': (context) => MissionsPage(),
         '/inbox': (context) => ChatView()
       },
     );

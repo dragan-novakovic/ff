@@ -49,7 +49,7 @@ class LoginBloc extends Object with Validators {
   Future<void> submit() async {
     final validEmail = _emailController.value;
     final validPassword = _passwordController.value;
-    // final LocalStorage storage = new LocalStorage('local_storage');
+
     print('Email is $validEmail, and password is $validPassword');
     try {
       await FirebaseAuth.instance.signInWithEmailAndPassword(

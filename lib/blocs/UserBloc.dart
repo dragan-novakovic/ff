@@ -1,8 +1,6 @@
 import 'dart:async';
 import 'package:ff/models/Inventory.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:localstorage/localstorage.dart';
-//import 'package:ff/models/User.dart';
 import 'package:rxdart/rxdart.dart';
 
 class Validators {
@@ -54,7 +52,7 @@ class LoginBloc extends Object with Validators {
     // final LocalStorage storage = new LocalStorage('local_storage');
     print('Email is $validEmail, and password is $validPassword');
     try {
-      final credential = await FirebaseAuth.instance.signInWithEmailAndPassword(
+      await FirebaseAuth.instance.signInWithEmailAndPassword(
           email: validEmail!, password: validPassword!);
     } on FirebaseAuthException catch (e) {
       if (e.code == 'user-not-found') {
@@ -72,8 +70,7 @@ class LoginBloc extends Object with Validators {
     // final validUsername = _usernameController.value;
 
     try {
-      final credential =
-          await FirebaseAuth.instance.createUserWithEmailAndPassword(
+      await FirebaseAuth.instance.createUserWithEmailAndPassword(
         email: validEmail!,
         password: validPassword!,
       );

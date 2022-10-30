@@ -57,7 +57,9 @@ Widget renderText(MessageBloc messageBloc) {
           return Text("Loading");
         }
 
-        print("QQQ" + snapshot.hasData.toString());
+        print("Has Data: " + snapshot.hasData.toString());
+        print("Data" + snapshot.data.toString());
+        print("Data lenght: " + snapshot.data.length.toString());
 
         return Container(
           height: 200,
@@ -66,15 +68,17 @@ Widget renderText(MessageBloc messageBloc) {
               SliverList(
                   delegate: SliverChildBuilderDelegate(
                       (BuildContext context, int index) {
-                return TextBox();
-              }, childCount: 10))
+                return TextBox(snapshot.data, index);
+              }, childCount: snapshot.data.length))
             ],
           ),
         );
       });
 }
 
-Widget TextBox() {
+Widget TextBox(List<Message> messagesList, int index) {
+  Message message = messagesList[index];
+
   return Padding(
     padding: const EdgeInsets.all(8.0),
     child: Container(
@@ -85,9 +89,9 @@ Widget TextBox() {
         children: [
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            children: [Text("John Doe"), Text("content of the message")],
+            children: [Text(message.fromId), Text(message.content)],
           ),
-          Text("Info")
+          Text("Date")
         ],
       ),
     ),

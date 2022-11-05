@@ -6,11 +6,14 @@ import 'package:rxdart/rxdart.dart';
 class MessageBloc extends Object {
   final _messagesCollection = FirebaseFirestore.instance.collection('messages');
   final _messagesController = BehaviorSubject<List<Message>>();
+  final _meessageController = BehaviorSubject<String>();
 
   Stream<List<Message>> get messages => _messagesController.stream;
+  Stream<String> get message => _meessageController.stream;
+
+  Function(String) get changeMessage => _meessageController.sink.add;
 
   Future<List<Message>> fetchMessages() async {
-    print("FIREBASE CONNECTION ISSUES");
     var messagesSnapshot = await _messagesCollection.get();
 
     List<Message> messages = messagesSnapshot.docs.map((doc) {
@@ -26,7 +29,12 @@ class MessageBloc extends Object {
     }
   }
 
-  Future<void> sendMessage(Message msg) async {
-    await _messagesCollection.add(Message.toJson(msg));
+  void sendMessage(String msg) async {
+    String message_content = _meessageController.stream.value as String;
+    print("1 +" + msg);
+    print("2 +" + message_content);
+
+    await _messagesCollection
+        .add(Message.toJson(Message(message_content, "fromId", "toId")));
   }
 }

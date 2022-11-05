@@ -2,7 +2,7 @@ import 'package:ff/blocs/rootBloc.dart';
 import 'package:ff/models/User.dart';
 import 'package:ff/pages/Chat/ChatView.dart';
 import 'package:ff/pages/Dashboard.dart';
-import 'package:ff/pages/Login.dart';
+import 'package:ff/pages/Login/Login.dart';
 import 'package:firebase_auth/firebase_auth.dart' as FB;
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';

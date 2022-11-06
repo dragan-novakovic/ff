@@ -30,11 +30,9 @@ class MessageBloc extends Object {
   }
 
   void sendMessage(String msg) async {
-    String message_content = _meessageController.stream.value as String;
-    print("1 +" + msg);
-    print("2 +" + message_content);
+    print("1 :" + msg);
 
     await _messagesCollection
-        .add(Message.toJson(Message(message_content, "fromId", "toId")));
+        .add(Message.toJson(Message(msg, "fromId", "toId")));
   }
 }

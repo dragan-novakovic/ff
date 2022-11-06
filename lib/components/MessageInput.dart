@@ -27,11 +27,12 @@ class _MessageInputState extends State<MessageInput> {
                     onSubmitted: _messageBloc.sendMessage,
                     decoration: InputDecoration(
                         labelText: 'Enter Message',
-                        contentPadding: EdgeInsets.all(10),
+                        contentPadding: EdgeInsets.all(6),
                         suffixIcon: IconButton(
                           onPressed: (() {
                             _messageBloc.sendMessage(_inputController.text);
                             _inputController.clear();
+                            FocusManager.instance.primaryFocus?.unfocus();
                           }),
                           icon: Padding(
                             padding:

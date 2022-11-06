@@ -20,7 +20,7 @@ class MessageBloc extends Object {
       return Message(doc["content"], doc["fromId"], doc["toId"]);
     }).toList();
 
-    print(messages.length);
+    print("Inside block" + messages.length.toString());
     if (messages.length > 0) {
       _messagesController.add(messages);
       return messages;

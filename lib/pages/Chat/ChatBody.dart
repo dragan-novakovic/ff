@@ -12,6 +12,13 @@ class ChatBody extends StatefulWidget {
 
 class _ChatBodyState extends State<ChatBody> {
   MessageBloc _messageBloc = MessageBloc();
+  int counter = 0;
+
+  void updateCounter() {
+    setState(() {
+      counter++;
+    });
+  }
 
   @override
   void initState() {
@@ -25,7 +32,12 @@ class _ChatBodyState extends State<ChatBody> {
         child: Column(children: [
       Expanded(flex: 1, child: infoBox()),
       Expanded(flex: 8, child: renderText(_messageBloc)),
-      Expanded(flex: 1, child: MessageInput())
+      Expanded(
+          flex: 1,
+          child: MessageInput(
+              key: UniqueKey(),
+              parentFunc: updateCounter,
+              messageBloc: _messageBloc))
     ]));
   }
 }
@@ -35,10 +47,15 @@ Widget infoBox() {
     decoration: BoxDecoration(color: Colors.amber),
     child: Row(
       children: [
-        Text("Icon"),
+        Container(
+          child: CircleAvatar(
+            radius: 50,
+            child: ClipOval(child: Text("J.D.")),
+          ),
+        ),
         Column(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          children: [Text("Name"), Text("Status")],
+          children: [Text("John Doe"), Text("Status: Online")],
         )
       ],
     ),
@@ -46,6 +63,7 @@ Widget infoBox() {
 }
 
 Widget renderText(MessageBloc messageBloc) {
+  print("DA LI JE PROBLEM U FUNKCIJI ILI U STREAMU?");
   return StreamBuilder<Object>(
       stream: messageBloc.messages,
       builder: (context, AsyncSnapshot snapshot) {
@@ -57,8 +75,6 @@ Widget renderText(MessageBloc messageBloc) {
           return Text("Loading");
         }
 
-        print("Has Data: " + snapshot.hasData.toString());
-        print("Data" + snapshot.data.toString());
         print("Data lenght: " + snapshot.data.length.toString());
 
         return Container(
@@ -77,6 +93,7 @@ Widget renderText(MessageBloc messageBloc) {
 }
 
 Widget TextBox(List<Message> messagesList, int index) {
+  print("DA LI TEXT DODJE OVDE?");
   Message message = messagesList[index];
 
   return Padding(

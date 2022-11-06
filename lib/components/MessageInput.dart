@@ -2,14 +2,17 @@ import 'package:ff/blocs/MessageBloc.dart';
 import 'package:flutter/material.dart';
 
 class MessageInput extends StatefulWidget {
-  const MessageInput({super.key});
+  final MessageBloc messageBloc;
+  final Function parentFunc;
+  const MessageInput(
+      {required Key key, required this.parentFunc, required this.messageBloc})
+      : super(key: key);
 
   @override
   State<MessageInput> createState() => _MessageInputState();
 }
 
 class _MessageInputState extends State<MessageInput> {
-  MessageBloc _messageBloc = MessageBloc();
   TextEditingController _inputController = TextEditingController();
   @override
   Widget build(BuildContext context) {
@@ -19,20 +22,24 @@ class _MessageInputState extends State<MessageInput> {
         children: [
           Expanded(
             child: StreamBuilder<Object>(
-                stream: _messageBloc.message,
+                stream: widget.messageBloc.message,
                 builder: (context, snapshot) {
                   return TextField(
                     controller: _inputController,
-                    onChanged: _messageBloc.changeMessage,
-                    onSubmitted: _messageBloc.sendMessage,
+                    onChanged: widget.messageBloc.changeMessage,
+                    onSubmitted: widget.messageBloc.sendMessage,
                     decoration: InputDecoration(
                         labelText: 'Enter Message',
                         contentPadding: EdgeInsets.all(6),
                         suffixIcon: IconButton(
                           onPressed: (() {
-                            _messageBloc.sendMessage(_inputController.text);
+                            widget.messageBloc
+                                .sendMessage(_inputController.text);
                             _inputController.clear();
                             FocusManager.instance.primaryFocus?.unfocus();
+                            widget.messageBloc
+                                .changeMessage(_inputController.text);
+                            widget.parentFunc();
                           }),
                           icon: Padding(
                             padding:

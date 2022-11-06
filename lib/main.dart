@@ -33,6 +33,7 @@ class _MyAppState extends State<MyApp> {
       theme: ThemeData(
         primarySwatch: Colors.blue,
       ),
+      debugShowCheckedModeBanner: false,
       initialRoute: '/',
       routes: {
         // When navigating to the "/" route, build the FirstScreen widget.

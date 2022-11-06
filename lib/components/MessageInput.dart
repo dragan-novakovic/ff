@@ -25,14 +25,14 @@ class _MessageInputState extends State<MessageInput> {
                     controller: _inputController,
                     onChanged: _messageBloc.changeMessage,
                     onSubmitted: _messageBloc.sendMessage,
-                    onEditingComplete: () {
-                      setState(() {});
-                    },
                     decoration: InputDecoration(
                         labelText: 'Enter Message',
                         contentPadding: EdgeInsets.all(10),
                         suffixIcon: IconButton(
-                          onPressed: (() {}),
+                          onPressed: (() {
+                            _messageBloc.sendMessage(_inputController.text);
+                            _inputController.clear();
+                          }),
                           icon: Padding(
                             padding:
                                 const EdgeInsetsDirectional.only(end: 12.0),

@@ -63,7 +63,9 @@ Widget infoBox() {
 }
 
 Widget renderText(MessageBloc messageBloc) {
-  print("DA LI JE PROBLEM U FUNKCIJI ILI U STREAMU?");
+  messageBloc.messages.listen((event) {
+    print(event.last.toString());
+  });
   return StreamBuilder<Object>(
       stream: messageBloc.messages,
       builder: (context, AsyncSnapshot snapshot) {
@@ -93,7 +95,6 @@ Widget renderText(MessageBloc messageBloc) {
 }
 
 Widget TextBox(List<Message> messagesList, int index) {
-  print("DA LI TEXT DODJE OVDE?");
   Message message = messagesList[index];
 
   return Padding(

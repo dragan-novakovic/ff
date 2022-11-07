@@ -13,7 +13,7 @@ class MessageBloc extends Object {
 
   Function(String) get changeMessage => _meessageController.sink.add;
 
-  Future<List<Message>> fetchMessages() async {
+  Future<void> fetchMessages() async {
     var messagesSnapshot = await _messagesCollection.get();
 
     List<Message> messages = messagesSnapshot.docs.map((doc) {
@@ -23,16 +23,14 @@ class MessageBloc extends Object {
     print("Inside block" + messages.length.toString());
     if (messages.length > 0) {
       _messagesController.add(messages);
-      return messages;
-    } else {
-      return [Message("test", '222', '11')];
     }
   }
 
-  void sendMessage(String msg) async {
+  Future<void> sendMessage(String msg) async {
     print("1 :" + msg);
 
     await _messagesCollection
         .add(Message.toJson(Message(msg, "fromId", "toId")));
+    await this.fetchMessages();
   }
 }

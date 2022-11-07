@@ -40,13 +40,11 @@ class _MyAppState extends State<MyApp> {
         '/': (context) => StreamBuilder(
             stream: _loginBloc.authStateChange,
             builder: (context, snapshot) {
-              print("MAIN.dart| printing data!!!!!!");
               if (snapshot.hasData) {
                 FB.User FBuserData = snapshot.data;
                 User userData = User(FBuserData.uid, "", "", "", "",
                     PlayerData(FBuserData.uid, 100, 100, 1000, "", ""));
                 if (userData.id.isNotEmpty) {
-                  print("DASHBOARD SCREEN");
                   return Dashboard(user: userData);
                 }
               }

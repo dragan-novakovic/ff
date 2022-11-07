@@ -37,9 +37,6 @@ class _MessageInputState extends State<MessageInput> {
                                 .sendMessage(_inputController.text);
                             _inputController.clear();
                             FocusManager.instance.primaryFocus?.unfocus();
-                            widget.messageBloc
-                                .changeMessage(_inputController.text);
-                            widget.parentFunc();
                           }),
                           icon: Padding(
                             padding:

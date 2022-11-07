@@ -74,7 +74,9 @@ Widget renderText(MessageBloc messageBloc) {
         }
 
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return Text("Loading");
+          return Center(
+            child: CircularProgressIndicator(),
+          );
         }
 
         print("Data lenght: " + snapshot.data.length.toString());

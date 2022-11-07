@@ -54,13 +54,11 @@ class _MyAppState extends State<MyApp> {
               }
               return Login();
             }),
-        // '/storage': (context) {
-        //   final dynamic args = ModalRoute.of(context)?.settings.arguments;
-        //   return StoragePage(
-        //     inventoryId: args['id'],
-        //   );
-        // },
-        '/inbox': (context) => ChatView()
+        '/inbox': (context) {
+          final dynamic args = ModalRoute.of(context)?.settings.arguments;
+          //args['id']
+          return ChatView();
+        }
       },
     );
   }

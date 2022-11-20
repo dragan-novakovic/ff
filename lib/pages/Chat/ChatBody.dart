@@ -48,10 +48,10 @@ Widget infoBox() {
     child: Row(
       children: [
         Container(
-          child: CircleAvatar(
-            radius: 50,
-            child: ClipOval(child: Text("J.D.")),
-          ),
+          child: ClipRRect(
+              borderRadius: BorderRadius.all(
+                  Radius.circular(10.0)), //add border radius here
+              child: Image(image: AssetImage('assets/images/quest.png'))),
         ),
         Column(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,

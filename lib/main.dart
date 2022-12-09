@@ -41,7 +41,10 @@ class _MyAppState extends State<MyApp> {
             stream: _loginBloc.userData,
             builder: (context, snapshot) {
               if (snapshot.hasData) {
+                print("Data in Main");
+
                 User userData = snapshot.data as User;
+                print(userData);
 
                 if (userData.uid.isNotEmpty) {
                   return Dashboard(user: userData);

@@ -66,7 +66,8 @@ class LoginBloc extends Object with Validators {
     user.first_name = "";
     user.last_name = "";
 
-    _usersCollection.add(User.toJson(user));
+    await _usersCollection.add(User.toJson(user));
+    _userController.add(user);
   }
 
   Future<void> submit() async {
@@ -84,16 +85,21 @@ class LoginBloc extends Object with Validators {
             .where('uid', isEqualTo: credentials.user!.uid)
             .get();
 
-        DocumentSnapshot userDocument = snapshot.docs[0];
-        User user = User(userDocument['uid'], userDocument['email'],
-            userDocument['username'], userDocument['created_on']);
+        if (snapshot.docs.length > 0) {
+          DocumentSnapshot userDocument = snapshot.docs[0];
+          User user = User(userDocument['uid'], userDocument['email'],
+              userDocument['username'], userDocument['created_on']);
 
-        user.contacts = userDocument['contacts'];
-        user.groups = userDocument['groups'];
-        user.first_name = userDocument['first_name'];
-        user.last_name = userDocument['last_name'];
+          user.contacts = userDocument['contacts'];
+          user.groups = userDocument['groups'];
+          user.first_name = userDocument['first_name'];
+          user.last_name = userDocument['last_name'];
 
-        _userController.sink.add(user);
+          print(user);
+          _userController.sink.add(user);
+        } else {
+          throw 'No User Profile';
+        }
       }
     } on FB.FirebaseAuthException catch (e) {
       if (e.code == 'user-not-found') {
@@ -108,7 +114,6 @@ class LoginBloc extends Object with Validators {
   Future<String> register() async {
     final validEmail = _emailController.value;
     final validPassword = _passwordController.value;
-    // final validUsername = _usernameController.value;
 
     try {
       FB.UserCredential credentials =

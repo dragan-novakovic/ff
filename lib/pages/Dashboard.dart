@@ -23,7 +23,7 @@ class DashboardState extends State<Dashboard> {
         title: Text('Dashboard'),
         drawer: dashboardDrawer(context, widget),
         endIcon: Icons.filter_list,
-        endDrawer: endDashboardDrawer(context, widget),
+        // endDrawer: endDashboardDrawer(context, widget),
         trailing: IconButton(
           icon: Icon(Icons.notifications),
           onPressed: () {},
@@ -174,12 +174,7 @@ Widget dashboardDrawer(context, widget) => ListView(
               navTile(context, widget,
                   title: "Development", subtitle: "Training Grounds"),
               navTile(context, widget,
-                  title: "Development", subtitle: "Buildings"),
-              navTile(context, widget,
-                  title: "Development",
-                  subtitle: "Storage",
-                  route: '/storage',
-                  props: widget.user.playerData.inventoryId),
+                  title: "Development", subtitle: "Buildings")
             ],
           ),
         ),
@@ -225,7 +220,7 @@ Widget dashboardDrawer(context, widget) => ListView(
       ],
     );
 
-Widget endDashboardDrawer(context, widget) => ListView(children: <Widget>[]);
+// Widget endDashboardDrawer(context, widget) => ListView(children: <Widget>[]);
 
 Widget dashboardBody(context, widget) => Column(
       children: <Widget>[

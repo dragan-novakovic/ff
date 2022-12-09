@@ -38,13 +38,12 @@ class _MyAppState extends State<MyApp> {
       routes: {
         // When navigating to the "/" route, build the FirstScreen widget.
         '/': (context) => StreamBuilder(
-            stream: _loginBloc.authStateChange,
+            stream: _loginBloc.userData,
             builder: (context, snapshot) {
               if (snapshot.hasData) {
-                FB.User FBuserData = snapshot.data;
-                User userData = User(FBuserData.uid, "", "", "", "",
-                    PlayerData(FBuserData.uid, 100, 100, 1000, "", ""));
-                if (userData.id.isNotEmpty) {
+                User userData = snapshot.data as User;
+
+                if (userData.uid.isNotEmpty) {
                   return Dashboard(user: userData);
                 }
               }

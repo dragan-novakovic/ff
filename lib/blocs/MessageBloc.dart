@@ -13,6 +13,8 @@ class MessageBloc extends Object {
 
   Function(String) get changeMessage => _meessageController.sink.add;
 
+  // fetch all group messages, chat messages for user id,
+  // sperate entry contacts -> all Ids
   Future<void> fetchMessages() async {
     var messagesSnapshot = await _messagesCollection.get();
 

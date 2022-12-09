@@ -1,29 +1,44 @@
 class User {
-  final String id;
+  final String uid;
   final String email;
+  String? first_name;
+  String? last_name;
+  List<String>? contacts;
+  List<String>? groups;
   final String username;
-  final String password;
   final String createdOnTimestamp;
-  final PlayerData playerData;
 
-  User(this.id, this.email, this.username, this.password,
-      this.createdOnTimestamp, this.playerData);
+  User(this.uid, this.email, this.username, this.createdOnTimestamp);
 
   User.fromJson(Map<String, dynamic> json)
-      : id = json['id'],
+      : uid = json['uid'],
         email = json['email'],
         username = json['username'],
-        password = json['password'],
-        createdOnTimestamp = json['created_on'],
-        playerData = PlayerData.fromJson(json['player_data']);
+        first_name = json['first_name'],
+        last_name = json['last_name'],
+        contacts = json['contracts'],
+        groups = json['groups'],
+        createdOnTimestamp = json['created_on'];
+
+  static Map<String, Object?> toJson(User user) {
+    return {
+      'uid': user.uid,
+      'email': user.email,
+      'username': user.username,
+      'first_name': user.first_name,
+      'last_name': user.last_name,
+      'contacts': user.contacts,
+      'groups': user.groups,
+      'created_on': user.createdOnTimestamp
+    };
+  }
 
   @override
   String toString() {
     return '''USER {
-      id: ${this.id},
+      uid: ${this.uid},
       email: ${this.email},
       username: ${this.username}
-      playerData: ${this.playerData}
       }''';
   }
 }
@@ -33,8 +48,6 @@ class PlayerData {
   final int energy;
   final int gold;
   final int exp;
-  //last updated?
-  //gold_acc
   final String inventoryId;
   final String statsId;
 

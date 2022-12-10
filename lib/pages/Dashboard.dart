@@ -86,12 +86,8 @@ Widget dashboardDrawer(context, widget) => ListView(
                     center: CircleAvatar(
                       radius: 90,
                       child: ClipOval(
-                        child: Image.network(
-                          'https://placeimg.com/200/200/people',
-                          width: 200,
-                          height: 200,
-                          fit: BoxFit.fill,
-                        ),
+                        child: Image(
+                            image: AssetImage('assets/images/avatar.png')),
                       ),
                     ),
                     reverse: true,
@@ -120,7 +116,7 @@ Widget dashboardDrawer(context, widget) => ListView(
                   color: Colors.white,
                   child: ListTile(
                     title: Text(
-                      '${widget.user.playerData.energy}',
+                      '100',
                       textAlign: TextAlign.center,
                       style: TextStyle(
                           color: Colors.blue,
@@ -140,7 +136,7 @@ Widget dashboardDrawer(context, widget) => ListView(
                   color: Colors.white,
                   child: ListTile(
                     title: Text(
-                      Utils.number(widget.user.playerData.gold),
+                      Utils.number(12000),
                       textAlign: TextAlign.center,
                       style: TextStyle(
                           color: Colors.blue,

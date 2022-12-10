@@ -4,6 +4,7 @@ import 'package:ff/pages/Dashboard.dart';
 import 'package:ff/pages/Login/Login.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'blocs/UserBloc.dart';
 import 'firebase_options.dart';
 
@@ -22,7 +23,6 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
-  LoginBloc _loginBloc = LoginBloc();
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -32,38 +32,9 @@ class _MyAppState extends State<MyApp> {
       ),
       debugShowCheckedModeBanner: false,
       initialRoute: '/',
+      home: ChangeNotifierProvider(
+          create: (context) => LoginBloc(), child: LoginGate()),
       routes: {
-        // When navigating to the "/" route, build the FirstScreen widget.
-        '/': (context) => StreamBuilder(
-            stream: _loginBloc.userData,
-            builder: (context, snapshot) {
-              print(snapshot);
-
-              if (snapshot.hasError) {
-                print('There is an error');
-                print(snapshot.error);
-              }
-
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                print("Loading");
-              }
-
-              if (snapshot.hasData) {
-                print("Data in Main");
-
-                User userData = snapshot.data as User;
-                print(userData);
-
-                if (userData.uid.isNotEmpty) {
-                  return Dashboard(user: userData);
-                }
-              }
-
-              if (snapshot.hasError) {
-                print(snapshot.error);
-              }
-              return Login();
-            }),
         '/inbox': (context) {
           // final dynamic args = ModalRoute.of(context)?.settings.arguments;
           //args['id']
@@ -71,5 +42,35 @@ class _MyAppState extends State<MyApp> {
         }
       },
     );
+  }
+}
+
+class LoginGate extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    LoginBloc _loginBloc = Provider.of<LoginBloc>(context);
+    return StreamBuilder(
+        stream: _loginBloc.userData,
+        builder: (context, snapshot) {
+          if (snapshot.hasError) {
+            print('There is an error');
+            print(snapshot.error);
+          }
+
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            print("Loading....");
+          }
+
+          if (snapshot.hasData) {
+            User userData = snapshot.data as User;
+            print('==${userData}');
+
+            if (userData.uid.isNotEmpty) {
+              return Dashboard(user: userData);
+            }
+          }
+
+          return Login();
+        });
   }
 }

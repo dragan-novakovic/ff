@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ff/models/Inventory.dart';
 import 'package:firebase_auth/firebase_auth.dart' as FB;
+import 'package:flutter/cupertino.dart';
 import 'package:rxdart/rxdart.dart';
 import '../models/User.dart';
 
@@ -25,16 +26,14 @@ class Validators {
   });
 }
 
-class LoginBloc extends Object with Validators {
+class LoginBloc extends Object with Validators, ChangeNotifier {
   final _firebaseAuth = FB.FirebaseAuth.instance;
   final _usersCollection = FirebaseFirestore.instance.collection('users');
   final _userController = BehaviorSubject<User>();
   final _emailController = BehaviorSubject<String>();
   final _passwordController = BehaviorSubject<String>();
   final _usernameController = BehaviorSubject<String>();
-  final _inventory = BehaviorSubject<UserInventory>();
 
-  BehaviorSubject<UserInventory> get inventory => _inventory;
   Stream<dynamic> get authStateChange => _firebaseAuth.authStateChanges();
   Stream<User> get userData => _userController.stream;
   Stream<String> get email => _emailController.stream.transform(validateEmail);
@@ -50,6 +49,7 @@ class LoginBloc extends Object with Validators {
   Function(String) get changeEmail => _emailController.sink.add;
   Function(String) get changePassword => _passwordController.sink.add;
   Function(String) get changeUsername => _usernameController.sink.add;
+  Function(User) get addUser => _userController.sink.add;
 
   Future<void> createUserProfile(FB.UserCredential userProfile) async {
     if (userProfile.user == null) {
@@ -85,27 +85,22 @@ class LoginBloc extends Object with Validators {
             .where('uid', isEqualTo: credentials.user!.uid)
             .get();
 
-        User user = User('123', 'e123', 'u123', 'sad');
-        _userController.sink.add(user);
-        print(await _userController.stream.length);
         if (snapshot.docs.length > 0) {
-          // print("I am in");
-          // Map<String, dynamic> userData =
-          //     snapshot.docs[0].data() as Map<String, dynamic>;
-          // print(userData);
+          Map<String, dynamic> userData =
+              snapshot.docs[0].data() as Map<String, dynamic>;
 
-          // User user = User(
-          //     userData['uid'], userData['email'], userData['username'], "");
+          User user = User(
+              userData['uid'], userData['email'], userData['username'], "");
 
-          // print(user);
-          // user.contacts = userData['contacts'];
-          // user.groups = userData['groups'];
-          // print("3");
-          // user.first_name = userData['first_name'];
-          // print("4");
-          // user.last_name = userData['last_name'];
-          // print("2");
-
+          user.contacts = (userData['contacts'] as List<dynamic>)
+              .map((e) => e.toString())
+              .toList();
+          user.groups = (userData['groups'] as List<dynamic>)
+              .map((e) => e.toString())
+              .toList();
+          user.first_name = userData['first_name'];
+          user.last_name = userData['last_name'];
+          _userController.sink.add(user);
         } else {
           throw 'No User Profile';
         }

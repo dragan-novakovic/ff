@@ -1,6 +1,9 @@
 import 'package:ff/blocs/UserBloc.dart';
 import 'package:ff/components/signin_button.dart';
+import 'package:ff/pages/Dashboard.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../../models/User.dart';
 import 'Register.dart';
 
 class MyCustomClipper extends CustomClipper<Path> {
@@ -39,10 +42,9 @@ class Login extends StatefulWidget {
 }
 
 class _LoginState extends State<Login> {
-  LoginBloc _loginBloc = LoginBloc();
-
   @override
   Widget build(BuildContext context) {
+    LoginBloc _loginBloc = Provider.of<LoginBloc>(context);
     return Scaffold(
       resizeToAvoidBottomInset: false,
       body: Column(
@@ -109,10 +111,6 @@ Widget passwordField(LoginBloc bloc) {
   return StreamBuilder(
       stream: bloc.password,
       builder: (context, snapshot) {
-        if (snapshot.hasError) {
-          print('There is an ERRRR');
-        }
-
         return TextField(
           obscureText: true,
           onChanged: bloc.changePassword,
@@ -135,9 +133,9 @@ Widget submitButton(LoginBloc bloc) {
             Container(
               margin: EdgeInsets.only(top: 30),
               child: SigninButton(
-                onPressed: () {
-                  print("SUMBMITING DATA");
-                  bloc.submit();
+                onPressed: () async {
+                  print("Login-submit");
+                  await bloc.submit();
                 },
                 child: Text(
                   "Login",

@@ -70,6 +70,31 @@ class LoginBloc extends Object with Validators, ChangeNotifier {
     _userController.add(user);
   }
 
+  Future<void> fetchUserProfile(String uid) async {
+    QuerySnapshot snapshot =
+        await _usersCollection.where('uid', isEqualTo: uid).get();
+
+    if (snapshot.docs.length > 0) {
+      Map<String, dynamic> userData =
+          snapshot.docs[0].data() as Map<String, dynamic>;
+
+      User user =
+          User(userData['uid'], userData['email'], userData['username'], "");
+
+      user.contacts = (userData['contacts'] as List<dynamic>)
+          .map((e) => e.toString())
+          .toList();
+      user.groups = (userData['groups'] as List<dynamic>)
+          .map((e) => e.toString())
+          .toList();
+      user.first_name = userData['first_name'];
+      user.last_name = userData['last_name'];
+      _userController.sink.add(user);
+    } else {
+      throw 'No User Profile';
+    }
+  }
+
   Future<void> submit() async {
     final validEmail = _emailController.value;
     final validPassword = _passwordController.value;
@@ -80,31 +105,7 @@ class LoginBloc extends Object with Validators, ChangeNotifier {
           .signInWithEmailAndPassword(
               email: validEmail, password: validPassword);
 
-      if (credentials.user!.uid.isNotEmpty) {
-        QuerySnapshot snapshot = await _usersCollection
-            .where('uid', isEqualTo: credentials.user!.uid)
-            .get();
-
-        if (snapshot.docs.length > 0) {
-          Map<String, dynamic> userData =
-              snapshot.docs[0].data() as Map<String, dynamic>;
-
-          User user = User(
-              userData['uid'], userData['email'], userData['username'], "");
-
-          user.contacts = (userData['contacts'] as List<dynamic>)
-              .map((e) => e.toString())
-              .toList();
-          user.groups = (userData['groups'] as List<dynamic>)
-              .map((e) => e.toString())
-              .toList();
-          user.first_name = userData['first_name'];
-          user.last_name = userData['last_name'];
-          _userController.sink.add(user);
-        } else {
-          throw 'No User Profile';
-        }
-      }
+      fetchUserProfile(credentials.user!.uid);
     } on FB.FirebaseAuthException catch (e) {
       if (e.code == 'user-not-found') {
         print('No user found for that email.');

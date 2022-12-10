@@ -109,10 +109,8 @@ Widget passwordField(LoginBloc bloc) {
   return StreamBuilder(
       stream: bloc.password,
       builder: (context, snapshot) {
-        String? err = null;
-
         if (snapshot.hasError) {
-          err = snapshot.error.toString();
+          print('There is an ERRRR');
         }
 
         return TextField(

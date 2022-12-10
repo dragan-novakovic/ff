@@ -1,9 +1,7 @@
-import 'package:ff/blocs/rootBloc.dart';
 import 'package:ff/models/User.dart';
 import 'package:ff/pages/Chat/ChatView.dart';
 import 'package:ff/pages/Dashboard.dart';
 import 'package:ff/pages/Login/Login.dart';
-import 'package:firebase_auth/firebase_auth.dart' as FB;
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'blocs/UserBloc.dart';
@@ -14,12 +12,11 @@ Future<void> main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
-  setUpLocators();
-
   runApp(MyApp());
 }
 
 class MyApp extends StatefulWidget {
+  const MyApp({Key? key}) : super(key: key);
   @override
   State<MyApp> createState() => _MyAppState();
 }
@@ -40,6 +37,17 @@ class _MyAppState extends State<MyApp> {
         '/': (context) => StreamBuilder(
             stream: _loginBloc.userData,
             builder: (context, snapshot) {
+              print(snapshot);
+
+              if (snapshot.hasError) {
+                print('There is an error');
+                print(snapshot.error);
+              }
+
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                print("Loading");
+              }
+
               if (snapshot.hasData) {
                 print("Data in Main");
 
@@ -57,7 +65,7 @@ class _MyAppState extends State<MyApp> {
               return Login();
             }),
         '/inbox': (context) {
-          final dynamic args = ModalRoute.of(context)?.settings.arguments;
+          // final dynamic args = ModalRoute.of(context)?.settings.arguments;
           //args['id']
           return ChatView();
         }

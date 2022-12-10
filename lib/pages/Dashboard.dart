@@ -1,11 +1,7 @@
-//import 'package:cached_network_image/cached_network_image.dart';
 import 'package:ff/models/User.dart';
-import 'package:ff/pages/Chat/ChatView.dart';
-//import 'package:ff/pages/Factories.dart';
 import 'package:ff/utils/Utils.dart';
 import 'package:flutter/material.dart';
 import 'package:percent_indicator/circular_percent_indicator.dart';
-//import 'package:percent_indicator/circular_percent_indicator.dart';
 import 'package:responsive_scaffold_nullsafe/responsive_scaffold.dart';
 
 class Dashboard extends StatefulWidget {

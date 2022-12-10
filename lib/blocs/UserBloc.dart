@@ -78,25 +78,34 @@ class LoginBloc extends Object with Validators {
     try {
       FB.UserCredential credentials = await FB.FirebaseAuth.instance
           .signInWithEmailAndPassword(
-              email: validEmail!, password: validPassword!);
+              email: validEmail, password: validPassword);
 
       if (credentials.user!.uid.isNotEmpty) {
         QuerySnapshot snapshot = await _usersCollection
             .where('uid', isEqualTo: credentials.user!.uid)
             .get();
 
+        User user = User('123', 'e123', 'u123', 'sad');
+        _userController.sink.add(user);
+        print(await _userController.stream.length);
         if (snapshot.docs.length > 0) {
-          DocumentSnapshot userDocument = snapshot.docs[0];
-          User user = User(userDocument['uid'], userDocument['email'],
-              userDocument['username'], userDocument['created_on']);
+          // print("I am in");
+          // Map<String, dynamic> userData =
+          //     snapshot.docs[0].data() as Map<String, dynamic>;
+          // print(userData);
 
-          user.contacts = userDocument['contacts'];
-          user.groups = userDocument['groups'];
-          user.first_name = userDocument['first_name'];
-          user.last_name = userDocument['last_name'];
+          // User user = User(
+          //     userData['uid'], userData['email'], userData['username'], "");
 
-          print(user);
-          _userController.sink.add(user);
+          // print(user);
+          // user.contacts = userData['contacts'];
+          // user.groups = userData['groups'];
+          // print("3");
+          // user.first_name = userData['first_name'];
+          // print("4");
+          // user.last_name = userData['last_name'];
+          // print("2");
+
         } else {
           throw 'No User Profile';
         }
@@ -118,8 +127,8 @@ class LoginBloc extends Object with Validators {
     try {
       FB.UserCredential credentials =
           await FB.FirebaseAuth.instance.createUserWithEmailAndPassword(
-        email: validEmail!,
-        password: validPassword!,
+        email: validEmail,
+        password: validPassword,
       );
       createUserProfile(credentials);
       return "OK";

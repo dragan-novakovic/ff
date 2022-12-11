@@ -2,6 +2,7 @@ import 'package:ff/models/User.dart';
 import 'package:ff/pages/Chat/ChatView.dart';
 import 'package:ff/pages/Dashboard.dart';
 import 'package:ff/pages/Login/Login.dart';
+import 'package:firebase_auth/firebase_auth.dart' as Auth;
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -50,24 +51,19 @@ class LoginGate extends StatelessWidget {
   Widget build(BuildContext context) {
     LoginBloc _loginBloc = Provider.of<LoginBloc>(context);
     return StreamBuilder(
-        stream: _loginBloc.userData,
+        stream: _loginBloc.authStateChange,
         builder: (context, snapshot) {
           if (snapshot.hasError) {
             print('There is an error');
             print(snapshot.error);
           }
-
           if (snapshot.connectionState == ConnectionState.waiting) {
             print("Loading....");
           }
-
           if (snapshot.hasData) {
-            User userData = snapshot.data as User;
+            Auth.User userData = snapshot.data as Auth.User;
             print('==${userData}');
-
-            if (userData.uid.isNotEmpty) {
-              return Dashboard(user: userData);
-            }
+            return Dashboard(uid: userData.uid);
           }
 
           return Login();

@@ -2,11 +2,15 @@ import 'package:ff/models/User.dart';
 import 'package:ff/utils/Utils.dart';
 import 'package:flutter/material.dart';
 import 'package:percent_indicator/circular_percent_indicator.dart';
+import 'package:provider/provider.dart';
 import 'package:responsive_scaffold_nullsafe/responsive_scaffold.dart';
 
+import '../blocs/UserBloc.dart';
+import '../components/InfoBox.dart';
+
 class Dashboard extends StatefulWidget {
-  Dashboard({required this.user});
-  final User user;
+  final String uid;
+  Dashboard({required String this.uid});
 
   @override
   DashboardState createState() => DashboardState();
@@ -14,17 +18,45 @@ class Dashboard extends StatefulWidget {
 
 class DashboardState extends State<Dashboard> {
   @override
+  void initState() {
+    super.initState();
+    LoginBloc _loginBloc = Provider.of<LoginBloc>(context, listen: false);
+    _loginBloc
+        .fetchUserProfile(widget.uid)
+        .then((value) => {print('who is faster? me?')});
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return ResponsiveScaffold(
-        title: Text('Dashboard'),
-        drawer: dashboardDrawer(context, widget),
-        endIcon: Icons.filter_list,
-        // endDrawer: endDashboardDrawer(context, widget),
-        trailing: IconButton(
-          icon: Icon(Icons.notifications),
-          onPressed: () {},
-        ),
-        body: dashboardBody(context, widget));
+    LoginBloc _loginBloc = Provider.of<LoginBloc>(context);
+
+    return StreamBuilder(
+        stream: _loginBloc.userData,
+        builder: (context, snapshot) {
+          print('or me?');
+          if (snapshot.hasError) {
+            print('There is an error');
+            print(snapshot.error);
+          }
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            print("Loading....");
+          }
+          if (snapshot.hasData) {
+            //fix this
+            return ResponsiveScaffold(
+                title: Text('Dashboard'),
+                drawer: dashboardDrawer(context, snapshot.data as User),
+                endIcon: Icons.filter_list,
+                // endDrawer: endDashboardDrawer(context, widget),
+                trailing: IconButton(
+                  icon: Icon(Icons.notifications),
+                  onPressed: () {},
+                ),
+                body: dashboardBody(context, snapshot.data as User));
+          }
+
+          return Text("Real Loading I guess? Before the re-build?");
+        });
   }
 }
 
@@ -62,7 +94,7 @@ Widget navTile(context, widget,
       },
     );
 
-Widget dashboardDrawer(context, widget) => ListView(
+Widget dashboardDrawer(context, User user) => ListView(
       children: <Widget>[
         Container(
           height: 250,
@@ -97,11 +129,11 @@ Widget dashboardDrawer(context, widget) => ListView(
                 ],
               ),
               Text(
-                '${widget.user.username}',
+                '${user.username}',
                 style: TextStyle(fontSize: 22.0, color: Colors.white),
               ),
               Text(
-                '${widget.user.email}',
+                '${user.email}',
                 style: TextStyle(fontSize: 14.0, color: Colors.grey.shade900),
               ),
             ],
@@ -161,11 +193,11 @@ Widget dashboardDrawer(context, widget) => ListView(
               style: TextStyle(color: Colors.blue, fontSize: 12.0),
             ),
             children: <Widget>[
-              navTile(context, widget,
+              navTile(context, user,
                   title: "Development", subtitle: "Factories"),
-              navTile(context, widget,
+              navTile(context, user,
                   title: "Development", subtitle: "Training Grounds"),
-              navTile(context, widget,
+              navTile(context, user,
                   title: "Development", subtitle: "Buildings")
             ],
           ),
@@ -177,9 +209,9 @@ Widget dashboardDrawer(context, widget) => ListView(
               style: TextStyle(color: Colors.blue, fontSize: 12.0),
             ),
             children: <Widget>[
-              navTile(context, widget, title: "Market", subtitle: "Food"),
-              navTile(context, widget, title: "Market", subtitle: "Weapon"),
-              navTile(context, widget, title: "Market", subtitle: "Factories")
+              navTile(context, user, title: "Market", subtitle: "Food"),
+              navTile(context, user, title: "Market", subtitle: "Weapon"),
+              navTile(context, user, title: "Market", subtitle: "Factories")
             ],
           ),
         ),
@@ -190,7 +222,7 @@ Widget dashboardDrawer(context, widget) => ListView(
               style: TextStyle(color: Colors.blue, fontSize: 12.0),
             ),
             children: <Widget>[
-              navTile(context, widget,
+              navTile(context, user,
                   title: "Battle", subtitle: "Chapter I", route: '/missions'),
             ],
           ),
@@ -202,9 +234,9 @@ Widget dashboardDrawer(context, widget) => ListView(
               style: TextStyle(color: Colors.blue, fontSize: 12.0),
             ),
             children: <Widget>[
-              navTile(context, widget, title: "Channel", subtitle: "Global"),
-              navTile(context, widget, title: "Channel", subtitle: "Guild"),
-              navTile(context, widget,
+              navTile(context, user, title: "Channel", subtitle: "Global"),
+              navTile(context, user, title: "Channel", subtitle: "Guild"),
+              navTile(context, user,
                   title: 'Chat', subtitle: "Inbox", route: '/inbox')
             ],
           ),
@@ -214,65 +246,9 @@ Widget dashboardDrawer(context, widget) => ListView(
 
 // Widget endDashboardDrawer(context, widget) => ListView(children: <Widget>[]);
 
-Widget dashboardBody(context, widget) => Column(
+Widget dashboardBody(context, user) => Column(
       children: <Widget>[
-        Container(
-            decoration: BoxDecoration(
-                borderRadius: BorderRadius.all(Radius.circular(10)),
-                color: Colors.blueAccent),
-            margin: EdgeInsets.all(12),
-            height: 160,
-            width: MediaQuery.of(context).size.width - 40,
-            child: Column(children: <Widget>[
-              Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: Container(
-                    alignment: Alignment.topLeft,
-                    child: Text(
-                      "News:",
-                      style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold),
-                    )),
-              ),
-              Expanded(
-                child: ListView(
-                  scrollDirection: Axis.vertical,
-                  children: <Widget>[
-                    ListTile(
-                      title: Text("Added Player Inventory"),
-                      dense: true,
-                      leading: Icon(
-                        Icons.fiber_manual_record,
-                        color: Colors.black,
-                        size: 16,
-                      ),
-                    ),
-                    ListTile(
-                      title: Text(
-                          "New factory resourses, added weapon quality and gold reward"),
-                      dense: true,
-                      leading: Icon(
-                        Icons.fiber_manual_record,
-                        color: Colors.black,
-                        size: 16,
-                      ),
-                    ),
-                    ListTile(
-                      title: Text(
-                          "Storage implemented, with maximum starting capacity of 100"),
-                      dense: true,
-                      leading: Icon(
-                        Icons.fiber_manual_record,
-                        color: Colors.black,
-                        size: 16,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ])),
+        InfoBox(),
         Column(
           children: <Widget>[
             Container(

@@ -51,6 +51,10 @@ class LoginBloc extends Object with Validators, ChangeNotifier {
   Function(String) get changeUsername => _usernameController.sink.add;
   Function(User) get addUser => _userController.sink.add;
 
+  Future<String?> getCurrentUserId() async {
+    return _firebaseAuth.currentUser?.uid;
+  }
+
   Future<void> createUserProfile(FB.UserCredential userProfile) async {
     if (userProfile.user == null) {
       throw "User is not registered";

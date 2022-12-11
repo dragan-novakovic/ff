@@ -1,4 +1,3 @@
-import 'package:ff/models/User.dart';
 import 'package:ff/pages/Chat/ChatView.dart';
 import 'package:ff/pages/Dashboard.dart';
 import 'package:ff/pages/Login/Login.dart';

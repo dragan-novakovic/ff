@@ -41,9 +41,9 @@ class _MyAppState extends State<MyApp> {
       initialRoute: '/',
       home: LoginGate(),
       routes: {
-        '/inbox': (context) {
-          // final dynamic args = ModalRoute.of(context)?.settings.arguments;
-          //args['id']
+        '/inbox/:id': (context) {
+          final dynamic args = ModalRoute.of(context)?.settings.arguments;
+          print(args['id']);
           return ChatView();
         }
       },

@@ -1,8 +1,10 @@
+import 'package:ff/blocs/UserBloc.dart';
 import 'package:ff/pages/Chat/ChatBody.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:responsive_scaffold_nullsafe/responsive_scaffold.dart';
-
 import '../../components/NavTile.dart';
+import '../../models/User.dart';
 
 class ChatView extends StatefulWidget {
   const ChatView({super.key});
@@ -21,80 +23,54 @@ class _ChatViewState extends State<ChatView> {
   }
 }
 
-Widget dashboardDrawer(context, widget) => ListView(
-      children: <Widget>[
-        Container(
-          height: 200,
-          decoration: BoxDecoration(
-              gradient: LinearGradient(
-                  begin: Alignment.centerLeft,
-                  end: Alignment.centerRight,
-                  stops: [0.5, 0.9],
-                  colors: [Colors.blue.shade300, Colors.lightBlue])),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: <Widget>[],
-          ),
+Widget dashboardDrawer(context, widget) {
+  LoginBloc _loginBloc = Provider.of(context);
+  return ListView(
+    children: <Widget>[
+      Container(
+        height: 200,
+        decoration: BoxDecoration(
+            gradient: LinearGradient(
+                begin: Alignment.centerLeft,
+                end: Alignment.centerRight,
+                stops: [0.5, 0.9],
+                colors: [Colors.blue.shade300, Colors.lightBlue])),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: <Widget>[],
         ),
-        Container(
-          // height: 50,
-          child: Row(
-            children: <Widget>[
-              Expanded(
-                child: Container(
-                  color: Colors.white,
-                  child: ListTile(
-                    title: Text(
-                      '100',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                          color: Colors.blue,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 24.0),
-                    ),
-                    subtitle: Text(
-                      "ENERGY",
-                      textAlign: TextAlign.center,
-                      style: TextStyle(color: Colors.grey),
-                    ),
+      ),
+      InkWell(
+        child: StreamBuilder(
+            stream: _loginBloc.userData,
+            builder: (context, snapshot) {
+              if (snapshot.hasData) {
+                print(snapshot.data);
+                User user = snapshot.data as User;
+                return ExpansionTile(
+                  title: Text(
+                    "Inbox",
+                    style: TextStyle(color: Colors.blue, fontSize: 12.0),
                   ),
-                ),
-              ),
-              Expanded(
-                child: Container(
-                  color: Colors.white,
-                  child: ListTile(
-                    title: Text(
-                      "9999",
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                          color: Colors.blue,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 24.0),
-                    ),
-                    subtitle: Text(
-                      "GOLD",
-                      textAlign: TextAlign.center,
-                      style: TextStyle(color: Colors.grey),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-        InkWell(
-          child: ExpansionTile(
-            title: Text(
-              "Inbox",
-              style: TextStyle(color: Colors.blue, fontSize: 12.0),
-            ),
-            children: <Widget>[
-              navTile(context, widget, title: "Djura", subtitle: "Unread"),
-              navTile(context, widget, title: "Mika", subtitle: "Unread"),
-            ],
-          ),
-        ),
-      ],
-    );
+                  children: fetchInboxList(context, widget, user.contacts),
+                );
+              }
+
+              return Text('LOOOADING INBOX');
+            }),
+      ),
+    ],
+  );
+}
+
+List<Widget> fetchInboxList(context, widget, List<String>? data) {
+  if (data != null && data.isNotEmpty) {
+    return data
+        .map(
+            (name) => navTile(context, widget, title: name, subtitle: "Unread"))
+        .toList();
+  }
+
+  return [];
+}

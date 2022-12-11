@@ -1,9 +1,10 @@
 import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ff/models/MessageModel.dart';
+import 'package:flutter/material.dart';
 import 'package:rxdart/rxdart.dart';
 
-class MessageBloc extends Object {
+class MessageBloc extends Object with ChangeNotifier {
   final _messagesCollection = FirebaseFirestore.instance.collection('messages');
   final _messagesController = BehaviorSubject<List<Message>>();
   final _meessageController = BehaviorSubject<String>();

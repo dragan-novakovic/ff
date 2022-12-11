@@ -6,6 +6,7 @@ import 'package:firebase_auth/firebase_auth.dart' as Auth;
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'blocs/MessageBloc.dart';
 import 'blocs/UserBloc.dart';
 import 'firebase_options.dart';
 
@@ -14,7 +15,13 @@ Future<void> main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
-  runApp(MyApp());
+  runApp(MultiProvider(
+    providers: [
+      ChangeNotifierProvider(create: (_) => LoginBloc()),
+      ChangeNotifierProvider(create: (_) => MessageBloc()),
+    ],
+    child: MyApp(),
+  ));
 }
 
 class MyApp extends StatefulWidget {
@@ -33,8 +40,7 @@ class _MyAppState extends State<MyApp> {
       ),
       debugShowCheckedModeBanner: false,
       initialRoute: '/',
-      home: ChangeNotifierProvider(
-          create: (context) => LoginBloc(), child: LoginGate()),
+      home: LoginGate(),
       routes: {
         '/inbox': (context) {
           // final dynamic args = ModalRoute.of(context)?.settings.arguments;

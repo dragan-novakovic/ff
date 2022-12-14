@@ -73,6 +73,31 @@ class LoginBloc extends Object with Validators, ChangeNotifier {
     _userController.add(user);
   }
 
+  Future<void> fetchChatUserProfile(String uid) async {
+    QuerySnapshot snapshot =
+        await _usersCollection.where('uid', isEqualTo: uid).get();
+
+    if (snapshot.docs.length > 0) {
+      Map<String, dynamic> userData =
+          snapshot.docs[0].data() as Map<String, dynamic>;
+
+      User user =
+          User(userData['uid'], userData['email'], userData['username'], "");
+
+      user.contacts = (userData['contacts'] as List<dynamic>)
+          .map((e) => e.toString())
+          .toList();
+      user.groups = (userData['groups'] as List<dynamic>)
+          .map((e) => e.toString())
+          .toList();
+      user.first_name = userData['first_name'];
+      user.last_name = userData['last_name'];
+      _userController.sink.add(user);
+    } else {
+      throw 'No User Profile';
+    }
+  }
+
   Future<void> fetchUserProfile(String uid) async {
     QuerySnapshot snapshot =
         await _usersCollection.where('uid', isEqualTo: uid).get();

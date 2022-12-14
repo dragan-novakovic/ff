@@ -1,11 +1,10 @@
 import 'package:ff/blocs/MessageBloc.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 class MessageInput extends StatefulWidget {
-  final MessageBloc messageBloc;
   final Function parentFunc;
-  const MessageInput(
-      {required Key key, required this.parentFunc, required this.messageBloc})
+  const MessageInput({required Key key, required this.parentFunc})
       : super(key: key);
 
   @override
@@ -16,25 +15,25 @@ class _MessageInputState extends State<MessageInput> {
   TextEditingController _inputController = TextEditingController();
   @override
   Widget build(BuildContext context) {
+    MessageBloc _messageBloc = Provider.of<MessageBloc>(context);
     return Container(
       margin: EdgeInsets.symmetric(vertical: 10.0),
       child: Row(
         children: [
           Expanded(
             child: StreamBuilder<Object>(
-                stream: widget.messageBloc.message,
+                stream: _messageBloc.message,
                 builder: (context, snapshot) {
                   return TextField(
                     controller: _inputController,
-                    onChanged: widget.messageBloc.changeMessage,
-                    onSubmitted: widget.messageBloc.sendMessage,
+                    onChanged: _messageBloc.changeMessage,
+                    onSubmitted: _messageBloc.sendMessage,
                     decoration: InputDecoration(
                         labelText: 'Enter Message',
                         contentPadding: EdgeInsets.all(6),
                         suffixIcon: IconButton(
                           onPressed: (() {
-                            widget.messageBloc
-                                .sendMessage(_inputController.text);
+                            _messageBloc.sendMessage(_inputController.text);
                             _inputController.clear();
                             FocusManager.instance.primaryFocus?.unfocus();
                           }),

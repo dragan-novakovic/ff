@@ -16,7 +16,7 @@ class MessageBloc extends Object with ChangeNotifier {
 
   // fetch all group messages, chat messages for user id,
   // sperate entry contacts -> all Ids
-  Future<void> fetchMessages() async {
+  Future<void> fetchMessages({String? userId}) async {
     var messagesSnapshot = await _messagesCollection.get();
 
     List<Message> messages = messagesSnapshot.docs.map((doc) {

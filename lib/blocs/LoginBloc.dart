@@ -5,7 +5,27 @@ import 'package:flutter/cupertino.dart';
 import 'package:rxdart/rxdart.dart';
 import '../models/User.dart';
 
-class UserBloc extends Object with ChangeNotifier {
+class Validators {
+  final validateEmail =
+      StreamTransformer<String, String>.fromHandlers(handleData: (email, sink) {
+    if (email.contains('@')) {
+      sink.add(email);
+    } else {
+      sink.addError('Enter a valid email');
+    }
+  });
+
+  final validatePassword = StreamTransformer<String, String>.fromHandlers(
+      handleData: (password, sink) {
+    if (password.length > 4) {
+      sink.add(password);
+    } else {
+      sink.addError('Invalid password, please enter more than 4 characters');
+    }
+  });
+}
+
+class LoginBloc extends Object with Validators, ChangeNotifier {
   final _firebaseAuth = FB.FirebaseAuth.instance;
   final _usersCollection = FirebaseFirestore.instance.collection('users');
   final _userController = BehaviorSubject<User>();
@@ -15,7 +35,14 @@ class UserBloc extends Object with ChangeNotifier {
 
   Stream<dynamic> get authStateChange => _firebaseAuth.authStateChanges();
   Stream<User> get userData => _userController.stream;
+  Stream<String> get email => _emailController.stream.transform(validateEmail);
+  Stream<String> get password =>
+      _passwordController.stream.transform(validatePassword);
   Stream<String> get username => _usernameController.stream;
+  Stream<bool> get submitValid =>
+      Rx.combineLatest2(email, password, (e, p) => true);
+  Stream<bool> get submitValidRegister =>
+      Rx.combineLatest3(email, password, username, (e, p, u) => true);
 
   // change data
   Function(String) get changeEmail => _emailController.sink.add;

@@ -5,7 +5,7 @@ import 'package:percent_indicator/circular_percent_indicator.dart';
 import 'package:provider/provider.dart';
 import 'package:responsive_scaffold_nullsafe/responsive_scaffold.dart';
 
-import '../blocs/UserBloc.dart';
+import '../blocs/LoginBloc.dart';
 import '../components/InfoBox.dart';
 
 class Dashboard extends StatefulWidget {

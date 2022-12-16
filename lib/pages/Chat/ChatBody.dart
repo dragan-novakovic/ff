@@ -1,5 +1,5 @@
 import 'package:ff/blocs/MessageBloc.dart';
-import 'package:ff/blocs/UserBloc.dart';
+import 'package:ff/blocs/LoginBloc.dart';
 import 'package:ff/components/MessageInput.dart';
 import 'package:ff/components/TextBoxBody.dart';
 import 'package:flutter/material.dart';

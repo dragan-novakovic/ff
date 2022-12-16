@@ -1,3 +1,4 @@
+import 'package:ff/pages/Chat/ChatBody.dart';
 import 'package:ff/pages/Chat/ChatView.dart';
 import 'package:ff/pages/Dashboard.dart';
 import 'package:ff/pages/Login/Login.dart';
@@ -6,7 +7,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'blocs/MessageBloc.dart';
-import 'blocs/UserBloc.dart';
+import 'blocs/LoginBloc.dart';
 import 'firebase_options.dart';
 
 Future<void> main() async {
@@ -44,8 +45,7 @@ class _MyAppState extends State<MyApp> {
         '/inbox': (context) => ChatView(),
         '/inbox/:id': (context) {
           final dynamic args = ModalRoute.of(context)?.settings.arguments;
-          print(args['id']);
-          return ChatView();
+          return ChatBody(userId: args['id']);
         }
       },
     );

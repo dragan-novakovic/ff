@@ -1,4 +1,4 @@
-import 'package:ff/blocs/UserBloc.dart';
+import 'package:ff/blocs/LoginBloc.dart';
 import 'package:ff/pages/Chat/ChatBody.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';

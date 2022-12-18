@@ -67,8 +67,8 @@ Widget dashboardDrawer(context, widget) {
 List<Widget> fetchInboxList(context, widget, List<String>? data) {
   if (data != null && data.isNotEmpty) {
     return data
-        .map(
-            (name) => navTile(context, widget, title: name, subtitle: "Unread"))
+        .map((name) => navTile(context, widget,
+            title: name, subtitle: "Unread", props: name))
         .toList();
   }
 

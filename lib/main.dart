@@ -1,3 +1,4 @@
+import 'package:ff/blocs/UserBloc.dart';
 import 'package:ff/pages/Chat/ChatBody.dart';
 import 'package:ff/pages/Chat/ChatView.dart';
 import 'package:ff/pages/Dashboard.dart';
@@ -44,8 +45,13 @@ class _MyAppState extends State<MyApp> {
       routes: {
         '/inbox': (context) => ChatView(),
         '/inbox/:id': (context) {
+          LoginBloc _userBloc = Provider.of<LoginBloc>(context);
+          String userId = _userBloc.getCurrentUserId() as String;
           final dynamic args = ModalRoute.of(context)?.settings.arguments;
-          return ChatBody(userId: args['id']);
+          return ChatBody(
+            contactId: args['id'],
+            userId: userId,
+          );
         }
       },
     );

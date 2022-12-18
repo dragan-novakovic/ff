@@ -8,7 +8,8 @@ import 'package:provider/provider.dart';
 // ignore: must_be_immutable
 class ChatBody extends StatefulWidget {
   String? userId;
-  ChatBody({super.key, String? userId});
+  String? contactId;
+  ChatBody({super.key, String? userId, String? contactId});
   @override
   State<ChatBody> createState() => _ChatBodyState();
 }
@@ -26,10 +27,8 @@ class _ChatBodyState extends State<ChatBody> {
   void initState() {
     super.initState();
     MessageBloc _messageBloc = Provider.of<MessageBloc>(context, listen: false);
-    LoginBloc _userBloc = Provider.of<LoginBloc>(context, listen: false);
     if (widget.userId != null) {
-      _messageBloc.fetchMessages(userId: widget.userId);
-      _userBloc.fetchChatUserProfile(widget.userId as String);
+      _messageBloc.fetchMessages(fromId: widget.userId, toId: widget.contactId);
     } else {
       _messageBloc.fetchMessages();
     }

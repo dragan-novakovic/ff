@@ -23,7 +23,7 @@ class UserBloc extends Object with ChangeNotifier {
   Function(String) get changeUsername => _usernameController.sink.add;
   Function(User) get addUser => _userController.sink.add;
 
-  Future<String?> getCurrentUserId() async {
+  String? getCurrentUserId() {
     return _firebaseAuth.currentUser?.uid;
   }
 

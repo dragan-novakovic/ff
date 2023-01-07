@@ -9,11 +9,11 @@ class TextBoxBody extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     MessageBloc _messageBloc = Provider.of<MessageBloc>(context);
-    return StreamBuilder(
+    return StreamBuilder<List<Message>>(
         stream: _messageBloc.messages,
         builder: (context, AsyncSnapshot snapshot) {
           if (snapshot.hasError) {
-            return Text("ERRRR");
+            return Text("ERRRR: " + snapshot.error.toString());
           }
 
           if (snapshot.connectionState == ConnectionState.waiting) {
@@ -22,7 +22,7 @@ class TextBoxBody extends StatelessWidget {
             );
           }
 
-          print("Data lenght: " + snapshot.data.length.toString());
+          print("Data 1: " + snapshot.data[0]);
 
           return Container(
             decoration:
@@ -32,7 +32,7 @@ class TextBoxBody extends StatelessWidget {
                 SliverList(
                     delegate: SliverChildBuilderDelegate(
                         (BuildContext context, int index) {
-                  return TextBox(message: snapshot.data[index]);
+                  // return TextBox(message: snapshot.data[index]);
                 }, childCount: snapshot.data.length))
               ],
             ),
@@ -44,7 +44,8 @@ class TextBoxBody extends StatelessWidget {
 // Widget TextBox(List<Message> messagesList, int index) {}
 class TextBox extends StatelessWidget {
   TextBox({super.key, required Message message});
-  late final Message message;
+  late final Message message =
+      Message("placeholder", "placeholder", "placeholder");
   @override
   Widget build(BuildContext context) {
     bool isOther = 10 % 2 == 0;

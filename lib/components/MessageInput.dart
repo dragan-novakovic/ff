@@ -16,6 +16,8 @@ class _MessageInputState extends State<MessageInput> {
   @override
   Widget build(BuildContext context) {
     MessageBloc _messageBloc = Provider.of<MessageBloc>(context);
+    String? route = ModalRoute.of(context)?.settings.name as String;
+    print("ROUTTEEEEE: " + route);
     return Container(
       margin: EdgeInsets.symmetric(vertical: 10.0),
       child: Row(
@@ -27,13 +29,14 @@ class _MessageInputState extends State<MessageInput> {
                   return TextField(
                     controller: _inputController,
                     onChanged: _messageBloc.changeMessage,
-                    onSubmitted: _messageBloc.sendMessage,
+                    //  onSubmitted: _messageBloc.sendMessage,
                     decoration: InputDecoration(
                         labelText: 'Enter Message',
                         contentPadding: EdgeInsets.all(6),
                         suffixIcon: IconButton(
                           onPressed: (() {
-                            _messageBloc.sendMessage(_inputController.text);
+                            _messageBloc.sendMessage(
+                                _inputController.text, "ne", "ne");
                             _inputController.clear();
                             FocusManager.instance.primaryFocus?.unfocus();
                           }),

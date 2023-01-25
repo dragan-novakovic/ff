@@ -44,13 +44,12 @@ class _MyAppState extends State<MyApp> {
       home: LoginGate(),
       routes: {
         '/inbox': (context) => ChatView(),
-        '/inbox/:id': (context) {
-          LoginBloc _userBloc = Provider.of<LoginBloc>(context);
-          String userId = _userBloc.getCurrentUserId() as String;
+        '/inbox/chat': (context) {
+          //  LoginBloc _userBloc = Provider.of<LoginBloc>(context);
           final dynamic args = ModalRoute.of(context)?.settings.arguments;
           return ChatBody(
             contactId: args['id'],
-            userId: userId,
+            userId: args['userId'],
           );
         }
       },

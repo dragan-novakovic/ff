@@ -41,15 +41,15 @@ class MessageBloc extends Object with ChangeNotifier {
         return doc.data();
       }).toList();
 
-      print("Num of messages:" + messages.length.toString());
       if (messages.length > 0) {
         _messagesController.add(messages);
       }
     }
   }
 
-  Future<void> sendMessage(String msg) async {
-    await _messagesCollection.add(Message(msg, "fromId", "toId"));
+  Future<void> sendMessage(String msg, String fromId, String toId) async {
+    print("hiee");
+    // await _messagesCollection.add(Message(msg, fromId, toId));
     await this.fetchMessages();
   }
 }

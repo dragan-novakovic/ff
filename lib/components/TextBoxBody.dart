@@ -61,7 +61,6 @@ class TextBox extends StatelessWidget {
         stream: _userBloc.userData,
         builder: (context, AsyncSnapshot<User> snapshot) {
           if (snapshot.hasData) {
-            print(snapshot.data);
             //! Add message TIMESTAMP
             bool isOther = snapshot.data?.uid == message.fromId;
             return Padding(

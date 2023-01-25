@@ -53,7 +53,8 @@ Widget dashboardDrawer(context, widget) {
                     "Inbox",
                     style: TextStyle(color: Colors.blue, fontSize: 12.0),
                   ),
-                  children: fetchInboxList(context, widget, user.contacts),
+                  children:
+                      fetchInboxList(context, widget, user.contacts, user.uid),
                 );
               }
 
@@ -64,11 +65,16 @@ Widget dashboardDrawer(context, widget) {
   );
 }
 
-List<Widget> fetchInboxList(context, widget, List<String>? data) {
+List<Widget> fetchInboxList(
+    context, widget, List<String>? data, String userId) {
   if (data != null && data.isNotEmpty) {
     return data
         .map((name) => navTile(context, widget,
-            title: name, subtitle: "Unread", props: name))
+            title: name,
+            subtitle: "Unread",
+            route: '/inbox/chat',
+            props: name,
+            userId: userId))
         .toList();
   }
 

@@ -19,7 +19,8 @@ class _MessageInputState extends State<MessageInput> {
     String? route = ModalRoute.of(context)?.settings.name as String;
     print("ROUTTEEEEE: " + route);
     return Container(
-      margin: EdgeInsets.symmetric(vertical: 10.0),
+      decoration: BoxDecoration(color: Colors.grey[800]),
+      padding: EdgeInsets.symmetric(horizontal: 10.0),
       child: Row(
         children: [
           Expanded(
@@ -32,22 +33,24 @@ class _MessageInputState extends State<MessageInput> {
                     //  onSubmitted: _messageBloc.sendMessage,
                     decoration: InputDecoration(
                         labelText: 'Enter Message',
-                        contentPadding: EdgeInsets.all(6),
-                        suffixIcon: IconButton(
+                        filled: true,
+                        fillColor: Colors.white70,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        contentPadding: EdgeInsets.only(
+                            left: 0, right: 0, top: 0, bottom: 0),
+                        icon: IconButton(
                           onPressed: (() {
                             _messageBloc.sendMessage(
                                 _inputController.text, "ne", "ne");
                             _inputController.clear();
                             FocusManager.instance.primaryFocus?.unfocus();
                           }),
-                          icon: Padding(
-                            padding:
-                                const EdgeInsetsDirectional.only(end: 12.0),
-                            child: Icon(
-                              Icons.send,
-                              color: Colors.blue,
-                              size: 30.0,
-                            ),
+                          icon: Icon(
+                            Icons.send,
+                            color: Colors.white70,
+                            size: 32.0,
                           ),
                         )),
                   );

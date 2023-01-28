@@ -12,8 +12,7 @@
 
 -BBM style
 -DM, and group
-
-- Profile page Info
+-Profile page Info
 
 ## Using:
 

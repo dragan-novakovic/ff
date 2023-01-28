@@ -59,12 +59,12 @@ class _LoginState extends State<Login> {
               )),
               padding: EdgeInsets.only(top: 80),
               width: MediaQuery.of(context).size.width,
-              height: 200,
+              height: 220,
               child: Column(
                 children: <Widget>[
                   Text(
                     "E - GAME",
-                    textScaleFactor: 1.5,
+                    textScaleFactor: 1.8,
                     style: TextStyle(
                         color: Colors.white, fontWeight: FontWeight.bold),
                   )
@@ -73,7 +73,7 @@ class _LoginState extends State<Login> {
             ),
           ),
           Padding(
-            padding: const EdgeInsets.only(left: 40, right: 40, top: 20),
+            padding: const EdgeInsets.only(left: 40, right: 40, top: 100),
             child: Column(
               children: <Widget>[
                 emailField(_loginBloc),

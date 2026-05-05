@@ -25,7 +25,7 @@ class Validators {
   });
 }
 
-class LoginBloc extends Object with Validators, ChangeNotifier {
+class LoginBloc extends Validators with ChangeNotifier {
   final _firebaseAuth = FB.FirebaseAuth.instance;
   final _usersCollection = FirebaseFirestore.instance.collection('users');
   final _userController = BehaviorSubject<User>();

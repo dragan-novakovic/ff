@@ -3,7 +3,6 @@ import 'package:ff/utils/Utils.dart';
 import 'package:flutter/material.dart';
 import 'package:percent_indicator/circular_percent_indicator.dart';
 import 'package:provider/provider.dart';
-import 'package:responsive_scaffold_nullsafe/responsive_scaffold.dart';
 
 import '../blocs/LoginBloc.dart';
 import '../components/InfoBox.dart';
@@ -42,17 +41,20 @@ class DashboardState extends State<Dashboard> {
             print("Loading....");
           }
           if (snapshot.hasData) {
-            //fix this
-            return ResponsiveScaffold(
+            final user = snapshot.data as User;
+            return Scaffold(
+              appBar: AppBar(
                 title: Text('Dashboard'),
-                drawer: dashboardDrawer(context, snapshot.data as User),
-                endIcon: Icons.filter_list,
-                // endDrawer: endDashboardDrawer(context, widget),
-                trailing: IconButton(
-                  icon: Icon(Icons.notifications),
-                  onPressed: () {},
-                ),
-                body: dashboardBody(context, snapshot.data as User));
+                actions: [
+                  IconButton(
+                    icon: Icon(Icons.notifications),
+                    onPressed: () {},
+                  ),
+                ],
+              ),
+              drawer: Drawer(child: dashboardDrawer(context, user)),
+              body: dashboardBody(context, user),
+            );
           }
 
           return Text("Real Loading I guess? Before the re-build?");

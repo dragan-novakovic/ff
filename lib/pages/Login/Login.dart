@@ -64,7 +64,7 @@ class _LoginState extends State<Login> {
                 children: <Widget>[
                   Text(
                     "E - GAME",
-                    textScaleFactor: 1.8,
+                    textScaler: TextScaler.linear(1.8),
                     style: TextStyle(
                         color: Colors.white, fontWeight: FontWeight.bold),
                   )

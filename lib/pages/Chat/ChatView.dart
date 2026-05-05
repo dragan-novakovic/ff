@@ -2,7 +2,6 @@ import 'package:ff/blocs/LoginBloc.dart';
 import 'package:ff/pages/Chat/ChatBody.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:responsive_scaffold_nullsafe/responsive_scaffold.dart';
 import '../../components/NavTile.dart';
 import '../../models/User.dart';
 
@@ -16,15 +15,16 @@ class ChatView extends StatefulWidget {
 class _ChatViewState extends State<ChatView> {
   @override
   Widget build(BuildContext context) {
-    return ResponsiveScaffold(
-        title: Text("Inbox"),
-        drawer: dashboardDrawer(context, widget),
-        body: ChatBody());
+    return Scaffold(
+      appBar: AppBar(title: Text('Inbox')),
+      drawer: Drawer(child: dashboardDrawer(context, widget)),
+      body: ChatBody(),
+    );
   }
 }
 
 Widget dashboardDrawer(context, widget) {
-  LoginBloc _loginBloc = Provider.of(context);
+  LoginBloc _loginBloc = Provider.of<LoginBloc>(context);
   return ListView(
     children: <Widget>[
       Container(

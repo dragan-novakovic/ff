@@ -26,12 +26,14 @@ https://www.facebook.com/charuwaka/videos/2807396325978185
 
 The backend should be designed around domain ownership, not UI screens. For an eRepublik-like game, the core domains are identity, player state, economy, production, market, combat, social, and scheduled world simulation.
 
+The target backend should not use Firebase Auth or Firestore. Use a backend-owned identity flow, issue normal OIDC/JWT tokens to the Flutter app, and keep an internal `playerId` separate from the auth provider's subject/account ID.
+
 ### Recommended microservice map
 
 | Service | Owns | Main responsibilities |
 |---|---|---|
 | API Gateway / BFF | Client-facing API surface | Auth verification, request routing, Flutter-friendly response shaping, rate limiting, API versioning |
-| Identity Service | Auth account linkage | Integrates with Firebase Auth or replaces it later; maps auth users to internal player IDs, handles bans/session metadata |
+| Identity Service | Auth account linkage | Owns login/account identity or integrates with a self-hosted OIDC provider; maps auth subjects to internal player IDs, handles bans/session metadata |
 | Player Service | Player profile and progression | Player profile, level, XP, energy, strength, avatar, daily status, tutorial/progression state |
 | Inventory Service | Player-owned items/resources | Food, weapons, raw materials, storage capacity, item balances, inventory reservations |
 | Wallet / Economy Service | Money and ledgers | Gold/currency balances, transaction ledger, deposits/withdrawals, anti-negative-balance guarantees |
@@ -140,7 +142,7 @@ The Flutter app should call this instead of directly calling every backend servi
 
 Responsibilities:
 
-- Verify Firebase ID tokens or backend-issued JWTs.
+- Verify OIDC/JWT access tokens issued by the Identity Service.
 - Convert external user identity into internal `playerId`.
 - Expose mobile-friendly endpoints.
 - Hide internal service topology.
@@ -162,17 +164,17 @@ POST /chat/messages
 
 #### Identity Service
 
-Since the Flutter app already uses Firebase Auth, keep Firebase initially and make Identity responsible for mapping Firebase UID to internal game identity.
+Use a backend-owned identity system rather than Firebase. The Flutter app should authenticate with an OIDC/OAuth2 flow, preferably Authorization Code + PKCE for mobile/web clients, then send bearer tokens to the API Gateway.
 
 Owns:
 
-- `authUserId`
+- `identitySubject`
 - `playerId`
 - account state
 - ban/suspension state
 - login metadata
 
-Avoid putting game state directly under Firebase Auth identity.
+Avoid putting game state directly in identity tables. Identity should answer "who is this account?", while Player owns game progression.
 
 #### Player Service
 
@@ -371,7 +373,7 @@ Owns:
 - unread counts
 - moderation metadata
 
-For real-time Flutter updates, use WebSockets, Firebase Firestore listeners, or a dedicated realtime gateway.
+For real-time Flutter updates, use WebSockets or a dedicated realtime gateway backed by Redis/NATS fan-out.
 
 #### Notification Service
 
@@ -395,16 +397,61 @@ For MVP:
 
 | Service | Good default |
 |---|---|
-| Identity/Player | PostgreSQL or Firebase/Firestore initially |
+| Identity/Player | PostgreSQL |
 | Inventory/Wallet | PostgreSQL, because transactions matter |
 | Market | PostgreSQL |
 | Production | PostgreSQL |
 | Combat | PostgreSQL for battle/action records |
-| Chat | Firestore or dedicated realtime DB |
+| Chat | PostgreSQL for message history + Redis/NATS for realtime fan-out |
 | Notifications | PostgreSQL + push provider |
 | Analytics | Event stream/log store |
 
-If staying close to Flutter/Firebase initially, Firestore is acceptable for Player, Chat, and simple profile data, but Wallet, Inventory, Market, and Combat benefit from relational transactions.
+Use PostgreSQL as the default database for core game state because wallet, inventory, market, production, and combat all need strong transactional guarantees. Add Redis for caching, rate limits, short-lived locks, presence, and websocket fan-out. Add an event broker for cross-service events instead of using database writes across service boundaries.
+
+### Recommended technologies and frameworks
+
+Use one boring, consistent stack for most MVP services, then specialize only where load proves it is needed.
+
+| Layer | Recommended technology | Fit for this game |
+|---|---|---|
+| Main backend framework | TypeScript + NestJS with the Fastify adapter | Strong module boundaries, dependency injection, guards, validation, OpenAPI generation, WebSocket support, and good fit for many domain services |
+| High-throughput services | Go with gRPC/Gin/Fiber, only if needed | Good fit later for combat simulation, market matching, or scheduler workers if TypeScript becomes a bottleneck |
+| Identity | Keycloak + PostgreSQL | Self-hosted OIDC/OAuth2, Authorization Code + PKCE, roles, admin UI, MFA, account management, and no Firebase dependency |
+| Custom auth fallback | NestJS + Passport + Argon2 + rotating refresh tokens | Use this only if Keycloak feels too heavy and the game needs fully custom account UX |
+| Primary database | PostgreSQL | Best default for transactional game state, ledgers, inventories, orders, battles, and admin reporting |
+| ORM/migrations | Prisma + Prisma Migrate | Productive TypeScript data access; use raw SQL for ledger/order hot paths that need precise locking |
+| Cache/rate limit/presence | Redis | Rate limits, sessions/refresh-token metadata, websocket presence, temporary locks, and hot dashboard data |
+| Event broker | NATS JetStream | Lightweight durable events for `ProductionCompleted`, `MarketOrderFilled`, `BattleResolved`, and scheduler ticks; simpler than Kafka for MVP |
+| Internal service calls | gRPC or NATS request/reply | Typed, efficient service-to-service commands for balance checks, reservations, and combat actions |
+| Public API | REST + OpenAPI | Easy Flutter integration and clear contracts; add GraphQL later only if dashboard aggregation becomes painful |
+| Realtime | NestJS WebSocket Gateway or Socket.IO + Redis/NATS adapter | Good fit for chat, battle updates, notifications, and live market updates |
+| Scheduler/workflows | BullMQ + Redis for MVP; Temporal later | BullMQ is simple for recurring jobs; Temporal is better later for durable multi-step workflows and retries |
+| Observability | OpenTelemetry + Prometheus + Grafana + Loki | Distributed traces, metrics, dashboards, and logs across microservices |
+| Local/dev deployment | Docker Compose | Easy local stack for PostgreSQL, Redis, NATS, Keycloak, and services |
+| Production deployment | Kubernetes or Docker Swarm behind Traefik/Nginx | Start simple; use Kubernetes when autoscaling, service discovery, and rolling deploys are needed |
+| Testing | Jest, Supertest, Testcontainers | Unit/API tests plus real PostgreSQL/Redis/NATS integration tests |
+
+Recommended service fit:
+
+| Service | Best-fit implementation |
+|---|---|
+| API Gateway / BFF | NestJS + Fastify, JWT/OIDC guards, OpenAPI, Redis rate limiting, Traefik/Nginx at the edge |
+| Identity Service | Keycloak + PostgreSQL; store only the `identitySubject` to `playerId` mapping in game services |
+| Player Service | NestJS + PostgreSQL + Prisma, with Redis caching for dashboard reads |
+| Inventory Service | NestJS + PostgreSQL transactions, reservation tables, row locking, outbox events |
+| Wallet / Economy Service | NestJS + PostgreSQL ledger tables, strict transactions, idempotency keys, outbox events |
+| Production Service | NestJS + PostgreSQL, NATS events, BullMQ/Temporal workers for production completion |
+| Market Service | NestJS + PostgreSQL for MVP fixed-price listings; Go later if order matching becomes high-volume |
+| Combat Service | NestJS initially; Go/gRPC later if battle calculations or fight traffic become CPU-heavy |
+| World Service | NestJS + PostgreSQL, Redis cache for countries, regions, taxes, and modifiers |
+| Scheduler / Tick Service | BullMQ worker for MVP daily ticks; Temporal worker when workflows span multiple services |
+| Social Service | NestJS + PostgreSQL for contacts, guilds, memberships, roles |
+| Chat Service | NestJS WebSocket Gateway or Socket.IO, PostgreSQL message history, Redis/NATS fan-out |
+| Notification Service | NestJS worker consuming NATS events; mobile push provider plus in-app notification table |
+| News / Media Service | NestJS + PostgreSQL, object storage such as S3-compatible MinIO for uploaded media |
+| Politics Service | NestJS + PostgreSQL, event-driven election/law lifecycle through Scheduler |
+| Admin / Moderation Service | NestJS admin API + PostgreSQL read models, protected by Keycloak roles |
+| Analytics / Telemetry Service | NATS event consumer first; Kafka/ClickHouse later if analytics volume grows |
 
 ### Communication style
 
@@ -454,11 +501,11 @@ identity-player-service -> identity-service + player-service
 | Combat | cheating/spam | server-side damage calculation, rate limits |
 | Scheduler | partial daily resets | idempotent jobs with run IDs |
 | Chat | abuse/spam | rate limits and moderation hooks |
-| Firebase identity | auth/game-state coupling | keep internal `playerId` separate from Firebase UID |
+| Identity coupling | auth/game-state coupling | keep internal `playerId` separate from identity provider subjects |
 
 ### Recommended first implementation order
 
-1. Identity + Player: map Firebase UID to player profile.
+1. Identity + Player: map OIDC identity subject/account ID to player profile.
 2. Dashboard API: return player, wallet, inventory, and basic world state.
 3. Wallet + Inventory: implement balances, item grants, item consumption.
 4. Production: create factories and production jobs.

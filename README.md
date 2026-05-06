@@ -52,18 +52,22 @@ The target backend should not use Firebase Auth or Firestore. Use a backend-owne
 
 ### MVP backend split
 
-For the first backend version, don't start with every service as a separate deployment. Start with these bounded services or modules:
+Start with independently deployable services from the beginning. Keep the first split pragmatic: separate services where ownership and scaling differ, but keep wallet and inventory together in `economy-service` because market and combat need atomic money/item reservations.
 
 1. Gateway/BFF
-2. Identity + Player
-3. Inventory + Wallet
-4. Production
-5. Market
-6. Combat
-7. Chat/Social
-8. Scheduler
+2. Identity Service
+3. Player Service
+4. Economy Service: wallet ledger, currencies, inventory balances, reservations
+5. Production Service
+6. Market Service
+7. Combat Service
+8. World Service
+9. Social Chat Service
+10. Scheduler Service
+11. Notification Service
+12. Admin Service
 
-Politics, news, advanced admin, and analytics can come later once the core game loop works.
+Politics, news, and analytics can come later once the core game loop works.
 
 ### Core game loop ownership
 
@@ -397,16 +401,21 @@ For MVP:
 
 | Service | Good default |
 |---|---|
-| Identity/Player | PostgreSQL |
-| Inventory/Wallet | PostgreSQL, because transactions matter |
-| Market | PostgreSQL |
+| Gateway/BFF | No owned game database; Redis for rate limits, short-lived cache, and request coordination |
+| Identity | PostgreSQL |
+| Player | PostgreSQL |
+| Economy | PostgreSQL, because wallet ledger, inventory balances, and reservations need atomic transactions |
 | Production | PostgreSQL |
-| Combat | PostgreSQL for battle/action records |
-| Chat | PostgreSQL for message history + Redis/NATS for realtime fan-out |
+| Market | PostgreSQL |
+| Combat | PostgreSQL for battle/action records; Rust engine can keep no durable state or own its own PostgreSQL schema |
+| World | PostgreSQL |
+| Social Chat | PostgreSQL for message history + Redis/NATS for realtime fan-out |
+| Scheduler | PostgreSQL for job state/run IDs if using Quartz/Hangfire |
 | Notifications | PostgreSQL + push provider |
+| Admin | PostgreSQL read models or service-owned audit tables |
 | Analytics | Event stream/log store |
 
-Use PostgreSQL as the default database for core game state because wallet, inventory, market, production, and combat all need strong transactional guarantees. Add Redis for caching, rate limits, short-lived locks, presence, and websocket fan-out. Add an event broker for cross-service events instead of using database writes across service boundaries.
+Use PostgreSQL as the default database for core game state because wallet, inventory, market, production, and combat all need strong transactional guarantees. In a split-first architecture, give each service its own database or schema and do not allow direct cross-service writes. Add Redis for caching, rate limits, short-lived locks, presence, and websocket fan-out. Add NATS JetStream for cross-service events instead of using database writes across service boundaries.
 
 ### Recommended technologies and frameworks
 
@@ -439,8 +448,7 @@ Recommended service fit:
 | API Gateway / BFF | ASP.NET Core, JWT/OIDC guards, OpenAPI, Redis rate limiting, Traefik/Nginx at the edge |
 | Identity Service | OpenIddict + ASP.NET Core Identity + PostgreSQL; Keycloak remains a valid external alternative |
 | Player Service | ASP.NET Core + PostgreSQL + EF Core, with Redis caching for dashboard reads |
-| Inventory Service | .NET + PostgreSQL transactions, reservation tables, row locking, Dapper for hot paths, outbox events |
-| Wallet / Economy Service | .NET + PostgreSQL ledger tables, strict transactions, idempotency keys, Dapper/raw SQL for ledger writes, outbox events |
+| Economy Service | .NET + PostgreSQL ledger tables, inventory balances, reservation tables, strict transactions, idempotency keys, Dapper/raw SQL for hot paths, outbox events |
 | Production Service | .NET + PostgreSQL, NATS events, Worker Services/Quartz/Hangfire for production completion |
 | Market Service | .NET for fixed-price listings and normal APIs; Rust matching engine later if order matching becomes high-volume |
 | Combat Service | Rust combat engine exposed through gRPC, with a thin .NET API/orchestrator if needed for auth, rate limits, and integration |
@@ -454,7 +462,7 @@ Recommended service fit:
 | Admin / Moderation Service | ASP.NET Core admin API + PostgreSQL read models, protected by identity roles |
 | Analytics / Telemetry Service | Rust or .NET NATS event consumer first; Kafka/ClickHouse later if analytics volume grows |
 
-Use Rust behind stable service boundaries rather than throughout the whole MVP. Good Rust boundaries are pure calculations, matching loops, event processors, and gRPC services with small, explicit contracts. Keep CRUD-heavy, admin-heavy, and integration-heavy services in .NET for faster iteration.
+Use Rust behind stable service boundaries rather than throughout the whole MVP. `combat-service` should be Rust from day one; market matching, simulation batches, anti-cheat scoring, and high-volume event processors can move to Rust when their contracts are stable. Keep CRUD-heavy, admin-heavy, and integration-heavy services in .NET for faster iteration.
 
 ### Communication style
 
@@ -472,26 +480,27 @@ Critical economic operations should be synchronous and transactional. Non-critic
 
 ### MVP service boundaries
 
-A practical first backend could be:
+The first backend should already be split into independently deployable services:
 
 ```text
 backend/
-  gateway/
-  identity-player-service/
-  economy-service/        # wallet + inventory
-  production-service/
-  market-service/
-  combat-service/
-  social-chat-service/
-  scheduler-service/
-```
-
-Then split later:
-
-```text
-economy-service -> wallet-service + inventory-service
-social-chat-service -> social-service + chat-service
-identity-player-service -> identity-service + player-service
+  services/
+    gateway-service/          # .NET, public REST API for Flutter
+    identity-service/         # .NET, OpenIddict/ASP.NET Core Identity
+    player-service/           # .NET
+    economy-service/          # .NET, wallet + inventory
+    production-service/       # .NET
+    market-service/           # .NET API; Rust matcher later if needed
+    combat-service/           # Rust, gRPC combat engine/API
+    world-service/            # .NET
+    social-chat-service/      # .NET + SignalR
+    scheduler-service/        # .NET Worker
+    notification-service/     # .NET Worker
+    admin-service/            # .NET
+  shared/
+    contracts/                # protobuf, OpenAPI, event contracts
+    docker/
+    observability/
 ```
 
 ### Highest-risk areas to design carefully
@@ -508,14 +517,14 @@ identity-player-service -> identity-service + player-service
 
 ### Recommended first implementation order
 
-1. Identity + Player: map OIDC identity subject/account ID to player profile.
-2. Dashboard API: return player, wallet, inventory, and basic world state.
-3. Wallet + Inventory: implement balances, item grants, item consumption.
+1. Identity Service + Player Service: map OIDC identity subject/account ID to player profile.
+2. Gateway/BFF dashboard endpoint: aggregate player, economy, inventory, and basic world state.
+3. Economy Service: implement wallet balances, ledger entries, item grants, item consumption, and reservations.
 4. Production: create factories and production jobs.
 5. Scheduler: complete production and regenerate energy.
 6. Market: simple sell/buy listings.
 7. Combat: active battles and fight action.
-8. Chat/Social: contacts, DMs, global channels.
+8. Social Chat Service: contacts, DMs, global channels.
 9. Notifications: production done, battle result, message received.
 10. Politics/News: elections, articles, parties, governance.
 

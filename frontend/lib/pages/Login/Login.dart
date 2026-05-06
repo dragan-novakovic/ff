@@ -78,6 +78,7 @@ class _LoginState extends State<Login> {
               children: <Widget>[
                 emailField(_loginBloc),
                 passwordField(_loginBloc),
+                authError(_loginBloc),
                 submitButton(_loginBloc)
               ],
             ),
@@ -98,7 +99,7 @@ Widget emailField(LoginBloc bloc) {
         decoration: InputDecoration(
           hintText: 'ypu@example.com',
           labelText: 'Email Address',
-          //  errorText: null,
+          errorText: snapshot.hasError ? snapshot.error.toString() : null,
         ),
       );
     },
@@ -112,29 +113,51 @@ Widget passwordField(LoginBloc bloc) {
         return TextField(
           obscureText: true,
           onChanged: bloc.changePassword,
+          textInputAction: TextInputAction.done,
+          onSubmitted: (_) async => _handleLoginSubmit(context, bloc),
           decoration: InputDecoration(
             hintText: 'Password',
             labelText: 'Password',
-            errorText: snapshot.error.toString(),
+            errorText: snapshot.hasError ? snapshot.error.toString() : null,
           ),
         );
       });
+}
+
+Widget authError(LoginBloc bloc) {
+  return StreamBuilder<String?>(
+    stream: bloc.authError,
+    builder: (context, snapshot) {
+      final message = snapshot.data;
+      if (message == null || message.isEmpty) {
+        return const SizedBox.shrink();
+      }
+
+      return Padding(
+        padding: const EdgeInsets.only(top: 12),
+        child: Text(
+          message,
+          textAlign: TextAlign.center,
+          style: const TextStyle(color: Colors.red),
+        ),
+      );
+    },
+  );
 }
 
 Widget submitButton(LoginBloc bloc) {
   return StreamBuilder(
       stream: bloc.submitValid,
       builder: (context, snapshot) {
-        print(snapshot.data.toString());
+        final canSubmit = snapshot.hasData && snapshot.data == true;
         return Column(
           children: <Widget>[
             Container(
               margin: EdgeInsets.only(top: 30),
               child: SigninButton(
-                onPressed: () async {
-                  print("Login-submit");
-                  await bloc.submit();
-                },
+                onPressed: canSubmit
+                    ? () async => _handleLoginSubmit(context, bloc)
+                    : null,
                 child: Text(
                   "Login",
                   style: TextStyle(
@@ -171,4 +194,23 @@ Widget submitButton(LoginBloc bloc) {
           ],
         );
       });
+}
+
+Future<void> _handleLoginSubmit(BuildContext context, LoginBloc bloc) async {
+  final message = await bloc.submit();
+  if (!context.mounted) {
+    return;
+  }
+
+  if (message == null) {
+    Navigator.of(context).pushNamedAndRemoveUntil(
+      '/home',
+      (route) => false,
+    );
+    return;
+  }
+
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(content: Text(message)),
+  );
 }

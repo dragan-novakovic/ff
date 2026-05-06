@@ -1,0 +1,31 @@
+ARG DOTNET_VERSION=8.0
+ARG RUNTIME_IMAGE=mcr.microsoft.com/dotnet/aspnet:8.0
+
+FROM mcr.microsoft.com/dotnet/sdk:${DOTNET_VERSION} AS build
+WORKDIR /src
+
+ARG PROJECT_PATH
+
+COPY . .
+RUN dotnet restore "${PROJECT_PATH}"
+RUN dotnet publish "${PROJECT_PATH}" \
+    --configuration Release \
+    --output /app/publish \
+    --no-restore
+
+FROM ${RUNTIME_IMAGE} AS runtime
+WORKDIR /app
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ca-certificates curl \
+    && rm -rf /var/lib/apt/lists/*
+
+ARG PROJECT_DLL
+ENV PROJECT_DLL=${PROJECT_DLL} \
+    ASPNETCORE_URLS=http://+:8080 \
+    DOTNET_RUNNING_IN_CONTAINER=true
+
+COPY --from=build /app/publish .
+
+EXPOSE 8080
+ENTRYPOINT ["sh", "-c", "dotnet /app/${PROJECT_DLL}"]

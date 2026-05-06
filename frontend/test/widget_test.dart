@@ -1,8 +1,8 @@
 // Basic smoke test for the app.
 //
-// The full app cannot be pumped here because it requires a live Firebase
-// connection. This test simply ensures the test harness compiles and the
-// Flutter test framework is reachable.
+// The full app is not pumped here because it expects backend services to be
+// available. This test simply ensures the test harness compiles and the Flutter
+// test framework is reachable.
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';

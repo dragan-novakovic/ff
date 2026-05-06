@@ -19,12 +19,11 @@ Widget navTile(context, widget,
       ),
       onTap: () {
         if (route != null) {
-          if (props != null) {
-            if (userId != null) {
-              Navigator.pushNamed(context, route,
-                  arguments: {'id': props, 'userId': userId});
-            }
-            Navigator.pushNamed(context, route, arguments: {'id': props});
+          if (props != null || userId != null) {
+            Navigator.pushNamed(context, route, arguments: {
+              if (props != null) 'id': props,
+              if (userId != null) 'userId': userId,
+            });
           } else {
             Navigator.pushNamed(context, route);
           }

@@ -1,6 +1,252 @@
 name: ff-backend
 
+x-dotnet-environment: &dotnet-environment
+  ASPNETCORE_ENVIRONMENT: Development
+  DOTNET_ENVIRONMENT: Development
+  ASPNETCORE_URLS: http://+:8080
+
+x-backend-dependencies: &backend-dependencies
+  postgres:
+    condition: service_healthy
+  redis:
+    condition: service_healthy
+  nats:
+    condition: service_healthy
+
+x-api-healthcheck: &api-healthcheck
+  test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8080/health >/dev/null || exit 1"]
+  interval: 10s
+  timeout: 5s
+  retries: 5
+  start_period: 20s
+
 services:
+  gateway-service:
+    image: ff/gateway-service:dev
+    container_name: ff-gateway-service
+    restart: unless-stopped
+    build:
+      context: .
+      dockerfile: Dockerfile.dotnet
+      args:
+        PROJECT_PATH: services/gateway-service/Ff.Gateway.Api/Ff.Gateway.Api.csproj
+        PROJECT_DLL: Ff.Gateway.Api.dll
+    environment:
+      <<: *dotnet-environment
+      FF_IDENTITY_BASE_URL: http://identity-service:8080
+      FF_PLAYER_BASE_URL: http://player-service:8080
+      FF_IDENTITY_TOKEN_SECRET: ${FF_IDENTITY_TOKEN_SECRET:-ff-development-token-secret-change-me}
+    ports:
+      - "127.0.0.1:${GATEWAY_PORT:-5124}:8080"
+    depends_on:
+      <<: *backend-dependencies
+      identity-service:
+        condition: service_healthy
+    healthcheck: *api-healthcheck
+    networks:
+      - backend
+
+  identity-service:
+    image: ff/identity-service:dev
+    container_name: ff-identity-service
+    restart: unless-stopped
+    build:
+      context: .
+      dockerfile: Dockerfile.dotnet
+      args:
+        PROJECT_PATH: services/identity-service/Ff.Identity.Api/Ff.Identity.Api.csproj
+        PROJECT_DLL: Ff.Identity.Api.dll
+    environment:
+      <<: *dotnet-environment
+      FF_IDENTITY_CONNECTION_STRING: Host=postgres;Port=5432;Database=${POSTGRES_DB:-ff_dev};Username=${POSTGRES_USER:-ff_dev};Password=${POSTGRES_PASSWORD:-ff_dev_password};Include Error Detail=true
+      FF_IDENTITY_TOKEN_SECRET: ${FF_IDENTITY_TOKEN_SECRET:-ff-development-token-secret-change-me}
+      FF_IDENTITY_SEED_EMAIL: ${FF_IDENTITY_SEED_EMAIL:-demo@ff.local}
+      FF_IDENTITY_SEED_PASSWORD: ${FF_IDENTITY_SEED_PASSWORD:-secret}
+      FF_IDENTITY_SEED_USERNAME: ${FF_IDENTITY_SEED_USERNAME:-demo}
+    ports:
+      - "127.0.0.1:${IDENTITY_PORT:-5125}:8080"
+    depends_on: *backend-dependencies
+    healthcheck: *api-healthcheck
+    networks:
+      - backend
+
+  admin-service:
+    image: ff/admin-service:dev
+    container_name: ff-admin-service
+    restart: unless-stopped
+    build:
+      context: .
+      dockerfile: Dockerfile.dotnet
+      args:
+        PROJECT_PATH: services/admin-service/Ff.Admin.Api/Ff.Admin.Api.csproj
+        PROJECT_DLL: Ff.Admin.Api.dll
+    environment: *dotnet-environment
+    ports:
+      - "127.0.0.1:${ADMIN_PORT:-5130}:8080"
+    depends_on: *backend-dependencies
+    healthcheck: *api-healthcheck
+    networks:
+      - backend
+
+  economy-service:
+    image: ff/economy-service:dev
+    container_name: ff-economy-service
+    restart: unless-stopped
+    build:
+      context: .
+      dockerfile: Dockerfile.dotnet
+      args:
+        PROJECT_PATH: services/economy-service/Ff.Economy.Api/Ff.Economy.Api.csproj
+        PROJECT_DLL: Ff.Economy.Api.dll
+    environment: *dotnet-environment
+    ports:
+      - "127.0.0.1:${ECONOMY_PORT:-5141}:8080"
+    depends_on: *backend-dependencies
+    healthcheck: *api-healthcheck
+    networks:
+      - backend
+
+  market-service:
+    image: ff/market-service:dev
+    container_name: ff-market-service
+    restart: unless-stopped
+    build:
+      context: .
+      dockerfile: Dockerfile.dotnet
+      args:
+        PROJECT_PATH: services/market-service/Ff.Market.Api/Ff.Market.Api.csproj
+        PROJECT_DLL: Ff.Market.Api.dll
+    environment: *dotnet-environment
+    ports:
+      - "127.0.0.1:${MARKET_PORT:-5275}:8080"
+    depends_on: *backend-dependencies
+    healthcheck: *api-healthcheck
+    networks:
+      - backend
+
+  notification-service:
+    image: ff/notification-service:dev
+    container_name: ff-notification-service
+    restart: unless-stopped
+    build:
+      context: .
+      dockerfile: Dockerfile.dotnet
+      args:
+        PROJECT_PATH: services/notification-service/Ff.Notification.Worker/Ff.Notification.Worker.csproj
+        PROJECT_DLL: Ff.Notification.Worker.dll
+        RUNTIME_IMAGE: mcr.microsoft.com/dotnet/runtime:8.0
+    environment: *dotnet-environment
+    depends_on: *backend-dependencies
+    networks:
+      - backend
+
+  player-service:
+    image: ff/player-service:dev
+    container_name: ff-player-service
+    restart: unless-stopped
+    build:
+      context: .
+      dockerfile: Dockerfile.dotnet
+      args:
+        PROJECT_PATH: services/player-service/Ff.Player.Api/Ff.Player.Api.csproj
+        PROJECT_DLL: Ff.Player.Api.dll
+    environment:
+      <<: *dotnet-environment
+      FF_PLAYER_CONNECTION_STRING: Host=postgres;Port=5432;Database=${POSTGRES_DB:-ff_dev};Username=${POSTGRES_USER:-ff_dev};Password=${POSTGRES_PASSWORD:-ff_dev_password};Include Error Detail=true
+      FF_IDENTITY_TOKEN_SECRET: ${FF_IDENTITY_TOKEN_SECRET:-ff-development-token-secret-change-me}
+    ports:
+      - "127.0.0.1:${PLAYER_PORT:-5192}:8080"
+    depends_on: *backend-dependencies
+    healthcheck: *api-healthcheck
+    networks:
+      - backend
+
+  production-service:
+    image: ff/production-service:dev
+    container_name: ff-production-service
+    restart: unless-stopped
+    build:
+      context: .
+      dockerfile: Dockerfile.dotnet
+      args:
+        PROJECT_PATH: services/production-service/Ff.Production.Api/Ff.Production.Api.csproj
+        PROJECT_DLL: Ff.Production.Api.dll
+    environment: *dotnet-environment
+    ports:
+      - "127.0.0.1:${PRODUCTION_PORT:-5148}:8080"
+    depends_on: *backend-dependencies
+    healthcheck: *api-healthcheck
+    networks:
+      - backend
+
+  scheduler-service:
+    image: ff/scheduler-service:dev
+    container_name: ff-scheduler-service
+    restart: unless-stopped
+    build:
+      context: .
+      dockerfile: Dockerfile.dotnet
+      args:
+        PROJECT_PATH: services/scheduler-service/Ff.Scheduler.Worker/Ff.Scheduler.Worker.csproj
+        PROJECT_DLL: Ff.Scheduler.Worker.dll
+        RUNTIME_IMAGE: mcr.microsoft.com/dotnet/runtime:8.0
+    environment: *dotnet-environment
+    depends_on: *backend-dependencies
+    networks:
+      - backend
+
+  social-chat-service:
+    image: ff/social-chat-service:dev
+    container_name: ff-social-chat-service
+    restart: unless-stopped
+    build:
+      context: .
+      dockerfile: Dockerfile.dotnet
+      args:
+        PROJECT_PATH: services/social-chat-service/Ff.SocialChat.Api/Ff.SocialChat.Api.csproj
+        PROJECT_DLL: Ff.SocialChat.Api.dll
+    environment: *dotnet-environment
+    ports:
+      - "127.0.0.1:${SOCIAL_CHAT_PORT:-5096}:8080"
+    depends_on: *backend-dependencies
+    healthcheck: *api-healthcheck
+    networks:
+      - backend
+
+  world-service:
+    image: ff/world-service:dev
+    container_name: ff-world-service
+    restart: unless-stopped
+    build:
+      context: .
+      dockerfile: Dockerfile.dotnet
+      args:
+        PROJECT_PATH: services/world-service/Ff.World.Api/Ff.World.Api.csproj
+        PROJECT_DLL: Ff.World.Api.dll
+    environment: *dotnet-environment
+    ports:
+      - "127.0.0.1:${WORLD_PORT:-5205}:8080"
+    depends_on: *backend-dependencies
+    healthcheck: *api-healthcheck
+    networks:
+      - backend
+
+  combat-service:
+    image: ff/combat-service:dev
+    container_name: ff-combat-service
+    restart: unless-stopped
+    build:
+      context: ./services/combat-service
+      dockerfile: Dockerfile
+    environment:
+      COMBAT_SERVICE_ADDR: 0.0.0.0:8080
+    ports:
+      - "127.0.0.1:${COMBAT_PORT:-8081}:8080"
+    depends_on: *backend-dependencies
+    healthcheck: *api-healthcheck
+    networks:
+      - backend
+
   postgres:
     image: postgres:16-alpine
     container_name: ff-postgres

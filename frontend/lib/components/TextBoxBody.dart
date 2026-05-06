@@ -1,13 +1,16 @@
-import 'package:ff/blocs/LoginBloc.dart';
 import 'package:ff/blocs/MessageBloc.dart';
 import 'package:ff/models/MessageModel.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../models/User.dart';
-
 class TextBoxBody extends StatelessWidget {
-  const TextBoxBody({super.key});
+  final String? currentUserId;
+  final VoidCallback onRetry;
+  const TextBoxBody({
+    super.key,
+    required this.currentUserId,
+    required this.onRetry,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -16,7 +19,22 @@ class TextBoxBody extends StatelessWidget {
         stream: _messageBloc.messages,
         builder: (context, AsyncSnapshot<List<Message>> snapshot) {
           if (snapshot.hasError) {
-            return Text("ERR: " + snapshot.error.toString());
+            return Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.error_outline, size: 48, color: Colors.redAccent),
+                  SizedBox(height: 12),
+                  Text(snapshot.error.toString(), textAlign: TextAlign.center),
+                  SizedBox(height: 12),
+                  ElevatedButton.icon(
+                    onPressed: onRetry,
+                    icon: Icon(Icons.refresh),
+                    label: Text('Retry'),
+                  ),
+                ],
+              ),
+            );
           }
 
           if (snapshot.connectionState == ConnectionState.waiting) {
@@ -26,6 +44,16 @@ class TextBoxBody extends StatelessWidget {
           }
 
           if (snapshot.hasData) {
+            final messages = snapshot.data ?? [];
+            if (messages.isEmpty) {
+              return Center(
+                child: Text(
+                  'No messages yet. Start the conversation.',
+                  style: TextStyle(color: Colors.grey.shade700),
+                ),
+              );
+            }
+
             return Container(
               decoration:
                   BoxDecoration(color: Color.fromARGB(255, 209, 209, 209)),
@@ -34,8 +62,11 @@ class TextBoxBody extends StatelessWidget {
                   SliverList(
                       delegate: SliverChildBuilderDelegate(
                           (BuildContext context, int index) {
-                    return TextBox(message: snapshot.data![index]);
-                  }, childCount: snapshot.data?.length))
+                    return TextBox(
+                      message: messages[index],
+                      currentUserId: currentUserId,
+                    );
+                  }, childCount: messages.length))
                 ],
               ),
             );
@@ -49,119 +80,47 @@ class TextBoxBody extends StatelessWidget {
 }
 
 // Widget TextBox(List<Message> messagesList, int index) {}
-// ignore: must_be_immutable
 class TextBox extends StatelessWidget {
   final Message message;
-  TextBox({super.key, required Message this.message});
+  final String? currentUserId;
+  const TextBox(
+      {super.key, required this.message, required this.currentUserId});
+
   @override
   Widget build(BuildContext context) {
-    LoginBloc _userBloc = Provider.of<LoginBloc>(context);
+    final isMine = currentUserId != null && currentUserId == message.fromId;
+    final sender = isMine
+        ? 'You'
+        : message.fromId == 'system'
+            ? 'System'
+            : message.fromId;
 
-    return StreamBuilder<User>(
-        stream: _userBloc.userData,
-        builder: (context, AsyncSnapshot<User> snapshot) {
-          if (snapshot.hasData) {
-            //! Add message TIMESTAMP
-            bool isOther = snapshot.data?.uid == message.fromId;
-            return Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: FractionallySizedBox(
-                alignment:
-                    isOther ? Alignment.centerLeft : Alignment.centerRight,
-                widthFactor: 0.8,
-                child: Container(
-                  height: 90,
-                  decoration: BoxDecoration(
-                      color: Color.fromARGB(255, 242, 242, 242),
-                      borderRadius: BorderRadius.circular(4)),
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(12.0, 16, 8, 16),
-                    child: isOther
-                        ? Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                                Row(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Container(
-                                      child: ClipRRect(
-                                          borderRadius: BorderRadius.all(
-                                              Radius.circular(
-                                                  2.0)), //add border radius here
-                                          child: Image(
-                                              image: AssetImage(
-                                                  'assets/images/avatar.png'))),
-                                    ),
-                                    Padding(
-                                      padding: const EdgeInsets.fromLTRB(
-                                          8.0, 0, 0, 0),
-                                      child: Column(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.spaceBetween,
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            "John Doe", //message.fromId
-                                            style: TextStyle(
-                                                fontSize: 16.0,
-                                                fontWeight: FontWeight.w600),
-                                          ),
-                                          Text(message.content)
-                                        ],
-                                      ),
-                                    )
-                                  ],
-                                ),
-                                Text("10:14")
-                              ])
-                        : Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Padding(
-                                padding:
-                                    const EdgeInsets.fromLTRB(8.0, 0, 0, 0),
-                                child: Column(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      "John Doe", //message.fromId
-                                      style: TextStyle(
-                                          fontSize: 16.0,
-                                          fontWeight: FontWeight.w600),
-                                    ),
-                                    Text(message.content)
-                                  ],
-                                ),
-                              ),
-                              Row(
-                                children: [
-                                  Padding(
-                                    padding:
-                                        const EdgeInsets.fromLTRB(0, 0, 20, 0),
-                                    child: Text("10:14"),
-                                  ),
-                                  Container(
-                                    child: ClipRRect(
-                                        borderRadius: BorderRadius.all(
-                                            Radius.circular(
-                                                2.0)), //add border radius here
-                                        child: Image(
-                                            image: AssetImage(
-                                                'assets/images/avatar.png'))),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                  ),
+    return Align(
+      alignment: isMine ? Alignment.centerRight : Alignment.centerLeft,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxWidth: MediaQuery.of(context).size.width * 0.75,
+        ),
+        child: Card(
+          color: isMine ? Colors.blue.shade50 : Colors.white,
+          margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              crossAxisAlignment:
+                  isMine ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+              children: [
+                Text(
+                  sender,
+                  style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
-              ),
-            );
-          }
-          return Text('Loading');
-        });
+                const SizedBox(height: 6),
+                Text(message.content),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }

@@ -35,7 +35,7 @@ class _InfoBoxState extends State<InfoBox> {
               scrollDirection: Axis.vertical,
               children: <Widget>[
                 ListTile(
-                  title: Text("Added Player Inventory"),
+                  title: Text("Player stats now load from the backend"),
                   dense: true,
                   leading: Icon(
                     Icons.fiber_manual_record,
@@ -44,8 +44,7 @@ class _InfoBoxState extends State<InfoBox> {
                   ),
                 ),
                 ListTile(
-                  title: Text(
-                      "New factory resourses, added weapon quality and gold reward"),
+                  title: Text("Daily work and training actions are connected"),
                   dense: true,
                   leading: Icon(
                     Icons.fiber_manual_record,
@@ -55,7 +54,7 @@ class _InfoBoxState extends State<InfoBox> {
                 ),
                 ListTile(
                   title: Text(
-                      "Storage implemented, with maximum starting capacity of 100"),
+                      "Inventory, factories, market, and combat screens are next"),
                   dense: true,
                   leading: Icon(
                     Icons.fiber_manual_record,

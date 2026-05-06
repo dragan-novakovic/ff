@@ -24,8 +24,35 @@ https://www.facebook.com/charuwaka/videos/2807396325978185
 
 ## Repository layout
 
-- `frontend/` contains the Flutter app. Run Flutter commands such as `flutter pub get`, `flutter test`, and `flutter run` from this directory.
+- `frontend/` contains the Flutter app. Run Flutter commands such as `flutter pub get`, `flutter test`, and `flutter run -d web-server` from this directory. The app talks to the backend gateway through `FF_API_BASE_URL` and defaults to `http://127.0.0.1:5124`.
 - `backend/` contains the split-first backend scaffold and local infrastructure.
+- For local auth, run identity on `http://127.0.0.1:5125` and gateway on `http://127.0.0.1:5124`. The gateway forwards account requests to identity through `FF_IDENTITY_BASE_URL`; identity persists accounts in PostgreSQL using `FF_IDENTITY_CONNECTION_STRING`.
+
+## Run backend with Docker
+
+All backend services are defined in `backend/docker-compose.yml`, including the .NET APIs/workers, the Rust combat service, PostgreSQL, Redis, and NATS.
+
+```sh
+cd backend
+docker compose up --build
+```
+
+The compose stack publishes the main local development ports:
+
+| Service | URL |
+|---|---|
+| Gateway / BFF | `http://127.0.0.1:5124` |
+| Identity | `http://127.0.0.1:5125` |
+| Admin | `http://127.0.0.1:5130` |
+| Economy | `http://127.0.0.1:5141` |
+| Market | `http://127.0.0.1:5275` |
+| Player | `http://127.0.0.1:5192` |
+| Production | `http://127.0.0.1:5148` |
+| Social Chat | `http://127.0.0.1:5096` |
+| World | `http://127.0.0.1:5205` |
+| Combat | `http://127.0.0.1:8081` |
+
+Override ports with environment variables such as `GATEWAY_PORT`, `IDENTITY_PORT`, or `COMBAT_PORT`. The gateway calls identity through Docker DNS at `http://identity-service:8080`. Identity account data is persisted in PostgreSQL under the `identity.accounts` table, and the development seed login is `demo@ff.local` / `secret` unless overridden with `FF_IDENTITY_SEED_EMAIL`, `FF_IDENTITY_SEED_PASSWORD`, and `FF_IDENTITY_SEED_USERNAME`.
 
 ## Backend microservices design
 

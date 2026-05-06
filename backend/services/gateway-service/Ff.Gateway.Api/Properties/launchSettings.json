@@ -15,7 +15,9 @@
       "launchBrowser": true,
       "applicationUrl": "http://localhost:5124",
       "environmentVariables": {
-        "ASPNETCORE_ENVIRONMENT": "Development"
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "FF_IDENTITY_BASE_URL": "http://127.0.0.1:5125",
+        "FF_PLAYER_BASE_URL": "http://127.0.0.1:5192"
       }
     },
     "https": {
@@ -24,7 +26,9 @@
       "launchBrowser": true,
       "applicationUrl": "https://localhost:7147;http://localhost:5124",
       "environmentVariables": {
-        "ASPNETCORE_ENVIRONMENT": "Development"
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "FF_IDENTITY_BASE_URL": "http://127.0.0.1:5125",
+        "FF_PLAYER_BASE_URL": "http://127.0.0.1:5192"
       }
     },
     "IIS Express": {

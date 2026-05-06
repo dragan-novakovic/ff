@@ -15,16 +15,26 @@ class ChatView extends StatefulWidget {
 class _ChatViewState extends State<ChatView> {
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text('Inbox')),
-      drawer: Drawer(child: dashboardDrawer(context, widget)),
-      body: ChatBody(),
+    final loginBloc = Provider.of<LoginBloc>(context);
+    return StreamBuilder(
+      stream: loginBloc.userData,
+      initialData: loginBloc.currentUser,
+      builder: (context, snapshot) {
+        final user = snapshot.data as User?;
+        return Scaffold(
+          appBar: AppBar(title: Text('Inbox')),
+          drawer: Drawer(child: chatDrawer(context, user)),
+          body: ChatBody(
+            userId: user?.uid,
+            contactId: 'global',
+          ),
+        );
+      },
     );
   }
 }
 
-Widget dashboardDrawer(context, widget) {
-  LoginBloc _loginBloc = Provider.of<LoginBloc>(context);
+Widget chatDrawer(BuildContext context, User? user) {
   return ListView(
     children: <Widget>[
       Container(
@@ -42,41 +52,33 @@ Widget dashboardDrawer(context, widget) {
         ),
       ),
       InkWell(
-        child: StreamBuilder(
-            stream: _loginBloc.userData,
-            builder: (context, snapshot) {
-              if (snapshot.hasData) {
-                print(snapshot.data);
-                User user = snapshot.data as User;
-                return ExpansionTile(
-                  title: Text(
-                    "Inbox",
-                    style: TextStyle(color: Colors.blue, fontSize: 12.0),
-                  ),
-                  children:
-                      fetchInboxList(context, widget, user.contacts, user.uid),
-                );
-              }
-
-              return Text('LOOOADING INBOX');
-            }),
+        child: ExpansionTile(
+          initiallyExpanded: true,
+          title: Text(
+            "Inbox",
+            style: TextStyle(color: Colors.blue, fontSize: 12.0),
+          ),
+          children: user == null
+              ? [ListTile(title: Text('Loading inbox...'))]
+              : fetchInboxList(context, user.contacts, user.uid),
+        ),
       ),
     ],
   );
 }
 
-List<Widget> fetchInboxList(
-    context, widget, List<String>? data, String userId) {
-  if (data != null && data.isNotEmpty) {
-    return data
-        .map((name) => navTile(context, widget,
-            title: name,
-            subtitle: "Unread",
-            route: '/inbox/chat',
-            props: name,
-            userId: userId))
-        .toList();
-  }
+List<Widget> fetchInboxList(context, List<String>? data, String userId) {
+  final contacts = <String>['global', ...?data]
+      .where((name) => name.trim().isNotEmpty)
+      .toSet()
+      .toList();
 
-  return [];
+  return contacts
+      .map((name) => navTile(context, null,
+          title: name,
+          subtitle: name == 'global' ? "World chat" : "Direct chat",
+          route: '/inbox/chat',
+          props: name,
+          userId: userId))
+      .toList();
 }

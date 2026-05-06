@@ -11,14 +11,15 @@ class User {
   User(this.uid, this.email, this.username, this.createdOnTimestamp);
 
   User.fromJson(Map<String, dynamic> json)
-      : uid = json['uid'],
-        email = json['email'],
-        username = json['username'],
-        first_name = json['first_name'],
-        last_name = json['last_name'],
-        contacts = json['contracts'],
-        groups = json['groups'],
-        createdOnTimestamp = json['created_on'];
+      : uid = _requiredString(json, 'uid'),
+        email = _requiredString(json, 'email'),
+        username = _requiredString(json, 'username'),
+        first_name = json['first_name'] ?? json['firstName'],
+        last_name = json['last_name'] ?? json['lastName'],
+        contacts = _stringList(json['contacts']),
+        groups = _stringList(json['groups']),
+        createdOnTimestamp =
+            (json['created_on'] ?? json['createdOn'] ?? "").toString();
 
   static Map<String, Object?> toJson(User user) {
     return {
@@ -41,6 +42,27 @@ class User {
       username: ${this.username}
       }''';
   }
+}
+
+String _requiredString(Map<String, dynamic> json, String field) {
+  final value = json[field];
+  if (value is String && value.isNotEmpty) {
+    return value;
+  }
+
+  throw FormatException('Missing required user field "$field".');
+}
+
+List<String>? _stringList(Object? value) {
+  if (value == null) {
+    return null;
+  }
+
+  if (value is List<dynamic>) {
+    return value.map((item) => item.toString()).toList();
+  }
+
+  throw const FormatException('Expected a list of strings.');
 }
 
 class PlayerData {

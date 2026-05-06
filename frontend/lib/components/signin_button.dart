@@ -16,24 +16,22 @@ class SigninButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return SizedBox(
       width: width,
-      height: 50.0,
-      decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(25.0),
-          gradient: LinearGradient(
-            colors: <Color>[
-              Color.fromRGBO(10, 12, 240, 0.91),
-              Color.fromRGBO(22, 82, 200, 0.8)
-            ],
-          )),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-            onTap: this.onPressed,
-            child: Center(
-              child: child,
-            )),
+      height: height,
+      child: ElevatedButton(
+        onPressed: onPressed,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Color.fromRGBO(22, 82, 200, 0.9),
+          disabledBackgroundColor: Colors.grey.shade400,
+          foregroundColor: Colors.white,
+          disabledForegroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(25.0),
+          ),
+          elevation: 0,
+        ),
+        child: child,
       ),
     );
   }

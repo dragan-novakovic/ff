@@ -1,0 +1,10 @@
+.git/
+.vs/
+.idea/
+**/.DS_Store
+**/*.user
+**/*.suo
+**/bin/
+**/obj/
+**/target/
+**/*.log

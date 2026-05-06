@@ -2,23 +2,18 @@ import 'package:ff/pages/Chat/ChatBody.dart';
 import 'package:ff/pages/Chat/ChatView.dart';
 import 'package:ff/pages/Dashboard.dart';
 import 'package:ff/pages/Login/Login.dart';
-import 'package:firebase_auth/firebase_auth.dart' as Auth;
-import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'blocs/MessageBloc.dart';
 import 'blocs/LoginBloc.dart';
-import 'firebase_options.dart';
+import 'blocs/PlayerBloc.dart';
 
-Future<void> main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+void main() {
   runApp(MultiProvider(
     providers: [
       ChangeNotifierProvider(create: (_) => LoginBloc()),
       ChangeNotifierProvider(create: (_) => MessageBloc()),
+      ChangeNotifierProvider(create: (_) => PlayerBloc()),
     ],
     child: MyApp(),
   ));
@@ -42,13 +37,15 @@ class _MyAppState extends State<MyApp> {
       initialRoute: '/',
       home: LoginGate(),
       routes: {
+        '/home': (context) => AuthenticatedHome(),
         '/inbox': (context) => ChatView(),
         '/inbox/chat': (context) {
           //  LoginBloc _userBloc = Provider.of<LoginBloc>(context);
-          final dynamic args = ModalRoute.of(context)?.settings.arguments;
+          final args = ModalRoute.of(context)?.settings.arguments
+              as Map<String, dynamic>?;
           return ChatBody(
-            contactId: args['id'],
-            userId: args['userId'],
+            contactId: args?['id'],
+            userId: args?['userId'],
           );
         }
       },
@@ -60,23 +57,57 @@ class LoginGate extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     LoginBloc _loginBloc = Provider.of<LoginBloc>(context);
+    return StreamBuilder<bool>(
+      stream: _loginBloc.isRestoringSession,
+      initialData: true,
+      builder: (context, restoringSnapshot) {
+        if (restoringSnapshot.data == true) {
+          return const AuthLoadingScreen();
+        }
+
+        return StreamBuilder(
+            stream: _loginBloc.authStateChange,
+            initialData: _loginBloc.currentUser,
+            builder: (context, snapshot) {
+              final userData = snapshot.data;
+              if (userData != null) {
+                return Dashboard(uid: userData.uid);
+              }
+
+              return Login();
+            });
+      },
+    );
+  }
+}
+
+class AuthenticatedHome extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final loginBloc = Provider.of<LoginBloc>(context);
     return StreamBuilder(
-        stream: _loginBloc.authStateChange,
+        stream: loginBloc.authStateChange,
+        initialData: loginBloc.currentUser,
         builder: (context, snapshot) {
-          if (snapshot.hasError) {
-            print('There is an error');
-            print(snapshot.error);
-          }
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            print("Loading....");
-          }
-          if (snapshot.hasData) {
-            Auth.User userData = snapshot.data as Auth.User;
-            print('==${userData}');
+          final userData = snapshot.data;
+          if (userData != null) {
             return Dashboard(uid: userData.uid);
           }
 
           return Login();
         });
+  }
+}
+
+class AuthLoadingScreen extends StatelessWidget {
+  const AuthLoadingScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return const Scaffold(
+      body: Center(
+        child: CircularProgressIndicator(),
+      ),
+    );
   }
 }

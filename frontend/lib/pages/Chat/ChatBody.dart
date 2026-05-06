@@ -4,53 +4,76 @@ import 'package:ff/components/TextBoxBody.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-// ignore: must_be_immutable
 class ChatBody extends StatefulWidget {
-  String? userId;
-  String? contactId;
-  ChatBody({super.key, String? userId, String? contactId});
+  final String? userId;
+  final String? contactId;
+  const ChatBody({super.key, this.userId, this.contactId});
+
   @override
   State<ChatBody> createState() => _ChatBodyState();
 }
 
 class _ChatBodyState extends State<ChatBody> {
-  int counter = 0;
-
-  void updateCounter() {
-    setState(() {
-      counter++;
-    });
-  }
+  String get _toId =>
+      widget.contactId == null || widget.contactId!.trim().isEmpty
+          ? 'global'
+          : widget.contactId!.trim();
 
   @override
   void initState() {
     super.initState();
-    MessageBloc _messageBloc = Provider.of<MessageBloc>(context, listen: false);
-    if (widget.userId != null) {
-      _messageBloc.fetchMessages(fromId: widget.userId, toId: widget.contactId);
-    } else {
-      _messageBloc.fetchMessages();
+    _loadMessages();
+  }
+
+  @override
+  void didUpdateWidget(ChatBody oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.userId != widget.userId ||
+        oldWidget.contactId != widget.contactId) {
+      _loadMessages();
     }
+  }
+
+  void _loadMessages() {
+    final messageBloc = Provider.of<MessageBloc>(context, listen: false);
+    if (widget.userId != null && _toId != 'global') {
+      messageBloc.fetchMessages(fromId: widget.userId, toId: _toId);
+      return;
+    }
+
+    messageBloc.fetchMessages(toId: _toId);
   }
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-        child: Column(children: [
-      Expanded(flex: 1, child: infoBox()),
-      Expanded(flex: 8, child: TextBoxBody()),
+    return Column(children: [
+      Expanded(flex: 1, child: infoBox(_toId)),
       Expanded(
-          flex: 1,
-          child: MessageInput(
-            key: UniqueKey(),
-            parentFunc: updateCounter,
-          ))
-    ]));
+        flex: 8,
+        child: TextBoxBody(
+          currentUserId: widget.userId,
+          onRetry: _loadMessages,
+        ),
+      ),
+      Expanded(
+        flex: 1,
+        child: MessageInput(
+          key: ValueKey('${widget.userId}:$_toId'),
+          fromId: widget.userId,
+          toId: _toId,
+        ),
+      )
+    ]);
   }
 }
 
 // info widget
-Widget infoBox() {
+Widget infoBox(String contactId) {
+  final title = contactId == 'global' ? 'Global chat' : contactId;
+  final subtitle = contactId == 'global'
+      ? 'Messages sent here are visible to everyone.'
+      : 'Direct conversation';
+
   return Container(
     decoration: BoxDecoration(
         gradient: LinearGradient(
@@ -77,7 +100,7 @@ Widget infoBox() {
                 child: Padding(
               padding: const EdgeInsets.fromLTRB(8.0, 0, 0, 0),
               child: Text(
-                "John Doe",
+                title,
                 textAlign: TextAlign.left,
                 style: TextStyle(
                     color: Color.fromARGB(255, 233, 231, 231),
@@ -89,7 +112,7 @@ Widget infoBox() {
                 child: Padding(
               padding: const EdgeInsets.fromLTRB(8.0, 0, 0, 0),
               child: Text(
-                "Test de BBM en cours 🔥",
+                subtitle,
                 style: TextStyle(
                     color: Color.fromARGB(255, 233, 231, 231),
                     fontWeight: FontWeight.w300),

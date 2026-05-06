@@ -1,6 +1,7 @@
 import 'package:ff/blocs/LoginBloc.dart';
 import 'package:ff/components/signin_button.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import 'Login.dart';
 
@@ -40,10 +41,9 @@ class Register extends StatefulWidget {
 }
 
 class _LoginState extends State<Register> {
-  LoginBloc _loginBloc = LoginBloc();
-
   @override
   Widget build(BuildContext context) {
+    LoginBloc _loginBloc = Provider.of<LoginBloc>(context);
     return Scaffold(
       resizeToAvoidBottomInset: false,
       body: Column(
@@ -100,7 +100,7 @@ Widget emailField(LoginBloc bloc) {
         decoration: InputDecoration(
           hintText: 'ypu@example.com',
           labelText: 'Email Address',
-          // errorText: snapshot.error,
+          errorText: snapshot.hasError ? snapshot.error.toString() : null,
         ),
       );
     },
@@ -131,10 +131,12 @@ Widget passwordField(LoginBloc bloc) {
         return TextField(
           obscureText: true,
           onChanged: bloc.changePassword,
+          textInputAction: TextInputAction.done,
+          onSubmitted: (_) async => _handleRegisterSubmit(context, bloc),
           decoration: InputDecoration(
             hintText: 'Password',
             labelText: 'Password',
-            // errorText: snapshot.error,
+            errorText: snapshot.hasError ? snapshot.error.toString() : null,
           ),
         );
       });
@@ -142,8 +144,9 @@ Widget passwordField(LoginBloc bloc) {
 
 Widget submitButton(LoginBloc bloc) {
   return StreamBuilder(
-      stream: bloc.submitValid,
+      stream: bloc.submitValidRegister,
       builder: (context, snapshot) {
+        final canSubmit = snapshot.hasData && snapshot.data == true;
         return Column(
           children: <Widget>[
             Container(
@@ -157,9 +160,9 @@ Widget submitButton(LoginBloc bloc) {
                       fontSize: 20,
                       fontFamily: 'Roboto'),
                 ),
-                onPressed: () async {
-                  await bloc.register();
-                },
+                onPressed: canSubmit
+                    ? () async => _handleRegisterSubmit(context, bloc)
+                    : null,
               ),
             ),
             Padding(
@@ -188,4 +191,23 @@ Widget submitButton(LoginBloc bloc) {
           ],
         );
       });
+}
+
+Future<void> _handleRegisterSubmit(BuildContext context, LoginBloc bloc) async {
+  final message = await bloc.register();
+  if (!context.mounted) {
+    return;
+  }
+
+  if (message == null) {
+    Navigator.of(context).pushNamedAndRemoveUntil(
+      '/home',
+      (route) => false,
+    );
+    return;
+  }
+
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(content: Text(message)),
+  );
 }

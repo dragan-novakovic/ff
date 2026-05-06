@@ -3,36 +3,55 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 class MessageInput extends StatefulWidget {
-  final Function parentFunc;
-  const MessageInput({required Key key, required this.parentFunc})
-      : super(key: key);
+  final String? fromId;
+  final String toId;
+  const MessageInput({
+    required Key key,
+    required this.fromId,
+    required this.toId,
+  }) : super(key: key);
 
   @override
   State<MessageInput> createState() => _MessageInputState();
 }
 
 class _MessageInputState extends State<MessageInput> {
-  TextEditingController _inputController = TextEditingController();
+  final TextEditingController _inputController = TextEditingController();
+
+  Future<void> _send(MessageBloc messageBloc) async {
+    final fromId = widget.fromId;
+    final content = _inputController.text.trim();
+    if (fromId == null || fromId.isEmpty || content.isEmpty) {
+      return;
+    }
+
+    await messageBloc.sendMessage(content, fromId, widget.toId);
+    _inputController.clear();
+    FocusManager.instance.primaryFocus?.unfocus();
+  }
+
   @override
   Widget build(BuildContext context) {
-    MessageBloc _messageBloc = Provider.of<MessageBloc>(context);
-    String? route = ModalRoute.of(context)?.settings.name as String;
-    print("ROUTTEEEEE: " + route);
+    final messageBloc = Provider.of<MessageBloc>(context);
+    final canSend = widget.fromId != null && widget.fromId!.isNotEmpty;
     return Container(
       decoration: BoxDecoration(color: Colors.grey[800]),
       padding: EdgeInsets.symmetric(horizontal: 10.0),
       child: Row(
         children: [
           Expanded(
-            child: StreamBuilder<Object>(
-                stream: _messageBloc.message,
+            child: StreamBuilder<String>(
+                stream: messageBloc.message,
                 builder: (context, snapshot) {
                   return TextField(
                     controller: _inputController,
-                    onChanged: _messageBloc.changeMessage,
-                    //  onSubmitted: _messageBloc.sendMessage,
+                    enabled: canSend,
+                    onChanged: messageBloc.changeMessage,
+                    onSubmitted: (_) => _send(messageBloc),
                     decoration: InputDecoration(
-                        labelText: 'Enter Message',
+                        labelText: canSend
+                            ? 'Message ${widget.toId}'
+                            : 'Sign in to send messages',
                         filled: true,
                         fillColor: Colors.white70,
                         border: OutlineInputBorder(
@@ -41,12 +60,7 @@ class _MessageInputState extends State<MessageInput> {
                         contentPadding: EdgeInsets.only(
                             left: 0, right: 0, top: 0, bottom: 0),
                         icon: IconButton(
-                          onPressed: (() {
-                            _messageBloc.sendMessage(
-                                _inputController.text, "ne", "ne");
-                            _inputController.clear();
-                            FocusManager.instance.primaryFocus?.unfocus();
-                          }),
+                          onPressed: canSend ? () => _send(messageBloc) : null,
                           icon: Icon(
                             Icons.send,
                             color: Colors.white70,
@@ -59,5 +73,11 @@ class _MessageInputState extends State<MessageInput> {
         ],
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    _inputController.dispose();
+    super.dispose();
   }
 }

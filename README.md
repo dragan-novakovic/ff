@@ -410,48 +410,51 @@ Use PostgreSQL as the default database for core game state because wallet, inven
 
 ### Recommended technologies and frameworks
 
-Use one boring, consistent stack for most MVP services, then specialize only where load proves it is needed.
+Use .NET as the default backend stack for APIs, transactional domain services, realtime, and workers. Use Rust selectively where deterministic performance, memory safety, and CPU efficiency matter most: combat calculations, market matching, simulation engines, anti-cheat analysis, and high-volume event processors.
 
 | Layer | Recommended technology | Fit for this game |
 |---|---|---|
-| Main backend framework | TypeScript + NestJS with the Fastify adapter | Strong module boundaries, dependency injection, guards, validation, OpenAPI generation, WebSocket support, and good fit for many domain services |
-| High-throughput services | Go with gRPC/Gin/Fiber, only if needed | Good fit later for combat simulation, market matching, or scheduler workers if TypeScript becomes a bottleneck |
-| Identity | Keycloak + PostgreSQL | Self-hosted OIDC/OAuth2, Authorization Code + PKCE, roles, admin UI, MFA, account management, and no Firebase dependency |
-| Custom auth fallback | NestJS + Passport + Argon2 + rotating refresh tokens | Use this only if Keycloak feels too heavy and the game needs fully custom account UX |
+| Main backend framework | .NET 9/10 ASP.NET Core | High performance, strong typing, excellent REST/gRPC/OpenAPI support, mature hosting, and a strong fit for domain-heavy game services |
+| Performance-critical services | Rust with Axum for HTTP and Tonic for gRPC | Best fit for combat simulation, market matching, deterministic world simulation, anti-cheat scoring, and hot event processors |
+| Identity | OpenIddict + ASP.NET Core Identity + PostgreSQL, or Keycloak + PostgreSQL | OpenIddict keeps auth in the .NET stack; Keycloak is a good off-the-shelf OIDC server if admin UI and built-in identity features matter more |
 | Primary database | PostgreSQL | Best default for transactional game state, ledgers, inventories, orders, battles, and admin reporting |
-| ORM/migrations | Prisma + Prisma Migrate | Productive TypeScript data access; use raw SQL for ledger/order hot paths that need precise locking |
+| .NET data access | EF Core + Dapper | EF Core is productive for normal domain data; Dapper/raw SQL is better for ledger, inventory reservation, and market locking hot paths |
+| Rust data access | SQLx | Compile-time checked SQL, async PostgreSQL support, and good fit for Rust services that own performance-sensitive tables |
 | Cache/rate limit/presence | Redis | Rate limits, sessions/refresh-token metadata, websocket presence, temporary locks, and hot dashboard data |
 | Event broker | NATS JetStream | Lightweight durable events for `ProductionCompleted`, `MarketOrderFilled`, `BattleResolved`, and scheduler ticks; simpler than Kafka for MVP |
-| Internal service calls | gRPC or NATS request/reply | Typed, efficient service-to-service commands for balance checks, reservations, and combat actions |
-| Public API | REST + OpenAPI | Easy Flutter integration and clear contracts; add GraphQL later only if dashboard aggregation becomes painful |
-| Realtime | NestJS WebSocket Gateway or Socket.IO + Redis/NATS adapter | Good fit for chat, battle updates, notifications, and live market updates |
-| Scheduler/workflows | BullMQ + Redis for MVP; Temporal later | BullMQ is simple for recurring jobs; Temporal is better later for durable multi-step workflows and retries |
+| Internal service calls | gRPC for commands; NATS JetStream for events | gRPC works well between .NET and Rust services; NATS carries durable cross-service events without database coupling |
+| Public API | ASP.NET Core REST + OpenAPI | Easy Flutter integration, clear contracts, and strong tooling through Swashbuckle/Scalar |
+| Realtime | SignalR + Redis backplane | Strong fit for chat, battle updates, notifications, presence, and live market updates in a Flutter client |
+| Scheduler/workflows | .NET Worker Services + Quartz.NET or Hangfire; Temporal later | Good fit for daily ticks and recurring jobs; Temporal is better later for durable multi-service workflows |
 | Observability | OpenTelemetry + Prometheus + Grafana + Loki | Distributed traces, metrics, dashboards, and logs across microservices |
 | Local/dev deployment | Docker Compose | Easy local stack for PostgreSQL, Redis, NATS, Keycloak, and services |
 | Production deployment | Kubernetes or Docker Swarm behind Traefik/Nginx | Start simple; use Kubernetes when autoscaling, service discovery, and rolling deploys are needed |
-| Testing | Jest, Supertest, Testcontainers | Unit/API tests plus real PostgreSQL/Redis/NATS integration tests |
+| .NET testing | xUnit, NUnit, FluentAssertions, WebApplicationFactory, Testcontainers | Unit/API tests plus real PostgreSQL/Redis/NATS integration tests |
+| Rust testing | Cargo test, Tokio test, Testcontainers, Criterion | Async integration tests and benchmarks for combat, market matching, and simulation logic |
 
 Recommended service fit:
 
 | Service | Best-fit implementation |
 |---|---|
-| API Gateway / BFF | NestJS + Fastify, JWT/OIDC guards, OpenAPI, Redis rate limiting, Traefik/Nginx at the edge |
-| Identity Service | Keycloak + PostgreSQL; store only the `identitySubject` to `playerId` mapping in game services |
-| Player Service | NestJS + PostgreSQL + Prisma, with Redis caching for dashboard reads |
-| Inventory Service | NestJS + PostgreSQL transactions, reservation tables, row locking, outbox events |
-| Wallet / Economy Service | NestJS + PostgreSQL ledger tables, strict transactions, idempotency keys, outbox events |
-| Production Service | NestJS + PostgreSQL, NATS events, BullMQ/Temporal workers for production completion |
-| Market Service | NestJS + PostgreSQL for MVP fixed-price listings; Go later if order matching becomes high-volume |
-| Combat Service | NestJS initially; Go/gRPC later if battle calculations or fight traffic become CPU-heavy |
-| World Service | NestJS + PostgreSQL, Redis cache for countries, regions, taxes, and modifiers |
-| Scheduler / Tick Service | BullMQ worker for MVP daily ticks; Temporal worker when workflows span multiple services |
-| Social Service | NestJS + PostgreSQL for contacts, guilds, memberships, roles |
-| Chat Service | NestJS WebSocket Gateway or Socket.IO, PostgreSQL message history, Redis/NATS fan-out |
-| Notification Service | NestJS worker consuming NATS events; mobile push provider plus in-app notification table |
-| News / Media Service | NestJS + PostgreSQL, object storage such as S3-compatible MinIO for uploaded media |
-| Politics Service | NestJS + PostgreSQL, event-driven election/law lifecycle through Scheduler |
-| Admin / Moderation Service | NestJS admin API + PostgreSQL read models, protected by Keycloak roles |
-| Analytics / Telemetry Service | NATS event consumer first; Kafka/ClickHouse later if analytics volume grows |
+| API Gateway / BFF | ASP.NET Core, JWT/OIDC guards, OpenAPI, Redis rate limiting, Traefik/Nginx at the edge |
+| Identity Service | OpenIddict + ASP.NET Core Identity + PostgreSQL; Keycloak remains a valid external alternative |
+| Player Service | ASP.NET Core + PostgreSQL + EF Core, with Redis caching for dashboard reads |
+| Inventory Service | .NET + PostgreSQL transactions, reservation tables, row locking, Dapper for hot paths, outbox events |
+| Wallet / Economy Service | .NET + PostgreSQL ledger tables, strict transactions, idempotency keys, Dapper/raw SQL for ledger writes, outbox events |
+| Production Service | .NET + PostgreSQL, NATS events, Worker Services/Quartz/Hangfire for production completion |
+| Market Service | .NET for fixed-price listings and normal APIs; Rust matching engine later if order matching becomes high-volume |
+| Combat Service | Rust combat engine exposed through gRPC, with a thin .NET API/orchestrator if needed for auth, rate limits, and integration |
+| World Service | .NET + PostgreSQL, Redis cache for countries, regions, taxes, and modifiers; move simulation-heavy calculations to Rust if needed |
+| Scheduler / Tick Service | .NET Worker Service with Quartz.NET or Hangfire for MVP daily ticks; Rust workers only for heavy simulation batches |
+| Social Service | .NET + PostgreSQL for contacts, guilds, memberships, roles |
+| Chat Service | ASP.NET Core SignalR, PostgreSQL message history, Redis/NATS fan-out |
+| Notification Service | .NET worker consuming NATS events; mobile push provider plus in-app notification table |
+| News / Media Service | .NET + PostgreSQL, object storage such as S3-compatible MinIO for uploaded media |
+| Politics Service | .NET + PostgreSQL, event-driven election/law lifecycle through Scheduler |
+| Admin / Moderation Service | ASP.NET Core admin API + PostgreSQL read models, protected by identity roles |
+| Analytics / Telemetry Service | Rust or .NET NATS event consumer first; Kafka/ClickHouse later if analytics volume grows |
+
+Use Rust behind stable service boundaries rather than throughout the whole MVP. Good Rust boundaries are pure calculations, matching loops, event processors, and gRPC services with small, explicit contracts. Keep CRUD-heavy, admin-heavy, and integration-heavy services in .NET for faster iteration.
 
 ### Communication style
 

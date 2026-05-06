@@ -22,6 +22,11 @@
 
 https://www.facebook.com/charuwaka/videos/2807396325978185
 
+## Repository layout
+
+- `frontend/` contains the Flutter app. Run Flutter commands such as `flutter pub get`, `flutter test`, and `flutter run` from this directory.
+- `backend/` contains the split-first backend scaffold and local infrastructure.
+
 ## Backend microservices design
 
 The backend should be designed around domain ownership, not UI screens. For an eRepublik-like game, the core domains are identity, player state, economy, production, market, combat, social, and scheduled world simulation.

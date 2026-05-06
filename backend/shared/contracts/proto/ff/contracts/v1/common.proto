@@ -1,0 +1,32 @@
+syntax = "proto3";
+
+package ff.contracts.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option csharp_namespace = "Ff.Contracts.V1";
+
+message CommandMetadata {
+  string command_id = 1;
+  string idempotency_key = 2;
+  string requested_by_player_id = 3;
+  string correlation_id = 4;
+  string causation_id = 5;
+  google.protobuf.Timestamp requested_at = 6;
+}
+
+message EventMetadata {
+  string event_id = 1;
+  string event_type = 2;
+  uint32 schema_version = 3;
+  string producer = 4;
+  google.protobuf.Timestamp occurred_at = 5;
+  string correlation_id = 6;
+  string causation_id = 7;
+  string trace_id = 8;
+}
+
+message Money {
+  string currency_code = 1;
+  int64 amount_minor = 2;
+}

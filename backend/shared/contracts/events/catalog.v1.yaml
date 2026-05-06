@@ -1,0 +1,88 @@
+version: 1
+transport: nats-jetstream
+subject_prefix: ff
+subject_pattern: "ff.<context>.events.v<major>.<event_name_snake_case>"
+metadata:
+  required:
+    - event_id
+    - event_type
+    - schema_version
+    - producer
+    - occurred_at
+    - correlation_id
+    - causation_id
+events:
+  - name: PlayerRegistered
+    context: player
+    subject: ff.player.events.v1.player_registered
+    producer: Player
+    consumers:
+      - Economy
+      - Notification
+    minimum_payload:
+      - player_id
+      - identity_subject
+      - display_name
+  - name: DailyTickStarted
+    context: scheduler
+    subject: ff.scheduler.events.v1.daily_tick_started
+    producer: Scheduler
+    consumers:
+      - Player
+      - Production
+      - Market
+      - Combat
+    minimum_payload:
+      - tick_id
+      - game_day
+      - started_at
+  - name: ProductionCompleted
+    context: production
+    subject: ff.production.events.v1.production_completed
+    producer: Production
+    consumers:
+      - Economy
+      - Notification
+    minimum_payload:
+      - production_job_id
+      - player_id
+      - item_id
+      - quantity
+  - name: MarketOrderFilled
+    context: market
+    subject: ff.market.events.v1.market_order_filled
+    producer: Market
+    consumers:
+      - Economy
+      - Notification
+    minimum_payload:
+      - order_id
+      - buyer_player_id
+      - seller_player_id
+      - item_id
+      - quantity
+      - unit_price
+  - name: BattleResolved
+    context: combat
+    subject: ff.combat.events.v1.battle_resolved
+    producer: Combat
+    consumers:
+      - Economy
+      - Player
+      - World
+      - Notification
+    minimum_payload:
+      - battle_id
+      - winning_side_id
+      - resolved_at
+  - name: MessageSent
+    context: social_chat
+    subject: ff.social_chat.events.v1.message_sent
+    producer: SocialChat
+    consumers:
+      - Notification
+    minimum_payload:
+      - message_id
+      - channel_id
+      - sender_player_id
+      - sent_at

@@ -1,0 +1,56 @@
+syntax = "proto3";
+
+package ff.contracts.v1;
+
+import "ff/contracts/v1/common.proto";
+import "google/protobuf/timestamp.proto";
+
+option csharp_namespace = "Ff.Contracts.V1";
+
+message PlayerRegisteredEvent {
+  EventMetadata metadata = 1;
+  string player_id = 2;
+  string identity_subject = 3;
+  string display_name = 4;
+}
+
+message DailyTickStartedEvent {
+  EventMetadata metadata = 1;
+  string tick_id = 2;
+  int64 game_day = 3;
+  google.protobuf.Timestamp started_at = 4;
+}
+
+message ProductionCompletedEvent {
+  EventMetadata metadata = 1;
+  string production_job_id = 2;
+  string player_id = 3;
+  string item_id = 4;
+  int64 quantity = 5;
+}
+
+message MarketOrderFilledEvent {
+  EventMetadata metadata = 1;
+  string order_id = 2;
+  string buyer_player_id = 3;
+  string seller_player_id = 4;
+  string item_id = 5;
+  int64 quantity = 6;
+  Money unit_price = 7;
+}
+
+message BattleResolvedEvent {
+  EventMetadata metadata = 1;
+  string battle_id = 2;
+  string winning_side_id = 3;
+  repeated string participant_player_ids = 4;
+  google.protobuf.Timestamp resolved_at = 5;
+}
+
+message MessageSentEvent {
+  EventMetadata metadata = 1;
+  string message_id = 2;
+  string channel_id = 3;
+  string sender_player_id = 4;
+  google.protobuf.Timestamp sent_at = 5;
+}

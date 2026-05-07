@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:ff/models/AuthSecurity.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:rxdart/rxdart.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -30,10 +31,12 @@ class UserProfileNotFoundException implements Exception {}
 class LoginBloc extends Validators with ChangeNotifier {
   LoginBloc({BackendApiClient? apiClient})
       : _apiClient = apiClient ?? BackendApiClient() {
+    _apiClient.onUnauthorized = _refreshCurrentSession;
     _restoreSession();
   }
 
   static const _tokenKey = 'ff.auth.token';
+  static const _refreshTokenKey = 'ff.auth.refreshToken';
   static const _userIdKey = 'ff.auth.userId';
 
   final BackendApiClient _apiClient;
@@ -45,6 +48,8 @@ class LoginBloc extends Validators with ChangeNotifier {
   final _authErrorController = BehaviorSubject<String?>.seeded(null);
   final _isRestoringSessionController = BehaviorSubject<bool>.seeded(true);
   String? _currentToken;
+  String? _currentRefreshToken;
+  bool _isRefreshingSession = false;
   String? _pendingSuccessMessage;
 
   Stream<User?> get authStateChange => _authController.stream;
@@ -168,15 +173,26 @@ class LoginBloc extends Validators with ChangeNotifier {
   }
 
   Future<void> logout() async {
+    final refreshToken = _currentRefreshToken;
+    try {
+      await _apiClient.logout(refreshToken: refreshToken);
+    } on Exception {
+      // Local logout must still succeed if the backend is unavailable.
+    }
     _currentToken = null;
+    _currentRefreshToken = null;
     _apiClient.bearerToken = null;
+    _apiClient.refreshToken = null;
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_tokenKey);
+    await prefs.remove(_refreshTokenKey);
     await prefs.remove(_userIdKey);
     _authController.add(null);
   }
 
   String? get currentToken => _currentToken;
+
+  String? get currentRefreshToken => _currentRefreshToken;
 
   User? get currentUser => _authController.valueOrNull;
 
@@ -192,11 +208,58 @@ class LoginBloc extends Validators with ChangeNotifier {
     _authErrorController.add(message);
   }
 
+  Future<AccountSecurityProfile> fetchAccountSecurity() async {
+    return _apiClient.fetchAccountSecurity();
+  }
+
+  Future<AuthActionResult> requestEmailVerification() async {
+    return _apiClient.requestEmailVerification();
+  }
+
+  Future<AuthActionResult> confirmEmailVerification(String token) async {
+    final result = await _apiClient.confirmEmailVerification(token: token);
+    final currentUser = _authController.valueOrNull;
+    if (currentUser != null) {
+      await fetchUserProfile(currentUser.uid);
+    }
+    return result;
+  }
+
+  Future<AuthActionResult> requestPasswordReset(String email) async {
+    return _apiClient.requestPasswordReset(email: email);
+  }
+
+  Future<AuthActionResult> confirmPasswordReset({
+    required String token,
+    required String password,
+  }) async {
+    return _apiClient.confirmPasswordReset(token: token, password: password);
+  }
+
+  Future<SessionRevokeResult> revokeAllSessions() async {
+    final result = await _apiClient.revokeAllSessions();
+    await logout();
+    return result;
+  }
+
   Future<void> _restoreSession() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString(_tokenKey);
+      final refreshToken = prefs.getString(_refreshTokenKey);
       final userId = prefs.getString(_userIdKey);
+      _currentRefreshToken = refreshToken;
+      _apiClient.refreshToken = refreshToken;
+      if ((token == null ||
+              token.isEmpty ||
+              userId == null ||
+              userId.isEmpty) &&
+          refreshToken != null &&
+          refreshToken.isNotEmpty) {
+        await _refreshCurrentSession();
+        return;
+      }
+
       if (token == null || token.isEmpty || userId == null || userId.isEmpty) {
         return;
       }
@@ -209,7 +272,9 @@ class LoginBloc extends Validators with ChangeNotifier {
     } on Exception {
       await _clearStoredSession();
       _currentToken = null;
+      _currentRefreshToken = null;
       _apiClient.bearerToken = null;
+      _apiClient.refreshToken = null;
       _authController.add(null);
     } finally {
       _isRestoringSessionController.add(false);
@@ -218,17 +283,53 @@ class LoginBloc extends Validators with ChangeNotifier {
 
   Future<void> _setSession(AuthSession session) async {
     _currentToken = session.token;
+    _currentRefreshToken = session.refreshToken.isNotEmpty
+        ? session.refreshToken
+        : _currentRefreshToken;
     _apiClient.bearerToken = session.token;
+    _apiClient.refreshToken = _currentRefreshToken;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_tokenKey, session.token);
+    if (_currentRefreshToken != null && _currentRefreshToken!.isNotEmpty) {
+      await prefs.setString(_refreshTokenKey, _currentRefreshToken!);
+    }
     await prefs.setString(_userIdKey, session.user.uid);
     _userController.add(session.user);
     _authController.add(session.user);
   }
 
+  Future<bool> _refreshCurrentSession() async {
+    if (_isRefreshingSession) {
+      return false;
+    }
+
+    final refreshToken = _currentRefreshToken;
+    if (refreshToken == null || refreshToken.isEmpty) {
+      return false;
+    }
+
+    _isRefreshingSession = true;
+    try {
+      final session = await _apiClient.refresh(refreshToken: refreshToken);
+      await _setSession(session);
+      return true;
+    } on Exception {
+      await _clearStoredSession();
+      _currentToken = null;
+      _currentRefreshToken = null;
+      _apiClient.bearerToken = null;
+      _apiClient.refreshToken = null;
+      _authController.add(null);
+      return false;
+    } finally {
+      _isRefreshingSession = false;
+    }
+  }
+
   Future<void> _clearStoredSession() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_tokenKey);
+    await prefs.remove(_refreshTokenKey);
     await prefs.remove(_userIdKey);
   }
 

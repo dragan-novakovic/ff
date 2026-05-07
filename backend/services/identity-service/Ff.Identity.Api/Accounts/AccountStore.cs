@@ -3,9 +3,11 @@ using Npgsql;
 
 namespace Ff.Identity.Api.Accounts;
 
-internal sealed class AccountStore : IDisposable
+internal sealed partial class AccountStore : IDisposable
 {
     private readonly NpgsqlDataSource _dataSource;
+    private readonly TimeSpan _refreshSessionLifetime;
+    private readonly TimeSpan _accountTokenLifetime;
 
     public AccountStore(IConfiguration configuration)
     {
@@ -13,6 +15,12 @@ internal sealed class AccountStore : IDisposable
             ?? configuration.GetConnectionString("Identity")
             ?? "Host=127.0.0.1;Port=5432;Database=ff_dev;Username=ff_dev;Password=ff_dev_password;Include Error Detail=true";
         _dataSource = NpgsqlDataSource.Create(connectionString);
+
+        var refreshDays = configuration.GetValue("FF_IDENTITY_REFRESH_SESSION_DAYS", 30);
+        _refreshSessionLifetime = TimeSpan.FromDays(Math.Clamp(refreshDays, 1, 365));
+
+        var tokenMinutes = configuration.GetValue("FF_IDENTITY_ACCOUNT_TOKEN_LIFETIME_MINUTES", 30);
+        _accountTokenLifetime = TimeSpan.FromMinutes(Math.Clamp(tokenMinutes, 5, 24 * 60));
     }
 
     public async Task InitializeAsync()
@@ -34,8 +42,46 @@ internal sealed class AccountStore : IDisposable
                 first_name text NOT NULL DEFAULT '',
                 last_name text NOT NULL DEFAULT '',
                 contacts text[] NOT NULL DEFAULT ARRAY[]::text[],
-                groups text[] NOT NULL DEFAULT ARRAY[]::text[]
+                groups text[] NOT NULL DEFAULT ARRAY[]::text[],
+                email_verified_at timestamptz NULL,
+                roles text[] NOT NULL DEFAULT ARRAY['player']::text[]
             );
+
+            ALTER TABLE identity.accounts
+                ADD COLUMN IF NOT EXISTS email_verified_at timestamptz NULL;
+            ALTER TABLE identity.accounts
+                ADD COLUMN IF NOT EXISTS roles text[] NOT NULL DEFAULT ARRAY['player']::text[];
+            UPDATE identity.accounts
+            SET roles = ARRAY['player']::text[]
+            WHERE roles IS NULL OR cardinality(roles) = 0;
+
+            CREATE TABLE IF NOT EXISTS identity.refresh_sessions (
+                session_id text PRIMARY KEY,
+                account_id text NOT NULL REFERENCES identity.accounts(account_id) ON DELETE CASCADE,
+                player_id text NOT NULL,
+                token_hash text NOT NULL UNIQUE,
+                created_at timestamptz NOT NULL,
+                expires_at timestamptz NOT NULL,
+                last_seen_at timestamptz NOT NULL,
+                revoked_at timestamptz NULL,
+                replaced_by_session_id text NULL,
+                user_agent text NOT NULL DEFAULT '',
+                remote_ip text NOT NULL DEFAULT ''
+            );
+            CREATE INDEX IF NOT EXISTS ix_refresh_sessions_account
+                ON identity.refresh_sessions(account_id, created_at DESC);
+
+            CREATE TABLE IF NOT EXISTS identity.account_tokens (
+                token_id text PRIMARY KEY,
+                account_id text NOT NULL REFERENCES identity.accounts(account_id) ON DELETE CASCADE,
+                token_hash text NOT NULL UNIQUE,
+                token_type text NOT NULL,
+                created_at timestamptz NOT NULL,
+                expires_at timestamptz NOT NULL,
+                consumed_at timestamptz NULL
+            );
+            CREATE INDEX IF NOT EXISTS ix_account_tokens_account_type
+                ON identity.account_tokens(account_id, token_type, created_at DESC);
             """;
 
         await using var command = _dataSource.CreateCommand(sql);
@@ -112,8 +158,9 @@ internal sealed class AccountStore : IDisposable
     {
         await using var command = _dataSource.CreateCommand("""
             SELECT account_id, player_id, email, normalized_email, username,
-                   password_salt, password_hash, password_iterations,
-                   created_at, last_login_at, first_name, last_name, contacts, groups
+                    password_salt, password_hash, password_iterations,
+                    created_at, last_login_at, first_name, last_name, contacts, groups,
+                    email_verified_at, roles
             FROM identity.accounts
             WHERE player_id = @player_id;
             """);
@@ -132,8 +179,9 @@ internal sealed class AccountStore : IDisposable
     {
         await using var command = _dataSource.CreateCommand("""
             SELECT account_id, player_id, email, normalized_email, username,
-                   password_salt, password_hash, password_iterations,
-                   created_at, last_login_at, first_name, last_name, contacts, groups
+                    password_salt, password_hash, password_iterations,
+                    created_at, last_login_at, first_name, last_name, contacts, groups,
+                    email_verified_at, roles
             FROM identity.accounts
             WHERE normalized_email = @normalized_email;
             """);
@@ -149,12 +197,14 @@ internal sealed class AccountStore : IDisposable
             INSERT INTO identity.accounts (
                 account_id, player_id, email, normalized_email, username,
                 password_salt, password_hash, password_iterations,
-                created_at, last_login_at, first_name, last_name, contacts, groups
+                created_at, last_login_at, first_name, last_name, contacts, groups,
+                email_verified_at, roles
             )
             VALUES (
                 @account_id, @player_id, @email, @normalized_email, @username,
                 @password_salt, @password_hash, @password_iterations,
-                @created_at, @last_login_at, @first_name, @last_name, @contacts, @groups
+                @created_at, @last_login_at, @first_name, @last_name, @contacts, @groups,
+                @email_verified_at, @roles
             );
             """);
         command.Parameters.AddWithValue("account_id", account.AccountId);
@@ -171,6 +221,8 @@ internal sealed class AccountStore : IDisposable
         command.Parameters.AddWithValue("last_name", account.LastName);
         command.Parameters.AddWithValue("contacts", account.Contacts.ToArray());
         command.Parameters.AddWithValue("groups", account.Groups.ToArray());
+        command.Parameters.AddWithValue("email_verified_at", account.EmailVerifiedAt is null ? DBNull.Value : account.EmailVerifiedAt);
+        command.Parameters.AddWithValue("roles", account.Roles.Count == 0 ? new[] { "player" } : account.Roles.ToArray());
         await command.ExecuteNonQueryAsync();
     }
 
@@ -191,7 +243,9 @@ internal sealed class AccountStore : IDisposable
             FirstName = reader.GetString(10),
             LastName = reader.GetString(11),
             Contacts = reader.GetFieldValue<string[]>(12).ToList(),
-            Groups = reader.GetFieldValue<string[]>(13).ToList()
+            Groups = reader.GetFieldValue<string[]>(13).ToList(),
+            EmailVerifiedAt = reader.IsDBNull(14) ? null : reader.GetFieldValue<DateTimeOffset>(14),
+            Roles = reader.GetFieldValue<string[]>(15).ToList()
         };
     }
 
@@ -213,7 +267,8 @@ internal sealed class AccountStore : IDisposable
             PasswordIterations = passwordHash.Iterations,
             CreatedAt = now,
             Contacts = ["global", "demo-contact"],
-            Groups = []
+            Groups = [],
+            Roles = ["player"]
         };
     }
 
@@ -245,6 +300,8 @@ internal sealed class AccountRecord
     public string LastName { get; set; } = string.Empty;
     public List<string> Contacts { get; set; } = [];
     public List<string> Groups { get; set; } = [];
+    public DateTimeOffset? EmailVerifiedAt { get; set; }
+    public List<string> Roles { get; set; } = [];
 
     public PlayerDto ToPlayerDto()
     {
@@ -253,10 +310,20 @@ internal sealed class AccountRecord
             Email: Email,
             Username: Username,
             CreatedOn: CreatedAt.ToString("O"),
+            EmailVerified: EmailVerifiedAt.HasValue,
+            Roles: Roles.Count == 0 ? ["player"] : Roles.ToArray(),
             FirstName: FirstName,
             LastName: LastName,
             Contacts: Contacts.ToArray(),
             Groups: Groups.ToArray());
+    }
+
+    public PublicPlayerDto ToPublicPlayerDto()
+    {
+        return new PublicPlayerDto(
+            Uid: PlayerId,
+            Username: Username,
+            CreatedOn: CreatedAt.ToString("O"));
     }
 }
 

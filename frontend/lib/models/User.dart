@@ -5,15 +5,26 @@ class User {
   String? last_name;
   List<String>? contacts;
   List<String>? groups;
+  final bool emailVerified;
+  final List<String> roles;
   final String username;
   final String createdOnTimestamp;
 
-  User(this.uid, this.email, this.username, this.createdOnTimestamp);
+  User(
+    this.uid,
+    this.email,
+    this.username,
+    this.createdOnTimestamp, {
+    this.emailVerified = false,
+    List<String>? roles,
+  }) : roles = roles ?? const ['player'];
 
   User.fromJson(Map<String, dynamic> json)
       : uid = _requiredString(json, 'uid'),
         email = _requiredString(json, 'email'),
         username = _requiredString(json, 'username'),
+        emailVerified = _bool(json['email_verified'] ?? json['emailVerified']),
+        roles = _stringList(json['roles']) ?? const ['player'],
         first_name = json['first_name'] ?? json['firstName'],
         last_name = json['last_name'] ?? json['lastName'],
         contacts = _stringList(json['contacts']),
@@ -26,6 +37,8 @@ class User {
       'uid': user.uid,
       'email': user.email,
       'username': user.username,
+      'email_verified': user.emailVerified,
+      'roles': user.roles,
       'first_name': user.first_name,
       'last_name': user.last_name,
       'contacts': user.contacts,
@@ -63,6 +76,18 @@ List<String>? _stringList(Object? value) {
   }
 
   throw const FormatException('Expected a list of strings.');
+}
+
+bool _bool(Object? value) {
+  if (value is bool) {
+    return value;
+  }
+
+  if (value is String) {
+    return value.toLowerCase() == 'true';
+  }
+
+  return false;
 }
 
 class PlayerData {

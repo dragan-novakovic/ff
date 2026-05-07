@@ -190,7 +190,11 @@ Widget submitButton(LoginBloc bloc) {
                   )
                 ],
               ),
-            )
+            ),
+            TextButton(
+              onPressed: () => _showPasswordResetDialog(context, bloc),
+              child: const Text('Forgot password?'),
+            ),
           ],
         );
       });
@@ -213,4 +217,89 @@ Future<void> _handleLoginSubmit(BuildContext context, LoginBloc bloc) async {
   ScaffoldMessenger.of(context).showSnackBar(
     SnackBar(content: Text(message)),
   );
+}
+
+Future<void> _showPasswordResetDialog(
+    BuildContext context, LoginBloc bloc) async {
+  final emailController = TextEditingController();
+  final tokenController = TextEditingController();
+  final passwordController = TextEditingController();
+
+  await showDialog<void>(
+    context: context,
+    builder: (dialogContext) {
+      return AlertDialog(
+        title: const Text('Reset password'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: emailController,
+                keyboardType: TextInputType.emailAddress,
+                decoration: const InputDecoration(labelText: 'Account email'),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: tokenController,
+                decoration: const InputDecoration(
+                  labelText: 'Reset token',
+                  helperText: 'In dev, the token is returned and logged.',
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: passwordController,
+                obscureText: true,
+                decoration: const InputDecoration(labelText: 'New password'),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Close'),
+          ),
+          TextButton(
+            onPressed: () async {
+              final result = await bloc.requestPasswordReset(
+                emailController.text.trim(),
+              );
+              if (!dialogContext.mounted) {
+                return;
+              }
+              if (result.devToken != null) {
+                tokenController.text = result.devToken!;
+              }
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text(result.message)),
+              );
+            },
+            child: const Text('Request token'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final result = await bloc.confirmPasswordReset(
+                token: tokenController.text.trim(),
+                password: passwordController.text,
+              );
+              if (!dialogContext.mounted) {
+                return;
+              }
+              Navigator.of(dialogContext).pop();
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text(result.message)),
+              );
+            },
+            child: const Text('Reset'),
+          ),
+        ],
+      );
+    },
+  );
+
+  emailController.dispose();
+  tokenController.dispose();
+  passwordController.dispose();
 }

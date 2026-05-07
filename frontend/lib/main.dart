@@ -1,17 +1,35 @@
 import 'package:ff/pages/Chat/ChatBody.dart';
 import 'package:ff/pages/Chat/ChatView.dart';
+import 'package:ff/pages/ActivityFeedPage.dart';
+import 'package:ff/pages/AdminConsolePage.dart';
+import 'package:ff/pages/AccountSecurityPage.dart';
+import 'package:ff/pages/CompaniesPage.dart';
+import 'package:ff/pages/CongressPage.dart';
+import 'package:ff/pages/CountryBattlesPage.dart';
 import 'package:ff/pages/Dashboard.dart';
+import 'package:ff/pages/diplomacy_page.dart';
 import 'package:ff/pages/FactoriesPage.dart';
 import 'package:ff/pages/InventoryPage.dart';
 import 'package:ff/pages/Login/Login.dart';
 import 'package:ff/pages/MarketPage.dart';
+import 'package:ff/pages/MilitaryUnitsPage.dart';
+import 'package:ff/pages/NewspapersPage.dart';
 import 'package:ff/pages/MissionsPage.dart';
+import 'package:ff/pages/PoliticsPage.dart';
+import 'package:ff/pages/PublicProfilePage.dart';
+import 'package:ff/pages/RankingsPage.dart';
+import 'package:ff/pages/TerritoryPage.dart';
+import 'package:ff/pages/WorldPage.dart';
+import 'package:ff/pages/WorkforcePage.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'blocs/GameAreaBlocs.dart';
 import 'blocs/MessageBloc.dart';
+import 'blocs/ActivityFeedBloc.dart';
 import 'blocs/LoginBloc.dart';
+import 'blocs/OnboardingQuestlineBloc.dart';
 import 'blocs/PlayerBloc.dart';
+import 'blocs/RankingsBloc.dart';
 import 'models/User.dart';
 
 void main() {
@@ -20,10 +38,23 @@ void main() {
       ChangeNotifierProvider(create: (_) => LoginBloc()),
       ChangeNotifierProvider(create: (_) => MessageBloc()),
       ChangeNotifierProvider(create: (_) => PlayerBloc()),
+      ChangeNotifierProvider(create: (_) => OnboardingQuestlineBloc()),
       ChangeNotifierProvider(create: (_) => InventoryBloc()),
       ChangeNotifierProvider(create: (_) => FactoriesBloc()),
       ChangeNotifierProvider(create: (_) => MarketBloc()),
+      ChangeNotifierProvider(create: (_) => WorkforceBloc()),
       ChangeNotifierProvider(create: (_) => MissionsBloc()),
+      ChangeNotifierProvider(create: (_) => CountryBattlesBloc()),
+      ChangeNotifierProvider(create: (_) => MilitaryUnitsBloc()),
+      ChangeNotifierProvider(create: (_) => CompaniesBloc()),
+      ChangeNotifierProvider(create: (_) => PoliticsBloc()),
+      ChangeNotifierProvider(create: (_) => CongressBloc()),
+      ChangeNotifierProvider(create: (_) => DiplomacyBloc()),
+      ChangeNotifierProvider(create: (_) => RankingsBloc()),
+      ChangeNotifierProvider(create: (_) => WorldBloc()),
+      ChangeNotifierProvider(create: (_) => TerritoryBloc()),
+      ChangeNotifierProvider(create: (_) => ActivityFeedBloc()),
+      ChangeNotifierProvider(create: (_) => NewspapersBloc()),
     ],
     child: MyApp(),
   ));
@@ -54,11 +85,65 @@ class _MyAppState extends State<MyApp> {
         '/factories': (context) => AuthenticatedGamePage(
               builder: (user) => FactoriesPage(user: user),
             ),
+        '/companies': (context) => AuthenticatedGamePage(
+              builder: (user) => CompaniesPage(user: user),
+            ),
         '/market': (context) => AuthenticatedGamePage(
               builder: (user) => MarketPage(user: user),
             ),
+        '/workforce': (context) => AuthenticatedGamePage(
+              builder: (user) => WorkforcePage(user: user),
+            ),
         '/missions': (context) => AuthenticatedGamePage(
               builder: (user) => MissionsPage(user: user),
+            ),
+        '/activity': (context) => AuthenticatedGamePage(
+              builder: (user) => ActivityFeedPage(user: user),
+            ),
+        '/media': (context) => AuthenticatedGamePage(
+              builder: (user) => NewspapersPage(user: user),
+            ),
+        '/media/newspapers': (context) => AuthenticatedGamePage(
+              builder: (user) => NewspapersPage(user: user),
+            ),
+        '/world': (context) => AuthenticatedGamePage(
+              builder: (user) => WorldPage(user: user),
+            ),
+        '/territory': (context) => AuthenticatedGamePage(
+              builder: (user) => TerritoryPage(user: user),
+            ),
+        '/country-battles': (context) => AuthenticatedGamePage(
+              builder: (user) => CountryBattlesPage(user: user),
+            ),
+        '/military-units': (context) => AuthenticatedGamePage(
+              builder: (user) => MilitaryUnitsPage(user: user),
+            ),
+        '/politics': (context) => AuthenticatedGamePage(
+              builder: (user) => PoliticsPage(user: user),
+            ),
+        '/congress': (context) => AuthenticatedGamePage(
+              builder: (user) => CongressPage(user: user),
+            ),
+        '/diplomacy': (context) => AuthenticatedGamePage(
+              builder: (user) => DiplomacyPage(user: user),
+            ),
+        '/rankings': (context) => AuthenticatedGamePage(
+              builder: (_) => const RankingsPage(),
+            ),
+        '/profile': (context) => AuthenticatedGamePage(
+              builder: (user) {
+                final args = ModalRoute.of(context)?.settings.arguments
+                    as Map<String, dynamic>?;
+                final playerId =
+                    (args?['playerId'] ?? args?['id'] ?? user.uid).toString();
+                return PublicProfilePage(playerId: playerId);
+              },
+            ),
+        '/admin': (context) => AuthenticatedGamePage(
+              builder: (_) => const AdminConsolePage(),
+            ),
+        '/account/security': (context) => AuthenticatedGamePage(
+              builder: (user) => AccountSecurityPage(user: user),
             ),
         '/inbox': (context) => ChatView(),
         '/inbox/chat': (context) {

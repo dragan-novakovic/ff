@@ -11,6 +11,13 @@ class PlayerState {
   final bool hasTrainedToday;
   final DateTime nextResetAt;
   final DateTime updatedAt;
+  final DateTime lastEnergyRegeneratedAt;
+  final DateTime? nextEnergyRegenAt;
+  final int energyRegenSeconds;
+  final int energyRegenAmount;
+  final DateTime? hospitalCooldownUntil;
+  final int hospitalEnergyRestore;
+  final int hospitalGoldCost;
 
   PlayerState({
     required this.playerId,
@@ -25,9 +32,17 @@ class PlayerState {
     required this.hasTrainedToday,
     required this.nextResetAt,
     required this.updatedAt,
+    required this.lastEnergyRegeneratedAt,
+    required this.nextEnergyRegenAt,
+    required this.energyRegenSeconds,
+    required this.energyRegenAmount,
+    required this.hospitalCooldownUntil,
+    required this.hospitalEnergyRestore,
+    required this.hospitalGoldCost,
   });
 
   factory PlayerState.fromJson(Map<String, dynamic> json) {
+    final updatedAt = _requiredDateTime(json, 'updatedAt');
     return PlayerState(
       playerId: _requiredString(json, 'playerId'),
       level: _requiredInt(json, 'level'),
@@ -40,9 +55,28 @@ class PlayerState {
       hasWorkedToday: _requiredBool(json, 'hasWorkedToday'),
       hasTrainedToday: _requiredBool(json, 'hasTrainedToday'),
       nextResetAt: _requiredDateTime(json, 'nextResetAt'),
-      updatedAt: _requiredDateTime(json, 'updatedAt'),
+      updatedAt: updatedAt,
+      lastEnergyRegeneratedAt:
+          _optionalDateTime(json, 'lastEnergyRegeneratedAt') ?? updatedAt,
+      nextEnergyRegenAt: _optionalDateTime(json, 'nextEnergyRegenAt'),
+      energyRegenSeconds:
+          _optionalInt(json, 'energyRegenSeconds', defaultValue: 0),
+      energyRegenAmount:
+          _optionalInt(json, 'energyRegenAmount', defaultValue: 0),
+      hospitalCooldownUntil: _optionalDateTime(json, 'hospitalCooldownUntil'),
+      hospitalEnergyRestore:
+          _optionalInt(json, 'hospitalEnergyRestore', defaultValue: 0),
+      hospitalGoldCost: _optionalInt(json, 'hospitalGoldCost', defaultValue: 0),
     );
   }
+
+  bool get isEnergyFull => energy >= maxEnergy;
+
+  bool get isHospitalCoolingDown =>
+      hospitalCooldownUntil != null &&
+      hospitalCooldownUntil!.isAfter(DateTime.now());
+
+  bool get canRecoverAtHospital => !isEnergyFull && !isHospitalCoolingDown;
 
   double get energyProgress {
     if (maxEnergy <= 0) {
@@ -100,11 +134,13 @@ class PlayerRewards {
   final int gold;
   final int experience;
   final int strength;
+  final int energy;
 
   PlayerRewards({
     required this.gold,
     required this.experience,
     required this.strength,
+    required this.energy,
   });
 
   factory PlayerRewards.fromJson(Map<String, dynamic> json) {
@@ -112,6 +148,7 @@ class PlayerRewards {
       gold: _requiredInt(json, 'gold'),
       experience: _requiredInt(json, 'experience'),
       strength: _requiredInt(json, 'strength'),
+      energy: _optionalInt(json, 'energy', defaultValue: 0),
     );
   }
 }
@@ -144,6 +181,15 @@ int _requiredInt(Map<String, dynamic> json, String field) {
       'Missing required integer player state field "$field".');
 }
 
+int _optionalInt(Map<String, dynamic> json, String field,
+    {required int defaultValue}) {
+  if (!json.containsKey(field) || json[field] == null) {
+    return defaultValue;
+  }
+
+  return _requiredInt(json, field);
+}
+
 bool _requiredBool(Map<String, dynamic> json, String field) {
   final value = json[field];
   if (value is bool) {
@@ -161,4 +207,16 @@ DateTime _requiredDateTime(Map<String, dynamic> json, String field) {
   }
 
   throw FormatException('Missing required date player state field "$field".');
+}
+
+DateTime? _optionalDateTime(Map<String, dynamic> json, String field) {
+  final value = json[field];
+  if (value == null) {
+    return null;
+  }
+  if (value is String && value.isNotEmpty) {
+    return DateTime.parse(value);
+  }
+
+  throw FormatException('Invalid date player state field "$field".');
 }

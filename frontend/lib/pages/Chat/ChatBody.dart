@@ -1,6 +1,9 @@
 import 'package:ff/blocs/MessageBloc.dart';
+import 'package:ff/blocs/LoginBloc.dart';
+import 'package:ff/blocs/RealtimeUpdatesBloc.dart';
 import 'package:ff/components/MessageInput.dart';
 import 'package:ff/components/TextBoxBody.dart';
+import 'package:ff/models/MessageModel.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -14,6 +17,8 @@ class ChatBody extends StatefulWidget {
 }
 
 class _ChatBodyState extends State<ChatBody> {
+  late final RealtimeUpdatesBloc _realtimeBloc;
+
   String get _toId =>
       widget.contactId == null || widget.contactId!.trim().isEmpty
           ? 'global'
@@ -22,7 +27,9 @@ class _ChatBodyState extends State<ChatBody> {
   @override
   void initState() {
     super.initState();
+    _realtimeBloc = RealtimeUpdatesBloc();
     _loadMessages();
+    _startRealtime();
   }
 
   @override
@@ -31,6 +38,7 @@ class _ChatBodyState extends State<ChatBody> {
     if (oldWidget.userId != widget.userId ||
         oldWidget.contactId != widget.contactId) {
       _loadMessages();
+      _startRealtime();
     }
   }
 
@@ -44,6 +52,109 @@ class _ChatBodyState extends State<ChatBody> {
     messageBloc.fetchMessages(toId: _toId);
   }
 
+  void _startRealtime() {
+    final userId = widget.userId;
+    if (userId == null || userId.trim().isEmpty) {
+      _realtimeBloc.stop();
+      return;
+    }
+
+    final loginBloc = Provider.of<LoginBloc>(context, listen: false);
+    _realtimeBloc.setBearerToken(loginBloc.currentToken);
+    _realtimeBloc.start(
+      playerId: userId,
+      chatToId: _toId,
+      onUpdate: (update) {
+        final chat = update.chat;
+        if (chat != null) {
+          Provider.of<MessageBloc>(context, listen: false)
+              .applyRealtimeChat(chat);
+        }
+      },
+    );
+  }
+
+  Future<void> _reportMessage(Message message) async {
+    final playerId = widget.userId;
+    if (playerId == null || playerId.isEmpty) {
+      _showMessage('Sign in before reporting messages.');
+      return;
+    }
+
+    final reason = await _promptReportReason();
+    if (reason == null) {
+      return;
+    }
+    if (!mounted) {
+      return;
+    }
+
+    final result =
+        await Provider.of<MessageBloc>(context, listen: false).reportMessage(
+      playerId: playerId,
+      messageId: message.id,
+      reason: reason,
+    );
+    if (!mounted) {
+      return;
+    }
+    _showMessage(result?.message ?? 'Could not submit content report.');
+  }
+
+  Future<String?> _promptReportReason() async {
+    final controller = TextEditingController();
+    final reason = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Report message'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          maxLength: 500,
+          minLines: 2,
+          maxLines: 4,
+          decoration: const InputDecoration(
+            labelText: 'Reason',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(controller.text.trim()),
+            child: const Text('Submit report'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (reason == null) {
+      return null;
+    }
+    if (reason.length < 5 || reason.length > 500) {
+      _showMessage('Report reason must be between 5 and 500 characters.');
+      return null;
+    }
+    return reason;
+  }
+
+  void _showMessage(String message) {
+    if (!mounted) {
+      return;
+    }
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  @override
+  void dispose() {
+    _realtimeBloc.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Column(children: [
@@ -53,6 +164,7 @@ class _ChatBodyState extends State<ChatBody> {
         child: TextBoxBody(
           currentUserId: widget.userId,
           onRetry: _loadMessages,
+          onReport: _reportMessage,
         ),
       ),
       Expanded(

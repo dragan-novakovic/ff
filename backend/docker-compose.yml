@@ -39,13 +39,27 @@ services:
       FF_PRODUCTION_BASE_URL: http://production-service:8080
       FF_MARKET_BASE_URL: http://market-service:8080
       FF_COMBAT_BASE_URL: http://combat-service:8080
+      FF_SOCIAL_CHAT_BASE_URL: http://social-chat-service:8080
+      FF_WORLD_BASE_URL: http://world-service:8080
+      FF_NOTIFICATION_BASE_URL: http://notification-service:8080
+      FF_ADMIN_BASE_URL: http://admin-service:8080
+      FF_GATEWAY_CONNECTION_STRING: Host=postgres;Port=5432;Database=${POSTGRES_DB:-ff_dev};Username=${POSTGRES_USER:-ff_dev};Password=${POSTGRES_PASSWORD:-ff_dev_password};Include Error Detail=true
       FF_IDENTITY_TOKEN_SECRET: ${FF_IDENTITY_TOKEN_SECRET:-ff-development-token-secret-change-me}
       FF_INTERNAL_SERVICE_TOKEN: ${FF_INTERNAL_SERVICE_TOKEN:-ff-development-internal-token-change-me}
+      FF_ADMIN_TOKEN: ${FF_ADMIN_TOKEN:-}
     ports:
       - "127.0.0.1:${GATEWAY_PORT:-5124}:8080"
     depends_on:
       <<: *backend-dependencies
       identity-service:
+        condition: service_healthy
+      social-chat-service:
+        condition: service_healthy
+      world-service:
+        condition: service_healthy
+      notification-service:
+        condition: service_healthy
+      admin-service:
         condition: service_healthy
     healthcheck: *api-healthcheck
     networks:
@@ -85,7 +99,10 @@ services:
       args:
         PROJECT_PATH: services/admin-service/Ff.Admin.Api/Ff.Admin.Api.csproj
         PROJECT_DLL: Ff.Admin.Api.dll
-    environment: *dotnet-environment
+    environment:
+      <<: *dotnet-environment
+      FF_ADMIN_CONNECTION_STRING: Host=postgres;Port=5432;Database=${POSTGRES_DB:-ff_dev};Username=${POSTGRES_USER:-ff_dev};Password=${POSTGRES_PASSWORD:-ff_dev_password};Include Error Detail=true
+      FF_ADMIN_TOKEN: ${FF_ADMIN_TOKEN:-}
     ports:
       - "127.0.0.1:${ADMIN_PORT:-5130}:8080"
     depends_on: *backend-dependencies
@@ -124,7 +141,10 @@ services:
       args:
         PROJECT_PATH: services/market-service/Ff.Market.Api/Ff.Market.Api.csproj
         PROJECT_DLL: Ff.Market.Api.dll
-    environment: *dotnet-environment
+    environment:
+      <<: *dotnet-environment
+      FF_MARKET_CONNECTION_STRING: Host=postgres;Port=5432;Database=${POSTGRES_DB:-ff_dev};Username=${POSTGRES_USER:-ff_dev};Password=${POSTGRES_PASSWORD:-ff_dev_password};Include Error Detail=true
+      FF_INTERNAL_SERVICE_TOKEN: ${FF_INTERNAL_SERVICE_TOKEN:-ff-development-internal-token-change-me}
     ports:
       - "127.0.0.1:${MARKET_PORT:-5275}:8080"
     depends_on: *backend-dependencies
@@ -142,9 +162,13 @@ services:
       args:
         PROJECT_PATH: services/notification-service/Ff.Notification.Worker/Ff.Notification.Worker.csproj
         PROJECT_DLL: Ff.Notification.Worker.dll
-        RUNTIME_IMAGE: mcr.microsoft.com/dotnet/runtime:8.0
-    environment: *dotnet-environment
+        RUNTIME_IMAGE: mcr.microsoft.com/dotnet/aspnet:8.0
+    environment:
+      <<: *dotnet-environment
+      FF_NOTIFICATION_CONNECTION_STRING: Host=postgres;Port=5432;Database=${POSTGRES_DB:-ff_dev};Username=${POSTGRES_USER:-ff_dev};Password=${POSTGRES_PASSWORD:-ff_dev_password};Include Error Detail=true
+      FF_INTERNAL_SERVICE_TOKEN: ${FF_INTERNAL_SERVICE_TOKEN:-ff-development-internal-token-change-me}
     depends_on: *backend-dependencies
+    healthcheck: *api-healthcheck
     networks:
       - backend
 
@@ -162,6 +186,7 @@ services:
       <<: *dotnet-environment
       FF_PLAYER_CONNECTION_STRING: Host=postgres;Port=5432;Database=${POSTGRES_DB:-ff_dev};Username=${POSTGRES_USER:-ff_dev};Password=${POSTGRES_PASSWORD:-ff_dev_password};Include Error Detail=true
       FF_IDENTITY_TOKEN_SECRET: ${FF_IDENTITY_TOKEN_SECRET:-ff-development-token-secret-change-me}
+      FF_INTERNAL_SERVICE_TOKEN: ${FF_INTERNAL_SERVICE_TOKEN:-ff-development-internal-token-change-me}
     ports:
       - "127.0.0.1:${PLAYER_PORT:-5192}:8080"
     depends_on: *backend-dependencies
@@ -179,7 +204,9 @@ services:
       args:
         PROJECT_PATH: services/production-service/Ff.Production.Api/Ff.Production.Api.csproj
         PROJECT_DLL: Ff.Production.Api.dll
-    environment: *dotnet-environment
+    environment:
+      <<: *dotnet-environment
+      FF_PRODUCTION_CONNECTION_STRING: Host=postgres;Port=5432;Database=${POSTGRES_DB:-ff_dev};Username=${POSTGRES_USER:-ff_dev};Password=${POSTGRES_PASSWORD:-ff_dev_password};Include Error Detail=true
     ports:
       - "127.0.0.1:${PRODUCTION_PORT:-5148}:8080"
     depends_on: *backend-dependencies
@@ -213,7 +240,9 @@ services:
       args:
         PROJECT_PATH: services/social-chat-service/Ff.SocialChat.Api/Ff.SocialChat.Api.csproj
         PROJECT_DLL: Ff.SocialChat.Api.dll
-    environment: *dotnet-environment
+    environment:
+      <<: *dotnet-environment
+      FF_SOCIAL_CHAT_CONNECTION_STRING: Host=postgres;Port=5432;Database=${POSTGRES_DB:-ff_dev};Username=${POSTGRES_USER:-ff_dev};Password=${POSTGRES_PASSWORD:-ff_dev_password};Include Error Detail=true
     ports:
       - "127.0.0.1:${SOCIAL_CHAT_PORT:-5096}:8080"
     depends_on: *backend-dependencies
@@ -231,7 +260,10 @@ services:
       args:
         PROJECT_PATH: services/world-service/Ff.World.Api/Ff.World.Api.csproj
         PROJECT_DLL: Ff.World.Api.dll
-    environment: *dotnet-environment
+    environment:
+      <<: *dotnet-environment
+      FF_WORLD_CONNECTION_STRING: Host=postgres;Port=5432;Database=${POSTGRES_DB:-ff_dev};Username=${POSTGRES_USER:-ff_dev};Password=${POSTGRES_PASSWORD:-ff_dev_password};Include Error Detail=true
+      FF_IDENTITY_TOKEN_SECRET: ${FF_IDENTITY_TOKEN_SECRET:-ff-development-token-secret-change-me}
     ports:
       - "127.0.0.1:${WORLD_PORT:-5205}:8080"
     depends_on: *backend-dependencies

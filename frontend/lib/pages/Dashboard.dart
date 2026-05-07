@@ -1,6 +1,12 @@
+import 'package:ff/blocs/ActivityFeedBloc.dart';
 import 'package:ff/blocs/GameAreaBlocs.dart';
+import 'package:ff/blocs/OnboardingQuestlineBloc.dart';
 import 'package:ff/blocs/PlayerBloc.dart';
+import 'package:ff/blocs/RealtimeUpdatesBloc.dart';
+import 'package:ff/components/OnboardingGuidanceCard.dart';
+import 'package:ff/models/DailyObjectives.dart';
 import 'package:ff/models/GameAreas.dart';
+import 'package:ff/models/OnboardingQuestline.dart';
 import 'package:ff/models/PlayerState.dart';
 import 'package:ff/models/User.dart';
 import 'package:ff/utils/Utils.dart';
@@ -24,6 +30,13 @@ class DashboardState extends State<Dashboard> {
   late final LoginBloc _loginBloc;
   late final PlayerBloc _playerBloc;
   late final InventoryBloc _inventoryBloc;
+  late final WorldBloc _worldBloc;
+  late final TerritoryBloc _territoryBloc;
+  late final PoliticsBloc _politicsBloc;
+  late final DiplomacyBloc _diplomacyBloc;
+  late final ActivityFeedBloc _activityFeedBloc;
+  late final OnboardingQuestlineBloc _onboardingBloc;
+  late final RealtimeUpdatesBloc _realtimeBloc;
 
   @override
   void initState() {
@@ -31,6 +44,14 @@ class DashboardState extends State<Dashboard> {
     _loginBloc = Provider.of<LoginBloc>(context, listen: false);
     _playerBloc = Provider.of<PlayerBloc>(context, listen: false);
     _inventoryBloc = Provider.of<InventoryBloc>(context, listen: false);
+    _worldBloc = Provider.of<WorldBloc>(context, listen: false);
+    _territoryBloc = Provider.of<TerritoryBloc>(context, listen: false);
+    _politicsBloc = Provider.of<PoliticsBloc>(context, listen: false);
+    _diplomacyBloc = Provider.of<DiplomacyBloc>(context, listen: false);
+    _activityFeedBloc = Provider.of<ActivityFeedBloc>(context, listen: false);
+    _onboardingBloc =
+        Provider.of<OnboardingQuestlineBloc>(context, listen: false);
+    _realtimeBloc = RealtimeUpdatesBloc();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) {
         return;
@@ -47,7 +68,11 @@ class DashboardState extends State<Dashboard> {
     });
     _loadProfile();
     _loadPlayerState();
+    _loadDailyObjectives();
+    _loadOnboardingQuestline();
     _loadEconomyWallet();
+    _loadActivityFeed();
+    _startRealtime();
   }
 
   Future<void> _loadProfile() async {
@@ -68,10 +93,42 @@ class DashboardState extends State<Dashboard> {
     await _inventoryBloc.load(widget.uid);
   }
 
+  Future<void> _loadDailyObjectives() async {
+    _playerBloc.setBearerToken(_loginBloc.currentToken);
+    await _playerBloc.loadDailyObjectives(widget.uid);
+  }
+
+  Future<void> _loadOnboardingQuestline() async {
+    _onboardingBloc.setBearerToken(_loginBloc.currentToken);
+    await _onboardingBloc.load(widget.uid);
+  }
+
+  Future<void> _loadActivityFeed() async {
+    _activityFeedBloc.setBearerToken(_loginBloc.currentToken);
+    await _activityFeedBloc.load(widget.uid, limit: 10);
+  }
+
+  void _startRealtime() {
+    _realtimeBloc.setBearerToken(_loginBloc.currentToken);
+    _realtimeBloc.start(
+      playerId: widget.uid,
+      chatToId: 'global',
+      limit: 10,
+      onUpdate: (update) async {
+        final activity = update.activity;
+        if (activity != null) {
+          _activityFeedBloc.applyRealtimeActivity(activity.feed, limit: 10);
+        }
+      },
+    );
+  }
+
   Future<void> _work() async {
     _playerBloc.setBearerToken(_loginBloc.currentToken);
     final result = await _playerBloc.work(widget.uid);
     if (result != null) {
+      await _loadDailyObjectives();
+      await _loadOnboardingQuestline();
       await _loadEconomyWallet();
     }
     if (!mounted) {
@@ -89,6 +146,10 @@ class DashboardState extends State<Dashboard> {
   Future<void> _train() async {
     _playerBloc.setBearerToken(_loginBloc.currentToken);
     final result = await _playerBloc.train(widget.uid);
+    if (result != null) {
+      await _loadDailyObjectives();
+      await _loadOnboardingQuestline();
+    }
     if (!mounted) {
       return;
     }
@@ -101,9 +162,100 @@ class DashboardState extends State<Dashboard> {
     }
   }
 
+  Future<void> _recoverAtHospital() async {
+    _playerBloc.setBearerToken(_loginBloc.currentToken);
+    final result = await _playerBloc.recoverAtHospital(widget.uid);
+    if (result != null) {
+      await _loadDailyObjectives();
+      await _loadEconomyWallet();
+    }
+    if (!mounted) {
+      return;
+    }
+
+    final message = result?.message ?? _playerBloc.error;
+    if (message != null && message.isNotEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message)),
+      );
+    }
+  }
+
+  Future<void> _claimDailyObjective(DailyObjective objective) async {
+    _playerBloc.setBearerToken(_loginBloc.currentToken);
+    final result = await _playerBloc.claimDailyObjective(
+      playerId: widget.uid,
+      objectiveId: objective.objectiveId,
+    );
+    if (result != null && (result.wallet != null || result.rewards.gold > 0)) {
+      await _loadEconomyWallet();
+    }
+    if (!mounted) {
+      return;
+    }
+
+    final message = result?.message ?? _playerBloc.error;
+    if (message != null && message.isNotEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message)),
+      );
+    }
+  }
+
+  Future<void> _claimOnboardingQuest(OnboardingQuest quest) async {
+    _onboardingBloc.setBearerToken(_loginBloc.currentToken);
+    final result = await _onboardingBloc.claim(
+      playerId: widget.uid,
+      questId: quest.questId,
+    );
+    if (result != null) {
+      if (result.state != null) {
+        await _loadPlayerState();
+      }
+      if (result.wallet != null || result.rewards.gold > 0) {
+        await _loadEconomyWallet();
+      }
+    }
+    if (!mounted) {
+      return;
+    }
+
+    final message = result?.message ?? _onboardingBloc.error;
+    if (message != null && message.isNotEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message)),
+      );
+    }
+  }
+
+  Future<void> _skipOnboardingQuest(OnboardingQuest quest) async {
+    _onboardingBloc.setBearerToken(_loginBloc.currentToken);
+    final result = await _onboardingBloc.skip(
+      playerId: widget.uid,
+      questId: quest.questId,
+    );
+    if (!mounted) {
+      return;
+    }
+
+    final message = result?.message ?? _onboardingBloc.error;
+    if (message != null && message.isNotEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message)),
+      );
+    }
+  }
+
   Future<void> _logout() async {
+    _realtimeBloc.stop();
     _playerBloc.clear();
     _inventoryBloc.clear();
+    _worldBloc.clear();
+    _territoryBloc.clear();
+    _politicsBloc.clear();
+    _diplomacyBloc.clear();
+    _activityFeedBloc.clear();
+    _onboardingBloc.clear();
     await _loginBloc.logout();
     if (!mounted) {
       return;
@@ -113,6 +265,12 @@ class DashboardState extends State<Dashboard> {
       const SnackBar(content: Text('Logged out.')),
     );
     Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
+  }
+
+  @override
+  void dispose() {
+    _realtimeBloc.dispose();
+    super.dispose();
   }
 
   @override
@@ -157,8 +315,9 @@ class DashboardState extends State<Dashboard> {
           }
           if (snapshot.hasData) {
             final user = snapshot.data as User;
-            return Consumer2<PlayerBloc, InventoryBloc>(
-              builder: (context, playerBloc, inventoryBloc, _) {
+            return Consumer3<PlayerBloc, InventoryBloc,
+                OnboardingQuestlineBloc>(
+              builder: (context, playerBloc, inventoryBloc, onboardingBloc, _) {
                 return _dashboardScaffold(
                   drawer: Drawer(
                       child: dashboardDrawer(context, user, playerBloc.state,
@@ -168,9 +327,15 @@ class DashboardState extends State<Dashboard> {
                     user,
                     playerBloc,
                     inventoryBloc: inventoryBloc,
+                    onboardingBloc: onboardingBloc,
                     onRetry: _loadPlayerState,
                     onWork: _work,
                     onTrain: _train,
+                    onRecoverAtHospital: _recoverAtHospital,
+                    onRefreshDailyObjectives: _loadDailyObjectives,
+                    onClaimDailyObjective: _claimDailyObjective,
+                    onClaimOnboardingQuest: _claimOnboardingQuest,
+                    onSkipOnboardingQuest: _skipOnboardingQuest,
                   ),
                 );
               },
@@ -199,8 +364,51 @@ class DashboardState extends State<Dashboard> {
         actions: [
           IconButton(
             tooltip: 'Notifications',
-            icon: const Icon(Icons.notifications),
-            onPressed: () {},
+            icon: Consumer<ActivityFeedBloc>(
+              builder: (context, activityBloc, _) {
+                final unreadCount = activityBloc.unreadCount;
+                return Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    const Icon(Icons.notifications),
+                    if (unreadCount > 0)
+                      Positioned(
+                        right: -6,
+                        top: -6,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 5, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: Colors.red,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Text(
+                            unreadCount > 99 ? '99+' : unreadCount.toString(),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                );
+              },
+            ),
+            onPressed: () async {
+              await Navigator.pushNamed(context, '/activity');
+              if (mounted) {
+                await _loadActivityFeed();
+              }
+            },
+          ),
+          IconButton(
+            tooltip: 'Account security',
+            icon: const Icon(Icons.security),
+            onPressed: () {
+              Navigator.pushNamed(context, '/account/security');
+            },
           ),
           IconButton(
             tooltip: 'Logout',
@@ -391,7 +599,9 @@ Widget dashboardDrawer(
               navTile(context, user,
                   title: "Market", subtitle: "Weapon", route: '/market'),
               navTile(context, user,
-                  title: "Market", subtitle: "Factories", route: '/market')
+                  title: "Market", subtitle: "Factories", route: '/market'),
+              navTile(context, user,
+                  title: "Labor", subtitle: "Workforce", route: '/workforce')
             ],
           ),
         ),
@@ -404,6 +614,100 @@ Widget dashboardDrawer(
             children: <Widget>[
               navTile(context, user,
                   title: "Battle", subtitle: "Chapter I", route: '/missions'),
+              navTile(context, user,
+                  title: "Daily", subtitle: "Objectives", route: '/home'),
+            ],
+          ),
+        ),
+        InkWell(
+          child: ExpansionTile(
+            title: Text(
+              "World",
+              style: TextStyle(color: Colors.blue, fontSize: 12.0),
+            ),
+            children: <Widget>[
+              navTile(context, user,
+                  title: "Countries", subtitle: "Citizenship", route: '/world'),
+              navTile(context, user,
+                  title: "Map", subtitle: "Territory", route: '/territory'),
+              navTile(context, user,
+                  title: "Countries",
+                  subtitle: "Battles",
+                  route: '/country-battles'),
+              navTile(context, user,
+                  title: "Military",
+                  subtitle: "Units",
+                  route: '/military-units'),
+              navTile(context, user,
+                  title: "Politics",
+                  subtitle: "Parties & Elections",
+                  route: '/politics'),
+              navTile(context, user,
+                  title: "Congress",
+                  subtitle: "Laws & Votes",
+                  route: '/congress'),
+              navTile(context, user,
+                  title: "Diplomacy",
+                  subtitle: "Treaties & Relations",
+                  route: '/diplomacy'),
+            ],
+          ),
+        ),
+        InkWell(
+          child: ExpansionTile(
+            title: Text(
+              "Community",
+              style: TextStyle(color: Colors.blue, fontSize: 12.0),
+            ),
+            children: <Widget>[
+              navTile(context, user,
+                  title: "Organizations",
+                  subtitle: "Companies",
+                  route: '/companies'),
+              navTile(context, user,
+                  title: "Organizations",
+                  subtitle: "Jobs",
+                  route: '/workforce'),
+              navTile(context, user,
+                  title: "Leaderboard",
+                  subtitle: "Rankings",
+                  route: '/rankings'),
+              navTile(context, user,
+                  title: "Profile", subtitle: "Public", route: '/profile'),
+              navTile(context, user,
+                  title: "Notifications",
+                  subtitle: "Activity",
+                  route: '/activity'),
+            ],
+          ),
+        ),
+        InkWell(
+          child: ExpansionTile(
+            title: Text(
+              "Media",
+              style: TextStyle(color: Colors.blue, fontSize: 12.0),
+            ),
+            children: <Widget>[
+              navTile(context, user,
+                  title: "Press",
+                  subtitle: "Newspapers",
+                  route: '/media/newspapers'),
+            ],
+          ),
+        ),
+        InkWell(
+          child: ExpansionTile(
+            title: Text(
+              "Operations",
+              style: TextStyle(color: Colors.blue, fontSize: 12.0),
+            ),
+            children: <Widget>[
+              navTile(context, user,
+                  title: "Account",
+                  subtitle: "Security",
+                  route: '/account/security'),
+              navTile(context, user,
+                  title: "Admin", subtitle: "Moderation", route: '/admin'),
             ],
           ),
         ),
@@ -431,9 +735,16 @@ Widget dashboardBody(
   User user,
   PlayerBloc playerBloc, {
   required InventoryBloc inventoryBloc,
+  required OnboardingQuestlineBloc onboardingBloc,
   required Future<void> Function() onRetry,
   required Future<void> Function() onWork,
   required Future<void> Function() onTrain,
+  required Future<void> Function() onRecoverAtHospital,
+  required Future<void> Function() onRefreshDailyObjectives,
+  required Future<void> Function(DailyObjective objective)
+      onClaimDailyObjective,
+  required Future<void> Function(OnboardingQuest quest) onClaimOnboardingQuest,
+  required Future<void> Function(OnboardingQuest quest) onSkipOnboardingQuest,
 }) {
   final state = playerBloc.state;
   if (state == null) {
@@ -469,13 +780,42 @@ Widget dashboardBody(
               ),
             ),
           ),
+        if (onboardingBloc.error != null)
+          Card(
+            margin: EdgeInsets.symmetric(horizontal: 12.0, vertical: 4.0),
+            color: Colors.orange.shade50,
+            child: ListTile(
+              leading: Icon(Icons.tour, color: Colors.orange.shade700),
+              title: Text(onboardingBloc.error!),
+            ),
+          ),
+        OnboardingGuidanceCard(
+          questline: onboardingBloc.questline,
+          onClaim: onClaimOnboardingQuest,
+          onSkip: onSkipOnboardingQuest,
+          onNavigate: onboardingBloc.currentQuest?.route == null
+              ? null
+              : () => Navigator.pushNamed(
+                    context,
+                    onboardingBloc.currentQuest!.route!,
+                  ),
+        ),
         _progressionCard(context, state, inventoryBloc.inventory),
         _dailyActionsCard(
           state,
           isWorking: playerBloc.isWorking,
           isTraining: playerBloc.isTraining,
+          isRecovering: playerBloc.isRecovering,
           onWork: onWork,
           onTrain: onTrain,
+          onRecoverAtHospital: onRecoverAtHospital,
+        ),
+        _dailyObjectivesCard(
+          playerBloc.dailyObjectives,
+          isLoading: playerBloc.isLoadingObjectives,
+          claimingObjectiveIds: playerBloc.claimingObjectiveIds,
+          onRefresh: onRefreshDailyObjectives,
+          onClaim: onClaimDailyObjective,
         ),
         InfoBox(),
       ],
@@ -545,6 +885,7 @@ Widget _progressionCard(
                 icon: Icons.bolt,
                 label: 'Energy',
                 value: '${state.energy}/${state.maxEnergy}',
+                subtitle: _energyRegenSubtitle(state),
                 progress: state.energyProgress,
               ),
               _statTile(
@@ -617,8 +958,10 @@ Widget _dailyActionsCard(
   PlayerState state, {
   required bool isWorking,
   required bool isTraining,
+  required bool isRecovering,
   required Future<void> Function() onWork,
   required Future<void> Function() onTrain,
+  required Future<void> Function() onRecoverAtHospital,
 }) {
   return Card(
     margin: EdgeInsets.all(12.0),
@@ -628,7 +971,7 @@ Widget _dailyActionsCard(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'Daily actions',
+            'Player actions',
             style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 8),
@@ -655,8 +998,173 @@ Widget _dailyActionsCard(
             actionLabel: 'Train',
             onPressed: state.hasTrainedToday ? null : onTrain,
           ),
+          const Divider(),
+          _hospitalActionTile(
+            state,
+            isLoading: isRecovering,
+            onPressed: state.canRecoverAtHospital ? onRecoverAtHospital : null,
+          ),
         ],
       ),
+    ),
+  );
+}
+
+Widget _dailyObjectivesCard(
+  DailyObjectivesSummary? summary, {
+  required bool isLoading,
+  required Set<String> claimingObjectiveIds,
+  required Future<void> Function() onRefresh,
+  required Future<void> Function(DailyObjective objective) onClaim,
+}) {
+  final objectives = summary?.objectives ?? const <DailyObjective>[];
+  return Card(
+    margin: EdgeInsets.all(12.0),
+    child: Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.flag_circle, color: Colors.blue),
+              const SizedBox(width: 8),
+              const Expanded(
+                child: Text(
+                  'Daily objectives',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                ),
+              ),
+              IconButton(
+                tooltip: 'Refresh objectives',
+                onPressed: isLoading ? null : onRefresh,
+                icon: isLoading
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.refresh),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            summary == null
+                ? 'Load today\'s objectives to track real gameplay progress.'
+                : 'Resets ${_formatReset(summary.resetAt)}. ${summary.claimableCount} reward(s) ready.',
+            style: const TextStyle(color: Colors.grey),
+          ),
+          const SizedBox(height: 12),
+          if (summary == null && !isLoading)
+            OutlinedButton.icon(
+              onPressed: onRefresh,
+              icon: const Icon(Icons.flag),
+              label: const Text('Load objectives'),
+            )
+          else
+            ...objectives.map((objective) {
+              final isClaiming =
+                  claimingObjectiveIds.contains(objective.objectiveId);
+              return Column(
+                children: [
+                  _dailyObjectiveTile(
+                    objective,
+                    isClaiming: isClaiming,
+                    onClaim:
+                        objective.claimable ? () => onClaim(objective) : null,
+                  ),
+                  if (objective != objectives.last) const Divider(),
+                ],
+              );
+            }),
+        ],
+      ),
+    ),
+  );
+}
+
+Widget _dailyObjectiveTile(
+  DailyObjective objective, {
+  required bool isClaiming,
+  required Future<void> Function()? onClaim,
+}) {
+  final statusIcon = objective.claimed
+      ? Icons.verified
+      : objective.completed
+          ? Icons.card_giftcard
+          : Icons.timelapse;
+  final statusColor = objective.claimed
+      ? Colors.green
+      : objective.completed
+          ? Colors.orange
+          : Colors.blueGrey;
+  final buttonLabel = objective.claimed
+      ? 'Claimed'
+      : objective.completed
+          ? 'Claim'
+          : '${objective.currentCount}/${objective.targetCount}';
+  return ListTile(
+    contentPadding: EdgeInsets.zero,
+    leading: Icon(statusIcon, color: statusColor),
+    title: Text(objective.title),
+    subtitle: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(objective.description),
+        const SizedBox(height: 6),
+        LinearProgressIndicator(value: objective.progress),
+        const SizedBox(height: 4),
+        Text(
+          '${objective.currentCount}/${objective.targetCount} • ${_rewardsText(objective.rewards)}',
+          style: const TextStyle(color: Colors.grey),
+        ),
+      ],
+    ),
+    trailing: ElevatedButton.icon(
+      onPressed: isClaiming ? null : onClaim,
+      icon: isClaiming
+          ? const SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+          : Icon(objective.claimed ? Icons.check : Icons.redeem),
+      label: Text(buttonLabel),
+    ),
+  );
+}
+
+Widget _hospitalActionTile(
+  PlayerState state, {
+  required bool isLoading,
+  required Future<void> Function()? onPressed,
+}) {
+  final isFull = state.isEnergyFull;
+  final isCoolingDown = state.isHospitalCoolingDown;
+  final buttonLabel = isFull
+      ? 'Full'
+      : isCoolingDown
+          ? 'Cooldown'
+          : 'Recover';
+  return ListTile(
+    contentPadding: EdgeInsets.zero,
+    leading: Icon(
+      isFull ? Icons.check_circle : Icons.local_hospital,
+      color: isFull ? Colors.green : Colors.redAccent,
+    ),
+    title: const Text('Hospital recovery'),
+    subtitle: Text(_hospitalSubtitle(state)),
+    trailing: ElevatedButton.icon(
+      onPressed: isLoading ? null : onPressed,
+      icon: isLoading
+          ? const SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+          : Icon(isFull ? Icons.check : Icons.healing),
+      label: Text(buttonLabel),
     ),
   );
 }
@@ -692,4 +1200,67 @@ Widget _dailyActionTile({
 
 String _formatReset(DateTime resetAt) {
   return DateFormat('EEE HH:mm').format(resetAt.toLocal());
+}
+
+String _energyRegenSubtitle(PlayerState state) {
+  if (state.isEnergyFull) {
+    return 'Passive regeneration is capped at full energy.';
+  }
+
+  final nextRegenAt = state.nextEnergyRegenAt;
+  final amount = state.energyRegenAmount <= 0 ? 1 : state.energyRegenAmount;
+  if (nextRegenAt != null) {
+    return 'Next +$amount energy at ${_formatReset(nextRegenAt)}.';
+  }
+
+  if (state.energyRegenSeconds > 0) {
+    return 'Regenerates +$amount energy every ${_formatSeconds(state.energyRegenSeconds)}.';
+  }
+
+  return 'Passive energy regeneration is active.';
+}
+
+String _hospitalSubtitle(PlayerState state) {
+  if (state.isEnergyFull) {
+    return 'Energy is full. Hospital recovery is not needed.';
+  }
+
+  final cooldownUntil = state.hospitalCooldownUntil;
+  if (cooldownUntil != null && cooldownUntil.isAfter(DateTime.now())) {
+    return 'Next recovery available ${_formatReset(cooldownUntil)}.';
+  }
+
+  final restore = state.hospitalEnergyRestore <= 0
+      ? state.maxEnergy - state.energy
+      : state.hospitalEnergyRestore;
+  final cost = state.hospitalGoldCost;
+  final costText = cost > 0 ? ' for $cost gold' : '';
+  return 'Recover up to $restore energy$costText.';
+}
+
+String _rewardsText(PlayerRewards rewards) {
+  final parts = <String>[];
+  if (rewards.gold > 0) {
+    parts.add('${rewards.gold} gold');
+  }
+  if (rewards.experience > 0) {
+    parts.add('${rewards.experience} XP');
+  }
+  if (rewards.strength > 0) {
+    parts.add('${rewards.strength} strength');
+  }
+  if (rewards.energy > 0) {
+    parts.add('${rewards.energy} energy');
+  }
+
+  return parts.isEmpty ? 'No reward' : parts.join(', ');
+}
+
+String _formatSeconds(int seconds) {
+  if (seconds >= 60 && seconds % 60 == 0) {
+    final minutes = seconds ~/ 60;
+    return minutes == 1 ? '1 minute' : '$minutes minutes';
+  }
+
+  return seconds == 1 ? '1 second' : '$seconds seconds';
 }

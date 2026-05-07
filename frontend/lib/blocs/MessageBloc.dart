@@ -1,5 +1,7 @@
 import 'dart:async';
+import 'package:ff/models/GameAreas.dart';
 import 'package:ff/models/MessageModel.dart';
+import 'package:ff/models/RealtimeUpdates.dart';
 import 'package:ff/services/backend_api.dart';
 import 'package:flutter/material.dart';
 import 'package:rxdart/rxdart.dart';
@@ -29,12 +31,36 @@ class MessageBloc extends Object with ChangeNotifier {
     }
   }
 
+  void applyRealtimeChat(RealtimeChatUpdate update) {
+    _messagesController.add(update.messages);
+  }
+
   Future<void> sendMessage(String msg, String fromId, String toId) async {
     try {
       await _apiClient.sendMessage(content: msg, fromId: fromId, toId: toId);
       await fetchMessages(fromId: fromId, toId: toId);
     } on BackendApiException catch (e) {
       _messagesController.addError(e.message);
+    }
+  }
+
+  Future<ContentReportResult?> reportMessage({
+    required String playerId,
+    required String messageId,
+    required String reason,
+  }) async {
+    try {
+      return await _apiClient.reportMessage(
+        playerId: playerId,
+        messageId: messageId,
+        reason: reason,
+      );
+    } on BackendApiException catch (e) {
+      _messagesController.addError(e.message);
+      return null;
+    } on Exception {
+      _messagesController.addError('Could not submit content report.');
+      return null;
     }
   }
 

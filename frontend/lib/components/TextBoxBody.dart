@@ -6,10 +6,12 @@ import 'package:provider/provider.dart';
 class TextBoxBody extends StatelessWidget {
   final String? currentUserId;
   final VoidCallback onRetry;
+  final Future<void> Function(Message message) onReport;
   const TextBoxBody({
     super.key,
     required this.currentUserId,
     required this.onRetry,
+    required this.onReport,
   });
 
   @override
@@ -65,6 +67,7 @@ class TextBoxBody extends StatelessWidget {
                     return TextBox(
                       message: messages[index],
                       currentUserId: currentUserId,
+                      onReport: onReport,
                     );
                   }, childCount: messages.length))
                 ],
@@ -83,8 +86,12 @@ class TextBoxBody extends StatelessWidget {
 class TextBox extends StatelessWidget {
   final Message message;
   final String? currentUserId;
+  final Future<void> Function(Message message) onReport;
   const TextBox(
-      {super.key, required this.message, required this.currentUserId});
+      {super.key,
+      required this.message,
+      required this.currentUserId,
+      required this.onReport});
 
   @override
   Widget build(BuildContext context) {
@@ -116,6 +123,15 @@ class TextBox extends StatelessWidget {
                 ),
                 const SizedBox(height: 6),
                 Text(message.content),
+                if (!isMine && message.id.isNotEmpty)
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton.icon(
+                      onPressed: () => onReport(message),
+                      icon: const Icon(Icons.flag_outlined, size: 16),
+                      label: const Text('Report'),
+                    ),
+                  ),
               ],
             ),
           ),

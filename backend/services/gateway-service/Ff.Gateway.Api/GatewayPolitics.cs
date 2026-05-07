@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Microsoft.Extensions.Logging;
 
 internal static class PoliticsGatewayEndpoints
 {
@@ -34,6 +35,7 @@ internal static class PoliticsGatewayEndpoints
             WorldServiceClient world,
             PlayerServiceClient players,
             IConfiguration configuration,
+            ILoggerFactory loggerFactory,
             DevTokenValidator tokens) =>
         {
             var access = ValidatePlayerAccess(playerId, request, tokens);
@@ -72,6 +74,15 @@ internal static class PoliticsGatewayEndpoints
                 {
                     return onboarding.Error;
                 }
+
+                await AchievementGatewayEndpoints.TrackAsync(
+                    players,
+                    access.PlayerId!,
+                    authorization,
+                    configuration,
+                    "party_action",
+                    $"achievement:party-action:{access.PlayerId!.ToLowerInvariant()}",
+                    loggerFactory.CreateLogger(nameof(AchievementGatewayEndpoints)));
             }
 
             return Results.Json(mutation);
@@ -84,6 +95,7 @@ internal static class PoliticsGatewayEndpoints
             WorldServiceClient world,
             PlayerServiceClient players,
             IConfiguration configuration,
+            ILoggerFactory loggerFactory,
             DevTokenValidator tokens) =>
         {
             var access = ValidatePlayerAccess(playerId, request, tokens);
@@ -116,6 +128,16 @@ internal static class PoliticsGatewayEndpoints
                 {
                     return onboarding.Error;
                 }
+
+                await AchievementGatewayEndpoints.TrackAsync(
+                    players,
+                    access.PlayerId!,
+                    authorization,
+                    configuration,
+                    "party_action",
+                    $"achievement:party-action:{access.PlayerId!.ToLowerInvariant()}",
+                    loggerFactory.CreateLogger(nameof(AchievementGatewayEndpoints)),
+                    relatedId: partyId);
             }
 
             return Results.Json(mutation);

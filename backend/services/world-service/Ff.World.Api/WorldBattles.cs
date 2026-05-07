@@ -1,4 +1,6 @@
+using System.Text.Json;
 using Npgsql;
+using NpgsqlTypes;
 
 internal static class BattleEndpoints
 {
@@ -37,6 +39,23 @@ internal static class BattleEndpoints
                 : Results.Ok(battle);
         }).WithName("GetBattle");
 
+        app.MapGet("/battles/{battleId}/reports", async (
+            string battleId,
+            string? playerId,
+            int? limit,
+            HttpRequest request,
+            WorldStore world,
+            DevTokenValidator tokens) =>
+        {
+            var error = ValidateBearer(request, tokens);
+            if (error is not null)
+            {
+                return error;
+            }
+
+            return Results.Ok(await world.GetBattleCombatReportsAsync(battleId, playerId, limit));
+        }).WithName("GetBattleCombatReports");
+
         app.MapGet("/players/{playerId}/battles/{battleId}/participation", async (
             string playerId,
             string battleId,
@@ -55,6 +74,23 @@ internal static class BattleEndpoints
                 ? Results.NotFound(new ErrorResponse("Battle was not found."))
                 : Results.Ok(participation);
         }).WithName("GetPlayerBattleParticipation");
+
+        app.MapGet("/players/{playerId}/combat-reports", async (
+            string playerId,
+            string? battleId,
+            int? limit,
+            HttpRequest request,
+            WorldStore world,
+            DevTokenValidator tokens) =>
+        {
+            var access = ValidatePlayerAccess(playerId, request, tokens);
+            if (access.Error is not null)
+            {
+                return access.Error;
+            }
+
+            return Results.Ok(await world.GetPlayerCombatReportsAsync(access.PlayerId!, battleId, limit));
+        }).WithName("GetPlayerCombatReports");
 
         app.MapPost("/players/{playerId}/battles/{battleId}/contributions", async (
             string playerId,
@@ -143,6 +179,23 @@ internal static class BattleEndpoints
             return "Battle contribution idempotency key is required.";
         }
 
+        if (contribution.Fight is not null &&
+            (string.IsNullOrWhiteSpace(contribution.Fight.Winner) ||
+             contribution.Fight.RoundsRequested <= 0 ||
+             contribution.Fight.RoundsCompleted <= 0 ||
+             contribution.Fight.AttackerDamage < 0 ||
+             contribution.Fight.DefenderDamage < 0 ||
+             contribution.Fight.AttackerRemainingEnergy < 0 ||
+             contribution.Fight.DefenderRemainingEnergy < 0))
+        {
+            return "Battle contribution fight report contains invalid values.";
+        }
+
+        if (contribution.Weapon is { DurabilityDamage: < 0 })
+        {
+            return "Battle contribution weapon report contains invalid values.";
+        }
+
         return null;
     }
 }
@@ -206,6 +259,63 @@ internal sealed partial class WorldStore
 
             CREATE INDEX IF NOT EXISTS ix_world_battle_contributions_player_battle
                 ON world.battle_contributions (player_id, battle_id);
+
+            CREATE TABLE IF NOT EXISTS world.combat_reports (
+                report_id text PRIMARY KEY,
+                contribution_id text NOT NULL UNIQUE REFERENCES world.battle_contributions(contribution_id) ON DELETE CASCADE,
+                battle_id text NOT NULL REFERENCES world.battles(battle_id) ON DELETE CASCADE,
+                player_id text NOT NULL,
+                country_id text NOT NULL REFERENCES world.countries(country_id),
+                country_name text NOT NULL,
+                country_code text NOT NULL,
+                side text NOT NULL,
+                battle_name text NOT NULL,
+                battle_type text NOT NULL,
+                region_id text NOT NULL REFERENCES world.regions(region_id),
+                region_name text NOT NULL,
+                attacker_country_id text NOT NULL REFERENCES world.countries(country_id),
+                attacker_country_name text NOT NULL,
+                attacker_country_code text NOT NULL,
+                defender_country_id text NOT NULL REFERENCES world.countries(country_id),
+                defender_country_name text NOT NULL,
+                defender_country_code text NOT NULL,
+                damage integer NOT NULL,
+                energy_spent integer NOT NULL,
+                rounds_completed integer NOT NULL,
+                won boolean NOT NULL,
+                gold_reward integer NOT NULL,
+                experience_reward integer NOT NULL,
+                fight_winner text NOT NULL,
+                fight_rounds_requested integer NOT NULL,
+                fight_rounds_completed integer NOT NULL,
+                attacker_damage integer NOT NULL,
+                defender_damage integer NOT NULL,
+                attacker_remaining_energy integer NOT NULL,
+                defender_remaining_energy integer NOT NULL,
+                attacker_score_after integer NOT NULL,
+                defender_score_after integer NOT NULL,
+                target_score integer NOT NULL,
+                status_after text NOT NULL,
+                winner_country_id text NULL REFERENCES world.countries(country_id),
+                winner_country_name text NULL,
+                weapon_item_id text NULL,
+                weapon_name text NULL,
+                weapon_power integer NULL,
+                weapon_durability_before integer NULL,
+                weapon_durability_after integer NULL,
+                weapon_durability_damage integer NOT NULL DEFAULT 0,
+                campaign_id text NULL,
+                campaign_name text NULL,
+                phase_snapshots jsonb NOT NULL DEFAULT '[]'::jsonb,
+                message text NOT NULL,
+                created_at timestamptz NOT NULL
+            );
+
+            CREATE INDEX IF NOT EXISTS ix_world_combat_reports_battle_created_at
+                ON world.combat_reports (battle_id, created_at DESC);
+
+            CREATE INDEX IF NOT EXISTS ix_world_combat_reports_player_created_at
+                ON world.combat_reports (player_id, created_at DESC);
 
             ALTER TABLE world.battles
                 ADD COLUMN IF NOT EXISTS battle_type text NOT NULL DEFAULT 'skirmish';
@@ -288,6 +398,12 @@ internal sealed partial class WorldStore
         }
 
         var contributions = await ReadBattleContributionsAsync(connection, null, normalizedBattleId);
+        var reports = await ReadCombatReportsAsync(
+            connection,
+            null,
+            battleId: normalizedBattleId,
+            playerId: null,
+            limit: 25);
         var campaign = await ReadCampaignForBattleAsync(connection, null, normalizedBattleId);
         var phases = await ReadBattlePhasesAsync(connection, null, normalizedBattleId, campaign?.CampaignId);
         var countryLeaderboard = await ReadCountryBattleLeaderboardAsync(
@@ -306,11 +422,58 @@ internal sealed partial class WorldStore
         return new BattleDetailsResponse(
             battle,
             contributions.ToArray(),
+            reports.ToArray(),
             campaign,
             phases.ToArray(),
             new CountryBattleLeaderboardResponse(countryLeaderboard.ToArray(), DateTimeOffset.UtcNow),
             new MilitaryUnitLeaderboardResponse(unitLeaderboard.ToArray(), DateTimeOffset.UtcNow),
             DateTimeOffset.UtcNow);
+    }
+
+    public async Task<CombatReportListResponse> GetBattleCombatReportsAsync(
+        string battleId,
+        string? playerId,
+        int? limit)
+    {
+        await ResolveDueBattlesAsync();
+
+        var normalizedBattleId = NormalizeId(battleId);
+        var normalizedPlayerId = string.IsNullOrWhiteSpace(playerId) ? null : NormalizePlayerId(playerId);
+        await using var connection = await _dataSource.OpenConnectionAsync();
+        var reports = await ReadCombatReportsAsync(
+            connection,
+            null,
+            normalizedBattleId,
+            normalizedPlayerId,
+            NormalizeReportLimit(limit));
+        return new CombatReportListResponse(
+            BattleId: normalizedBattleId,
+            PlayerId: normalizedPlayerId,
+            Reports: reports.ToArray(),
+            UpdatedAt: DateTimeOffset.UtcNow);
+    }
+
+    public async Task<CombatReportListResponse> GetPlayerCombatReportsAsync(
+        string playerId,
+        string? battleId,
+        int? limit)
+    {
+        await ResolveDueBattlesAsync();
+
+        var normalizedPlayerId = NormalizePlayerId(playerId);
+        var normalizedBattleId = string.IsNullOrWhiteSpace(battleId) ? null : NormalizeId(battleId);
+        await using var connection = await _dataSource.OpenConnectionAsync();
+        var reports = await ReadCombatReportsAsync(
+            connection,
+            null,
+            normalizedBattleId,
+            normalizedPlayerId,
+            NormalizeReportLimit(limit));
+        return new CombatReportListResponse(
+            BattleId: normalizedBattleId,
+            PlayerId: normalizedPlayerId,
+            Reports: reports.ToArray(),
+            UpdatedAt: DateTimeOffset.UtcNow);
     }
 
     public async Task<PlayerBattleParticipationResponse?> GetPlayerBattleParticipationAsync(
@@ -364,11 +527,17 @@ internal sealed partial class WorldStore
                 transaction,
                 normalizedPlayerId,
                 normalizedBattleId);
-            await transaction.CommitAsync();
-
             var isSameContribution =
                 string.Equals(existingContribution.PlayerId, normalizedPlayerId, StringComparison.Ordinal) &&
                 string.Equals(existingContribution.BattleId, normalizedBattleId, StringComparison.Ordinal);
+            var existingReport = isSameContribution
+                ? await ReadCombatReportByContributionAsync(
+                    connection,
+                    transaction,
+                    existingContribution.ContributionId)
+                : null;
+            await transaction.CommitAsync();
+
             return new BattleContributionResult(
                 Completed: isSameContribution,
                 Message: isSameContribution
@@ -377,6 +546,7 @@ internal sealed partial class WorldStore
                 Battle: existingBattle,
                 Contribution: isSameContribution ? existingContribution : null,
                 Participation: existingParticipation,
+                Report: existingReport,
                 UpdatedAt: DateTimeOffset.UtcNow);
         }
 
@@ -410,6 +580,7 @@ internal sealed partial class WorldStore
                 Battle: battle,
                 Contribution: null,
                 Participation: null,
+                Report: null,
                 UpdatedAt: DateTimeOffset.UtcNow);
         }
 
@@ -423,6 +594,7 @@ internal sealed partial class WorldStore
                 Battle: battle,
                 Contribution: null,
                 Participation: null,
+                Report: null,
                 UpdatedAt: DateTimeOffset.UtcNow);
         }
 
@@ -436,6 +608,7 @@ internal sealed partial class WorldStore
                 Battle: battle,
                 Contribution: null,
                 Participation: null,
+                Report: null,
                 UpdatedAt: DateTimeOffset.UtcNow);
         }
 
@@ -474,6 +647,21 @@ internal sealed partial class WorldStore
             ?? await ReadBattleAsync(connection, transaction, normalizedBattleId)
             ?? battle;
         var contribution = await ReadBattleContributionByIdempotencyAsync(connection, transaction, idempotencyKey);
+        var campaign = await ReadCampaignForBattleAsync(connection, transaction, normalizedBattleId);
+        var phases = campaign is null
+            ? new List<BattlePhaseDto>()
+            : await ReadBattlePhasesAsync(connection, transaction, normalizedBattleId, campaign.CampaignId);
+        var report = contribution is null
+            ? null
+            : await InsertCombatReportAsync(
+                connection,
+                transaction,
+                contribution,
+                battle,
+                campaign,
+                phases,
+                request,
+                now);
         var participation = await ReadPlayerBattleParticipationAsync(
             connection,
             transaction,
@@ -487,6 +675,7 @@ internal sealed partial class WorldStore
             Battle: battle,
             Contribution: contribution,
             Participation: participation,
+            Report: report,
             UpdatedAt: DateTimeOffset.UtcNow);
     }
 
@@ -505,6 +694,7 @@ internal sealed partial class WorldStore
             Battle: battle,
             Contribution: null,
             Participation: participation,
+            Report: null,
             UpdatedAt: DateTimeOffset.UtcNow);
     }
 
@@ -877,6 +1067,124 @@ internal sealed partial class WorldStore
             CreatedAt: reader.GetFieldValue<DateTimeOffset>(14));
     }
 
+    private static async Task<List<CombatReportDto>> ReadCombatReportsAsync(
+        NpgsqlConnection connection,
+        NpgsqlTransaction? transaction,
+        string? battleId,
+        string? playerId,
+        int limit)
+    {
+        await using var command = new NpgsqlCommand($"""
+            SELECT {CombatReportSelectColumns}
+            FROM world.combat_reports cr
+            WHERE (@battle_id::text IS NULL OR cr.battle_id = @battle_id)
+              AND (@player_id::text IS NULL OR cr.player_id = @player_id)
+            ORDER BY cr.created_at DESC, cr.report_id DESC
+            LIMIT @limit;
+            """, connection, transaction);
+        command.Parameters.AddWithValue("battle_id", (object?)battleId ?? DBNull.Value);
+        command.Parameters.AddWithValue("player_id", (object?)playerId ?? DBNull.Value);
+        command.Parameters.AddWithValue("limit", limit);
+
+        var reports = new List<CombatReportDto>();
+        await using var reader = await command.ExecuteReaderAsync();
+        while (await reader.ReadAsync())
+        {
+            reports.Add(ReadCombatReport(reader));
+        }
+
+        return reports;
+    }
+
+    private static async Task<CombatReportDto?> ReadCombatReportByContributionAsync(
+        NpgsqlConnection connection,
+        NpgsqlTransaction? transaction,
+        string contributionId)
+    {
+        await using var command = new NpgsqlCommand($"""
+            SELECT {CombatReportSelectColumns}
+            FROM world.combat_reports cr
+            WHERE cr.contribution_id = @contribution_id;
+            """, connection, transaction);
+        command.Parameters.AddWithValue("contribution_id", contributionId);
+        await using var reader = await command.ExecuteReaderAsync();
+        return await reader.ReadAsync() ? ReadCombatReport(reader) : null;
+    }
+
+    private const string CombatReportSelectColumns = """
+        cr.report_id, cr.contribution_id, cr.battle_id, cr.player_id,
+        cr.country_id, cr.country_name, cr.country_code, cr.side,
+        cr.battle_name, cr.battle_type, cr.region_id, cr.region_name,
+        cr.attacker_country_id, cr.attacker_country_name, cr.attacker_country_code,
+        cr.defender_country_id, cr.defender_country_name, cr.defender_country_code,
+        cr.damage, cr.energy_spent, cr.rounds_completed, cr.won,
+        cr.gold_reward, cr.experience_reward, cr.fight_winner,
+        cr.fight_rounds_requested, cr.fight_rounds_completed,
+        cr.attacker_damage, cr.defender_damage,
+        cr.attacker_remaining_energy, cr.defender_remaining_energy,
+        cr.attacker_score_after, cr.defender_score_after, cr.target_score,
+        cr.status_after, cr.winner_country_id, cr.winner_country_name,
+        cr.weapon_item_id, cr.weapon_name, cr.weapon_power,
+        cr.weapon_durability_before, cr.weapon_durability_after,
+        cr.weapon_durability_damage, cr.campaign_id, cr.campaign_name,
+        cr.phase_snapshots, cr.message, cr.created_at
+        """;
+
+    private static CombatReportDto ReadCombatReport(NpgsqlDataReader reader)
+    {
+        var phaseSnapshots = JsonSerializer.Deserialize<CombatReportPhaseDto[]>(
+            reader.GetString(45)) ?? [];
+        return new CombatReportDto(
+            ReportId: reader.GetString(0),
+            ContributionId: reader.GetString(1),
+            BattleId: reader.GetString(2),
+            PlayerId: reader.GetString(3),
+            CountryId: reader.GetString(4),
+            CountryName: reader.GetString(5),
+            CountryCode: reader.GetString(6),
+            Side: reader.GetString(7),
+            BattleName: reader.GetString(8),
+            BattleType: reader.GetString(9),
+            RegionId: reader.GetString(10),
+            RegionName: reader.GetString(11),
+            AttackerCountryId: reader.GetString(12),
+            AttackerCountryName: reader.GetString(13),
+            AttackerCountryCode: reader.GetString(14),
+            DefenderCountryId: reader.GetString(15),
+            DefenderCountryName: reader.GetString(16),
+            DefenderCountryCode: reader.GetString(17),
+            Damage: reader.GetInt32(18),
+            EnergySpent: reader.GetInt32(19),
+            RoundsCompleted: reader.GetInt32(20),
+            Won: reader.GetBoolean(21),
+            GoldReward: reader.GetInt32(22),
+            ExperienceReward: reader.GetInt32(23),
+            FightWinner: reader.GetString(24),
+            FightRoundsRequested: reader.GetInt32(25),
+            FightRoundsCompleted: reader.GetInt32(26),
+            AttackerDamage: reader.GetInt32(27),
+            DefenderDamage: reader.GetInt32(28),
+            AttackerRemainingEnergy: reader.GetInt32(29),
+            DefenderRemainingEnergy: reader.GetInt32(30),
+            AttackerScoreAfter: reader.GetInt32(31),
+            DefenderScoreAfter: reader.GetInt32(32),
+            TargetScore: reader.GetInt32(33),
+            StatusAfter: reader.GetString(34),
+            WinnerCountryId: reader.IsDBNull(35) ? null : reader.GetString(35),
+            WinnerCountryName: reader.IsDBNull(36) ? null : reader.GetString(36),
+            WeaponItemId: reader.IsDBNull(37) ? null : reader.GetString(37),
+            WeaponName: reader.IsDBNull(38) ? null : reader.GetString(38),
+            WeaponPower: reader.IsDBNull(39) ? null : reader.GetInt32(39),
+            WeaponDurabilityBefore: reader.IsDBNull(40) ? null : reader.GetInt32(40),
+            WeaponDurabilityAfter: reader.IsDBNull(41) ? null : reader.GetInt32(41),
+            WeaponDurabilityDamage: reader.GetInt32(42),
+            CampaignId: reader.IsDBNull(43) ? null : reader.GetString(43),
+            CampaignName: reader.IsDBNull(44) ? null : reader.GetString(44),
+            PhaseSnapshots: phaseSnapshots,
+            Message: reader.GetString(46),
+            CreatedAt: reader.GetFieldValue<DateTimeOffset>(47));
+    }
+
     private static async Task<PlayerBattleParticipationDto?> ReadPlayerBattleParticipationAsync(
         NpgsqlConnection connection,
         NpgsqlTransaction? transaction,
@@ -963,6 +1271,114 @@ internal sealed partial class WorldStore
         return contributionId;
     }
 
+    private static async Task<CombatReportDto?> InsertCombatReportAsync(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
+        BattleContributionDto contribution,
+        CountryBattleDto battle,
+        CampaignDto? campaign,
+        IReadOnlyList<BattlePhaseDto> phases,
+        BattleContributionRequest request,
+        DateTimeOffset now)
+    {
+        var fight = request.Fight ?? FightReportRequest.FromContribution(request);
+        var weapon = request.Weapon;
+        var reportId = $"report-{Guid.NewGuid():N}";
+        var phaseSnapshots = phases
+            .Select(CombatReportPhaseDto.FromBattlePhase)
+            .ToArray();
+
+        await using var command = new NpgsqlCommand("""
+            INSERT INTO world.combat_reports (
+                report_id, contribution_id, battle_id, player_id, country_id,
+                country_name, country_code, side, battle_name, battle_type,
+                region_id, region_name, attacker_country_id, attacker_country_name,
+                attacker_country_code, defender_country_id, defender_country_name,
+                defender_country_code, damage, energy_spent, rounds_completed, won,
+                gold_reward, experience_reward, fight_winner, fight_rounds_requested,
+                fight_rounds_completed, attacker_damage, defender_damage,
+                attacker_remaining_energy, defender_remaining_energy, attacker_score_after,
+                defender_score_after, target_score, status_after, winner_country_id,
+                winner_country_name, weapon_item_id, weapon_name, weapon_power,
+                weapon_durability_before, weapon_durability_after, weapon_durability_damage,
+                campaign_id, campaign_name, phase_snapshots, message, created_at
+            )
+            VALUES (
+                @report_id, @contribution_id, @battle_id, @player_id, @country_id,
+                @country_name, @country_code, @side, @battle_name, @battle_type,
+                @region_id, @region_name, @attacker_country_id, @attacker_country_name,
+                @attacker_country_code, @defender_country_id, @defender_country_name,
+                @defender_country_code, @damage, @energy_spent, @rounds_completed, @won,
+                @gold_reward, @experience_reward, @fight_winner, @fight_rounds_requested,
+                @fight_rounds_completed, @attacker_damage, @defender_damage,
+                @attacker_remaining_energy, @defender_remaining_energy, @attacker_score_after,
+                @defender_score_after, @target_score, @status_after, @winner_country_id,
+                @winner_country_name, @weapon_item_id, @weapon_name, @weapon_power,
+                @weapon_durability_before, @weapon_durability_after, @weapon_durability_damage,
+                @campaign_id, @campaign_name, @phase_snapshots, @message, @created_at
+            )
+            ON CONFLICT (contribution_id) DO NOTHING;
+            """, connection, transaction);
+        command.Parameters.AddWithValue("report_id", reportId);
+        command.Parameters.AddWithValue("contribution_id", contribution.ContributionId);
+        command.Parameters.AddWithValue("battle_id", contribution.BattleId);
+        command.Parameters.AddWithValue("player_id", contribution.PlayerId);
+        command.Parameters.AddWithValue("country_id", contribution.CountryId);
+        command.Parameters.AddWithValue("country_name", contribution.CountryName);
+        command.Parameters.AddWithValue("country_code", contribution.CountryCode);
+        command.Parameters.AddWithValue("side", contribution.Side);
+        command.Parameters.AddWithValue("battle_name", battle.Name);
+        command.Parameters.AddWithValue("battle_type", battle.BattleType);
+        command.Parameters.AddWithValue("region_id", battle.RegionId);
+        command.Parameters.AddWithValue("region_name", battle.RegionName);
+        command.Parameters.AddWithValue("attacker_country_id", battle.AttackerCountryId);
+        command.Parameters.AddWithValue("attacker_country_name", battle.AttackerCountryName);
+        command.Parameters.AddWithValue("attacker_country_code", battle.AttackerCountryCode);
+        command.Parameters.AddWithValue("defender_country_id", battle.DefenderCountryId);
+        command.Parameters.AddWithValue("defender_country_name", battle.DefenderCountryName);
+        command.Parameters.AddWithValue("defender_country_code", battle.DefenderCountryCode);
+        command.Parameters.AddWithValue("damage", contribution.Damage);
+        command.Parameters.AddWithValue("energy_spent", contribution.EnergySpent);
+        command.Parameters.AddWithValue("rounds_completed", contribution.RoundsCompleted);
+        command.Parameters.AddWithValue("won", contribution.Won);
+        command.Parameters.AddWithValue("gold_reward", contribution.GoldReward);
+        command.Parameters.AddWithValue("experience_reward", contribution.ExperienceReward);
+        command.Parameters.AddWithValue("fight_winner", fight.Winner.Trim().ToLowerInvariant());
+        command.Parameters.AddWithValue("fight_rounds_requested", Math.Max(1, fight.RoundsRequested));
+        command.Parameters.AddWithValue("fight_rounds_completed", Math.Max(1, fight.RoundsCompleted));
+        command.Parameters.AddWithValue("attacker_damage", Math.Max(0, fight.AttackerDamage));
+        command.Parameters.AddWithValue("defender_damage", Math.Max(0, fight.DefenderDamage));
+        command.Parameters.AddWithValue("attacker_remaining_energy", Math.Clamp(fight.AttackerRemainingEnergy, 0, 100));
+        command.Parameters.AddWithValue("defender_remaining_energy", Math.Clamp(fight.DefenderRemainingEnergy, 0, 100));
+        command.Parameters.AddWithValue("attacker_score_after", battle.AttackerScore);
+        command.Parameters.AddWithValue("defender_score_after", battle.DefenderScore);
+        command.Parameters.AddWithValue("target_score", battle.TargetScore);
+        command.Parameters.AddWithValue("status_after", battle.Status);
+        command.Parameters.AddWithValue("winner_country_id", (object?)battle.WinnerCountryId ?? DBNull.Value);
+        command.Parameters.AddWithValue("winner_country_name", (object?)battle.WinnerCountryName ?? DBNull.Value);
+        command.Parameters.AddWithValue("weapon_item_id", (object?)weapon?.ItemId ?? DBNull.Value);
+        command.Parameters.AddWithValue("weapon_name", (object?)weapon?.Name ?? DBNull.Value);
+        command.Parameters.AddWithValue("weapon_power", (object?)weapon?.WeaponPower ?? DBNull.Value);
+        command.Parameters.AddWithValue("weapon_durability_before", (object?)weapon?.DurabilityBefore ?? DBNull.Value);
+        command.Parameters.AddWithValue("weapon_durability_after", (object?)weapon?.DurabilityAfter ?? DBNull.Value);
+        command.Parameters.AddWithValue("weapon_durability_damage", Math.Max(0, weapon?.DurabilityDamage ?? 0));
+        command.Parameters.AddWithValue("campaign_id", (object?)campaign?.CampaignId ?? DBNull.Value);
+        command.Parameters.AddWithValue("campaign_name", (object?)campaign?.Name ?? DBNull.Value);
+        command.Parameters.Add(
+            new NpgsqlParameter("phase_snapshots", NpgsqlDbType.Jsonb)
+            {
+                Value = JsonSerializer.Serialize(phaseSnapshots)
+            });
+        command.Parameters.AddWithValue("message", contribution.Message);
+        command.Parameters.AddWithValue("created_at", now);
+        await command.ExecuteNonQueryAsync();
+
+        return await ReadCombatReportByContributionAsync(
+            connection,
+            transaction,
+            contribution.ContributionId);
+    }
+
     private static async Task AddBattleScoreAsync(
         NpgsqlConnection connection,
         NpgsqlTransaction transaction,
@@ -1006,6 +1422,11 @@ internal sealed partial class WorldStore
             ? normalized
             : "current";
     }
+
+    private static int NormalizeReportLimit(int? limit)
+    {
+        return Math.Clamp(limit.GetValueOrDefault(25), 1, 100);
+    }
 }
 
 internal sealed record BattleListResponse(CountryBattleDto[] Battles, DateTimeOffset UpdatedAt);
@@ -1013,6 +1434,7 @@ internal sealed record BattleListResponse(CountryBattleDto[] Battles, DateTimeOf
 internal sealed record BattleDetailsResponse(
     CountryBattleDto Battle,
     BattleContributionDto[] Contributions,
+    CombatReportDto[] Reports,
     CampaignDto? Campaign,
     BattlePhaseDto[] Phases,
     CountryBattleLeaderboardResponse CountryLeaderboard,
@@ -1031,6 +1453,13 @@ internal sealed record BattleContributionResult(
     CountryBattleDto? Battle,
     BattleContributionDto? Contribution,
     PlayerBattleParticipationDto? Participation,
+    CombatReportDto? Report,
+    DateTimeOffset UpdatedAt);
+
+internal sealed record CombatReportListResponse(
+    string? BattleId,
+    string? PlayerId,
+    CombatReportDto[] Reports,
     DateTimeOffset UpdatedAt);
 
 internal sealed record CountryBattleDto(
@@ -1093,6 +1522,88 @@ internal sealed record PlayerBattleParticipationDto(
     int ExperienceReward,
     DateTimeOffset? LastContributedAt);
 
+internal sealed record CombatReportDto(
+    string ReportId,
+    string ContributionId,
+    string BattleId,
+    string PlayerId,
+    string CountryId,
+    string CountryName,
+    string CountryCode,
+    string Side,
+    string BattleName,
+    string BattleType,
+    string RegionId,
+    string RegionName,
+    string AttackerCountryId,
+    string AttackerCountryName,
+    string AttackerCountryCode,
+    string DefenderCountryId,
+    string DefenderCountryName,
+    string DefenderCountryCode,
+    int Damage,
+    int EnergySpent,
+    int RoundsCompleted,
+    bool Won,
+    int GoldReward,
+    int ExperienceReward,
+    string FightWinner,
+    int FightRoundsRequested,
+    int FightRoundsCompleted,
+    int AttackerDamage,
+    int DefenderDamage,
+    int AttackerRemainingEnergy,
+    int DefenderRemainingEnergy,
+    int AttackerScoreAfter,
+    int DefenderScoreAfter,
+    int TargetScore,
+    string StatusAfter,
+    string? WinnerCountryId,
+    string? WinnerCountryName,
+    string? WeaponItemId,
+    string? WeaponName,
+    int? WeaponPower,
+    int? WeaponDurabilityBefore,
+    int? WeaponDurabilityAfter,
+    int WeaponDurabilityDamage,
+    string? CampaignId,
+    string? CampaignName,
+    CombatReportPhaseDto[] PhaseSnapshots,
+    string Message,
+    DateTimeOffset CreatedAt);
+
+internal sealed record CombatReportPhaseDto(
+    string PhaseId,
+    string CampaignId,
+    string BattleId,
+    string BattleName,
+    int PhaseNumber,
+    string Name,
+    string Objectives,
+    int TargetDamage,
+    int AttackerDamage,
+    int DefenderDamage,
+    string Status,
+    DateTimeOffset? CompletedAt)
+{
+    public static CombatReportPhaseDto FromBattlePhase(BattlePhaseDto phase)
+    {
+        return new CombatReportPhaseDto(
+            phase.PhaseId,
+            phase.CampaignId,
+            phase.BattleId,
+            phase.BattleName,
+            phase.PhaseNumber,
+            phase.Name,
+            phase.Objectives,
+            phase.TargetDamage,
+            phase.AttackerDamage,
+            phase.DefenderDamage,
+            phase.Status,
+            phase.CompletedAt);
+    }
+}
+
 internal sealed record BattleContributionRequest(
     int Damage,
     int EnergySpent,
@@ -1101,7 +1612,39 @@ internal sealed record BattleContributionRequest(
     int GoldReward,
     int ExperienceReward,
     string Message,
-    string IdempotencyKey);
+    string IdempotencyKey,
+    FightReportRequest? Fight = null,
+    WeaponReportRequest? Weapon = null);
+
+internal sealed record FightReportRequest(
+    string Winner,
+    int RoundsRequested,
+    int RoundsCompleted,
+    int AttackerDamage,
+    int DefenderDamage,
+    int AttackerRemainingEnergy,
+    int DefenderRemainingEnergy)
+{
+    public static FightReportRequest FromContribution(BattleContributionRequest request)
+    {
+        return new FightReportRequest(
+            Winner: request.Won ? "attacker" : "defender",
+            RoundsRequested: request.RoundsCompleted,
+            RoundsCompleted: request.RoundsCompleted,
+            AttackerDamage: request.Damage,
+            DefenderDamage: 0,
+            AttackerRemainingEnergy: 0,
+            DefenderRemainingEnergy: 0);
+    }
+}
+
+internal sealed record WeaponReportRequest(
+    string? ItemId,
+    string? Name,
+    int? WeaponPower,
+    int? DurabilityBefore,
+    int? DurabilityAfter,
+    int DurabilityDamage);
 
 internal sealed record BattleSeed(
     string BattleId,

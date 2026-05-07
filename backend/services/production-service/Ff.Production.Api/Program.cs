@@ -17,6 +17,7 @@ var productionStore = app.Services.GetRequiredService<ProductionStore>();
 await productionStore.InitializeAsync();
 await productionStore.InitializeCompanyTradeAsync();
 await productionStore.InitializeCompanyUpgradeAsync();
+await productionStore.InitializeResourceLogisticsAsync();
 
 app.MapGet("/health", () => Results.Ok(new HealthResponse(metadata.Service, "ok", DateTimeOffset.UtcNow)))
     .WithName("GetHealth");
@@ -92,6 +93,7 @@ app.MapGet("/companies/{companyId}/assets", async (
 
 app.MapCompanyTradeAssetEndpoints();
 app.MapCompanyUpgradeEndpoints();
+app.MapResourceLogisticsEndpoints();
 
 app.MapPost("/companies/{companyId}/join", async (
     string companyId,
@@ -277,6 +279,7 @@ internal sealed partial class ProductionStore : IDisposable
     private const int BaseProductionDurationSeconds = 90;
     private const int MinimumProductionDurationSeconds = 30;
     private const int LevelDurationReductionSeconds = 10;
+    private const int ResearchMaxDurationReductionPercent = 50;
     private const int MaxProductionQueueDepth = 3;
     private const int CompanyInitialGold = 500;
     private const int CompanyStorageLimit = 200;
@@ -299,6 +302,17 @@ internal sealed partial class ProductionStore : IDisposable
     {
         const string sql = """
             CREATE SCHEMA IF NOT EXISTS production;
+            CREATE SCHEMA IF NOT EXISTS research;
+
+            CREATE TABLE IF NOT EXISTS research.scope_bonus_totals (
+                scope_type text NOT NULL,
+                scope_id text NOT NULL,
+                bonus_type text NOT NULL,
+                bonus_target text NOT NULL,
+                total_value integer NOT NULL,
+                updated_at timestamptz NOT NULL,
+                PRIMARY KEY (scope_type, scope_id, bonus_type, bonus_target)
+            );
 
             CREATE TABLE IF NOT EXISTS production.player_factories (
                 player_id text NOT NULL,
@@ -351,6 +365,7 @@ internal sealed partial class ProductionStore : IDisposable
                 bonus_source_region_name text NOT NULL DEFAULT '',
                 bonus_resource_name text NOT NULL DEFAULT '',
                 bonus_item_id text NOT NULL DEFAULT '',
+                research_duration_reduction_percent integer NOT NULL DEFAULT 0,
                 duration_seconds integer NOT NULL,
                 started_at timestamptz NOT NULL,
                 completes_at timestamptz NOT NULL,
@@ -440,6 +455,7 @@ internal sealed partial class ProductionStore : IDisposable
                 bonus_source_region_name text NOT NULL DEFAULT '',
                 bonus_resource_name text NOT NULL DEFAULT '',
                 bonus_item_id text NOT NULL DEFAULT '',
+                research_duration_reduction_percent integer NOT NULL DEFAULT 0,
                 duration_seconds integer NOT NULL,
                 started_at timestamptz NOT NULL,
                 completes_at timestamptz NOT NULL,
@@ -494,6 +510,8 @@ internal sealed partial class ProductionStore : IDisposable
                 ADD COLUMN IF NOT EXISTS bonus_resource_name text NOT NULL DEFAULT '';
             ALTER TABLE production.production_jobs
                 ADD COLUMN IF NOT EXISTS bonus_item_id text NOT NULL DEFAULT '';
+            ALTER TABLE production.production_jobs
+                ADD COLUMN IF NOT EXISTS research_duration_reduction_percent integer NOT NULL DEFAULT 0;
 
             ALTER TABLE production.company_production_jobs
                 ADD COLUMN IF NOT EXISTS production_bonus_percent integer NOT NULL DEFAULT 0;
@@ -505,6 +523,8 @@ internal sealed partial class ProductionStore : IDisposable
                 ADD COLUMN IF NOT EXISTS bonus_resource_name text NOT NULL DEFAULT '';
             ALTER TABLE production.company_production_jobs
                 ADD COLUMN IF NOT EXISTS bonus_item_id text NOT NULL DEFAULT '';
+            ALTER TABLE production.company_production_jobs
+                ADD COLUMN IF NOT EXISTS research_duration_reduction_percent integer NOT NULL DEFAULT 0;
 
             ALTER TABLE production.company_production_runs
                 ADD COLUMN IF NOT EXISTS production_bonus_percent integer NOT NULL DEFAULT 0;
@@ -609,7 +629,16 @@ internal sealed partial class ProductionStore : IDisposable
         await using var connection = await _dataSource.OpenConnectionAsync();
         var now = DateTimeOffset.UtcNow;
         await AdvanceProductionJobsAsync(connection, null, normalizedPlayerId, now);
-        var factories = await ReadFactoriesAsync(connection, null, normalizedPlayerId, now);
+        var researchDurationReductionPercent = await ReadPlayerResearchDurationReductionPercentAsync(
+            connection,
+            null,
+            normalizedPlayerId);
+        var factories = await ReadFactoriesAsync(
+            connection,
+            null,
+            normalizedPlayerId,
+            now,
+            researchDurationReductionPercent);
         return new FactoryPortfolioResponse(
             PlayerId: normalizedPlayerId,
             Factories: factories.ToArray(),
@@ -1041,7 +1070,11 @@ internal sealed partial class ProductionStore : IDisposable
         var outputQuantity = ApplyProductionBonus(
             ApplyProductivityBonus(factory.OutputQuantity, productivityBonusPercent),
             appliedResourceBonus);
-        var durationSeconds = GetProductionDurationSeconds(factory.Level);
+        var researchDurationReductionPercent = await ReadCompanyResearchDurationReductionPercentAsync(
+            connection,
+            transaction,
+            normalizedCompanyId);
+        var durationSeconds = GetProductionDurationSeconds(factory.Level, researchDurationReductionPercent);
         var startedAt = latestQueuedCompletesAt is not null && latestQueuedCompletesAt > now
             ? latestQueuedCompletesAt.Value
             : now;
@@ -1071,7 +1104,8 @@ internal sealed partial class ProductionStore : IDisposable
             CreatedAt: now,
             UpdatedAt: now,
             CanClaim: false,
-            AppliedBonus: appliedResourceBonus);
+            AppliedBonus: appliedResourceBonus,
+            ResearchDurationReductionPercent: researchDurationReductionPercent);
 
         await SpendCompanyInventoryAsync(
             connection,
@@ -1101,7 +1135,7 @@ internal sealed partial class ProductionStore : IDisposable
                 input_item_id, input_item_name, input_item_category, input_quantity,
                 output_item_id, output_item_name, output_item_category, output_quantity,
                 production_bonus_percent, bonus_source_region_id, bonus_source_region_name,
-                bonus_resource_name, bonus_item_id,
+                bonus_resource_name, bonus_item_id, research_duration_reduction_percent,
                 duration_seconds, started_at, completes_at, created_at, updated_at
             )
             VALUES (
@@ -1109,7 +1143,7 @@ internal sealed partial class ProductionStore : IDisposable
                 @input_item_id, @input_item_name, @input_item_category, @input_quantity,
                 @output_item_id, @output_item_name, @output_item_category, @output_quantity,
                 @production_bonus_percent, @bonus_source_region_id, @bonus_source_region_name,
-                @bonus_resource_name, @bonus_item_id,
+                @bonus_resource_name, @bonus_item_id, @research_duration_reduction_percent,
                 @duration_seconds, @started_at, @completes_at, @created_at, @updated_at
             );
             """, connection, transaction))
@@ -1128,6 +1162,7 @@ internal sealed partial class ProductionStore : IDisposable
             insert.Parameters.AddWithValue("output_item_category", job.OutputItemCategory);
             insert.Parameters.AddWithValue("output_quantity", job.OutputQuantity);
             AddProductionBonusParameters(insert, job.AppliedBonus);
+            insert.Parameters.AddWithValue("research_duration_reduction_percent", job.ResearchDurationReductionPercent);
             insert.Parameters.AddWithValue("duration_seconds", job.DurationSeconds);
             insert.Parameters.AddWithValue("started_at", job.StartedAt);
             insert.Parameters.AddWithValue("completes_at", job.CompletesAt);
@@ -1153,7 +1188,8 @@ internal sealed partial class ProductionStore : IDisposable
             Note: BuildProductionNote(
                 "Input was consumed from company inventory; claim the completed company job to receive output.",
                 appliedResourceBonus,
-                productivityBonusPercent),
+                productivityBonusPercent,
+                researchDurationReductionPercent),
             CompletedAt: completesAt,
             ProductionCount: factory.ProductionCount,
             LastProducedAt: startedAt,
@@ -1443,7 +1479,11 @@ internal sealed partial class ProductionStore : IDisposable
             normalizedPlayerId,
             normalizedFactoryId);
         var outputQuantity = ApplyProductionBonus(factory.OutputQuantity, appliedResourceBonus);
-        var durationSeconds = GetProductionDurationSeconds(factory.Level);
+        var researchDurationReductionPercent = await ReadPlayerResearchDurationReductionPercentAsync(
+            connection,
+            transaction,
+            normalizedPlayerId);
+        var durationSeconds = GetProductionDurationSeconds(factory.Level, researchDurationReductionPercent);
         var startedAt = latestQueuedCompletesAt is not null && latestQueuedCompletesAt > now
             ? latestQueuedCompletesAt.Value
             : now;
@@ -1473,7 +1513,8 @@ internal sealed partial class ProductionStore : IDisposable
             CreatedAt: now,
             UpdatedAt: now,
             CanClaim: false,
-            AppliedBonus: appliedResourceBonus);
+            AppliedBonus: appliedResourceBonus,
+            ResearchDurationReductionPercent: researchDurationReductionPercent);
 
         await using (var update = new NpgsqlCommand("""
             UPDATE production.player_factories
@@ -1495,7 +1536,7 @@ internal sealed partial class ProductionStore : IDisposable
                 input_item_id, input_item_name, input_item_category, input_quantity,
                 output_item_id, output_item_name, output_item_category, output_quantity,
                 production_bonus_percent, bonus_source_region_id, bonus_source_region_name,
-                bonus_resource_name, bonus_item_id,
+                bonus_resource_name, bonus_item_id, research_duration_reduction_percent,
                 duration_seconds, started_at, completes_at, created_at, updated_at
             )
             VALUES (
@@ -1503,7 +1544,7 @@ internal sealed partial class ProductionStore : IDisposable
                 @input_item_id, @input_item_name, @input_item_category, @input_quantity,
                 @output_item_id, @output_item_name, @output_item_category, @output_quantity,
                 @production_bonus_percent, @bonus_source_region_id, @bonus_source_region_name,
-                @bonus_resource_name, @bonus_item_id,
+                @bonus_resource_name, @bonus_item_id, @research_duration_reduction_percent,
                 @duration_seconds, @started_at, @completes_at, @created_at, @updated_at
             );
             """, connection, transaction))
@@ -1521,6 +1562,7 @@ internal sealed partial class ProductionStore : IDisposable
             insert.Parameters.AddWithValue("output_item_category", job.OutputItemCategory);
             insert.Parameters.AddWithValue("output_quantity", job.OutputQuantity);
             AddProductionBonusParameters(insert, job.AppliedBonus);
+            insert.Parameters.AddWithValue("research_duration_reduction_percent", job.ResearchDurationReductionPercent);
             insert.Parameters.AddWithValue("duration_seconds", job.DurationSeconds);
             insert.Parameters.AddWithValue("started_at", job.StartedAt);
             insert.Parameters.AddWithValue("completes_at", job.CompletesAt);
@@ -1544,7 +1586,8 @@ internal sealed partial class ProductionStore : IDisposable
             ProducedQuantity: outputQuantity,
             Note: BuildProductionNote(
                 "Input is consumed at start; claim the completed job to receive output.",
-                appliedResourceBonus),
+                appliedResourceBonus,
+                researchDurationReductionPercent: researchDurationReductionPercent),
             CompletedAt: completesAt,
             ProductionCount: factory.ProductionCount,
             LastProducedAt: startedAt,
@@ -2254,7 +2297,16 @@ internal sealed partial class ProductionStore : IDisposable
         await reader.DisposeAsync();
 
         var inventory = await ReadCompanyInventoryAsync(connection, transaction, companyId);
-        var factories = await ReadCompanyFactoriesAsync(connection, transaction, companyId, now);
+        var researchDurationReductionPercent = await ReadCompanyResearchDurationReductionPercentAsync(
+            connection,
+            transaction,
+            companyId);
+        var factories = await ReadCompanyFactoriesAsync(
+            connection,
+            transaction,
+            companyId,
+            now,
+            researchDurationReductionPercent);
         var jobs = await ReadCompanyProductionJobsAsync(connection, transaction, companyId, now);
         var workforceJobs = await ReadCompanyJobPostingsAsync(
             connection,
@@ -2329,7 +2381,8 @@ internal sealed partial class ProductionStore : IDisposable
         NpgsqlConnection connection,
         NpgsqlTransaction? transaction,
         string companyId,
-        DateTimeOffset now)
+        DateTimeOffset now,
+        int researchDurationReductionPercent = 0)
     {
         await using var command = new NpgsqlCommand("""
             SELECT factory_id, name, category, level, input_item_id, input_quantity,
@@ -2369,7 +2422,7 @@ internal sealed partial class ProductionStore : IDisposable
         await using var reader = await command.ExecuteReaderAsync();
         while (await reader.ReadAsync())
         {
-            factories.Add(ReadFactory(reader, now));
+            factories.Add(ReadFactory(reader, now, researchDurationReductionPercent));
         }
 
         return factories;
@@ -2498,7 +2551,7 @@ internal sealed partial class ProductionStore : IDisposable
                    production_bonus_percent, bonus_source_region_id, bonus_source_region_name,
                    bonus_resource_name, bonus_item_id,
                    duration_seconds, started_at, completes_at, completed_at, claimed_at,
-                   created_at, updated_at
+                   created_at, updated_at, research_duration_reduction_percent
             FROM production.company_production_jobs
             WHERE company_id = @company_id
               AND status <> 'cancelled'
@@ -2536,7 +2589,7 @@ internal sealed partial class ProductionStore : IDisposable
                    production_bonus_percent, bonus_source_region_id, bonus_source_region_name,
                    bonus_resource_name, bonus_item_id,
                    duration_seconds, started_at, completes_at, completed_at, claimed_at,
-                   created_at, updated_at
+                   created_at, updated_at, research_duration_reduction_percent
             FROM production.company_production_jobs
             WHERE company_id = @company_id AND job_id = @job_id
             FOR UPDATE;
@@ -2707,7 +2760,8 @@ internal sealed partial class ProductionStore : IDisposable
         NpgsqlConnection connection,
         NpgsqlTransaction? transaction,
         string playerId,
-        DateTimeOffset now)
+        DateTimeOffset now,
+        int researchDurationReductionPercent = 0)
     {
         await using var command = new NpgsqlCommand("""
             SELECT factory_id, name, category, level, input_item_id, input_quantity,
@@ -2747,7 +2801,7 @@ internal sealed partial class ProductionStore : IDisposable
         await using var reader = await command.ExecuteReaderAsync();
         while (await reader.ReadAsync())
         {
-            factories.Add(ReadFactory(reader, now));
+            factories.Add(ReadFactory(reader, now, researchDurationReductionPercent));
         }
 
         return factories;
@@ -2843,10 +2897,13 @@ internal sealed partial class ProductionStore : IDisposable
         return await reader.ReadAsync() ? ReadFactory(reader, now) : null;
     }
 
-    private static FactoryDto ReadFactory(NpgsqlDataReader reader, DateTimeOffset now)
+    private static FactoryDto ReadFactory(
+        NpgsqlDataReader reader,
+        DateTimeOffset now,
+        int researchDurationReductionPercent = 0)
     {
         var level = reader.GetInt32(3);
-        var durationSeconds = GetProductionDurationSeconds(level);
+        var durationSeconds = GetProductionDurationSeconds(level, researchDurationReductionPercent);
         DateTimeOffset? lastProducedAt = reader.IsDBNull(9) ? null : reader.GetFieldValue<DateTimeOffset>(9);
         var activeJobId = reader.IsDBNull(10) ? null : reader.GetString(10);
         DateTimeOffset? activeJobCompletesAt = reader.IsDBNull(11) ? null : reader.GetFieldValue<DateTimeOffset>(11);
@@ -2954,7 +3011,7 @@ internal sealed partial class ProductionStore : IDisposable
                    production_bonus_percent, bonus_source_region_id, bonus_source_region_name,
                    bonus_resource_name, bonus_item_id,
                    duration_seconds, started_at, completes_at, completed_at, claimed_at,
-                   created_at, updated_at
+                   created_at, updated_at, research_duration_reduction_percent
             FROM production.production_jobs
             WHERE player_id = @player_id
               AND status <> 'cancelled'
@@ -2992,7 +3049,7 @@ internal sealed partial class ProductionStore : IDisposable
                    production_bonus_percent, bonus_source_region_id, bonus_source_region_name,
                    bonus_resource_name, bonus_item_id,
                    duration_seconds, started_at, completes_at, completed_at, claimed_at,
-                   created_at, updated_at
+                   created_at, updated_at, research_duration_reduction_percent
             FROM production.production_jobs
             WHERE player_id = @player_id AND job_id = @job_id
             FOR UPDATE;
@@ -3018,6 +3075,9 @@ internal sealed partial class ProductionStore : IDisposable
                 ItemId: reader.GetString(16));
         var completesAt = reader.GetFieldValue<DateTimeOffset>(19);
         DateTimeOffset? claimedAt = reader.IsDBNull(21) ? null : reader.GetFieldValue<DateTimeOffset>(21);
+        var researchDurationReductionPercent = reader.FieldCount > 24 && !reader.IsDBNull(24)
+            ? reader.GetInt32(24)
+            : 0;
         return new ProductionJobDto(
             JobId: reader.GetString(0),
             PlayerId: reader.GetString(1),
@@ -3042,7 +3102,8 @@ internal sealed partial class ProductionStore : IDisposable
                 completesAt <= now &&
                 (string.Equals(status, "completed", StringComparison.OrdinalIgnoreCase) ||
                  string.Equals(status, "claiming", StringComparison.OrdinalIgnoreCase)),
-            AppliedBonus: appliedBonus);
+            AppliedBonus: appliedBonus,
+            ResearchDurationReductionPercent: researchDurationReductionPercent);
     }
 
     private static async Task<int> IncrementProductionCountAsync(
@@ -3149,12 +3210,18 @@ internal sealed partial class ProductionStore : IDisposable
     private static string BuildProductionNote(
         string baseNote,
         ProductionBonusDto? bonus,
-        int productivityBonusPercent = 0)
+        int productivityBonusPercent = 0,
+        int researchDurationReductionPercent = 0)
     {
         var parts = new List<string> { baseNote };
         if (productivityBonusPercent > 0)
         {
             parts.Add($"Company productivity bonus: +{productivityBonusPercent}%.");
+        }
+
+        if (researchDurationReductionPercent > 0)
+        {
+            parts.Add($"Research speed bonus: -{researchDurationReductionPercent}% duration.");
         }
 
         if (bonus is not null)
@@ -3172,6 +3239,66 @@ internal sealed partial class ProductionStore : IDisposable
         command.Parameters.AddWithValue("bonus_source_region_name", bonus?.SourceRegionName ?? string.Empty);
         command.Parameters.AddWithValue("bonus_resource_name", bonus?.ResourceName ?? string.Empty);
         command.Parameters.AddWithValue("bonus_item_id", bonus?.ItemId ?? string.Empty);
+    }
+
+    private static async Task<int> ReadPlayerResearchDurationReductionPercentAsync(
+        NpgsqlConnection connection,
+        NpgsqlTransaction? transaction,
+        string playerId)
+    {
+        if (!await ResearchBonusTablesExistAsync(connection, transaction, requireWorldCitizenship: true))
+        {
+            return 0;
+        }
+
+        await using var command = new NpgsqlCommand("""
+            SELECT COALESCE(SUM(bonuses.total_value), 0)::integer
+            FROM world.player_citizenships citizenship
+            JOIN research.scope_bonus_totals bonuses
+              ON bonuses.scope_type = 'country'
+             AND bonuses.scope_id = citizenship.country_id
+             AND bonuses.bonus_type = 'production_speed_percent'
+            WHERE citizenship.player_id = @player_id
+              AND citizenship.status = 'active';
+            """, connection, transaction);
+        command.Parameters.AddWithValue("player_id", playerId);
+        return Math.Clamp(Convert.ToInt32(await command.ExecuteScalarAsync() ?? 0), 0, ResearchMaxDurationReductionPercent);
+    }
+
+    private static async Task<int> ReadCompanyResearchDurationReductionPercentAsync(
+        NpgsqlConnection connection,
+        NpgsqlTransaction? transaction,
+        string companyId)
+    {
+        if (!await ResearchBonusTablesExistAsync(connection, transaction, requireWorldCitizenship: false))
+        {
+            return 0;
+        }
+
+        await using var command = new NpgsqlCommand("""
+            SELECT COALESCE(SUM(total_value), 0)::integer
+            FROM research.scope_bonus_totals
+            WHERE scope_type = 'company'
+              AND scope_id = @company_id
+              AND bonus_type = 'production_speed_percent';
+            """, connection, transaction);
+        command.Parameters.AddWithValue("company_id", companyId);
+        return Math.Clamp(Convert.ToInt32(await command.ExecuteScalarAsync() ?? 0), 0, ResearchMaxDurationReductionPercent);
+    }
+
+    private static async Task<bool> ResearchBonusTablesExistAsync(
+        NpgsqlConnection connection,
+        NpgsqlTransaction? transaction,
+        bool requireWorldCitizenship)
+    {
+        var sql = requireWorldCitizenship
+            ? """
+              SELECT to_regclass('research.scope_bonus_totals') IS NOT NULL
+                 AND to_regclass('world.player_citizenships') IS NOT NULL;
+              """
+            : "SELECT to_regclass('research.scope_bonus_totals') IS NOT NULL;";
+        await using var command = new NpgsqlCommand(sql, connection, transaction);
+        return await command.ExecuteScalarAsync() is bool exists && exists;
     }
 
     private static string ToDisplayName(string itemId)
@@ -3234,11 +3361,19 @@ internal sealed partial class ProductionStore : IDisposable
         return role is "owner" or "manager";
     }
 
-    private static int GetProductionDurationSeconds(int factoryLevel)
+    private static int GetProductionDurationSeconds(int factoryLevel, int researchDurationReductionPercent = 0)
     {
-        return Math.Max(
+        var baseDuration = Math.Max(
             MinimumProductionDurationSeconds,
             BaseProductionDurationSeconds - ((factoryLevel - 1) * LevelDurationReductionSeconds));
+        if (researchDurationReductionPercent <= 0)
+        {
+            return baseDuration;
+        }
+
+        var cappedReduction = Math.Clamp(researchDurationReductionPercent, 0, ResearchMaxDurationReductionPercent);
+        var reducedDuration = (int)Math.Ceiling(baseDuration * (100 - cappedReduction) / 100m);
+        return Math.Max(MinimumProductionDurationSeconds, reducedDuration);
     }
 
     private static string NormalizePlayerId(string? playerId)
@@ -3315,7 +3450,8 @@ internal sealed record ProductionJobDto(
     DateTimeOffset CreatedAt,
     DateTimeOffset UpdatedAt,
     bool CanClaim,
-    ProductionBonusDto? AppliedBonus = null);
+    ProductionBonusDto? AppliedBonus = null,
+    int ResearchDurationReductionPercent = 0);
 
 internal sealed record ProductionResult(
     bool Completed,

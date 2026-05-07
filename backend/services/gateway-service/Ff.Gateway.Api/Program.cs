@@ -47,6 +47,13 @@ builder.Services.AddHttpClient<ProductionServiceClient>(client =>
         ?? "http://127.0.0.1:5148";
     client.BaseAddress = new Uri(baseUrl);
 });
+builder.Services.AddHttpClient<ResearchServiceClient>(client =>
+{
+    var baseUrl = builder.Configuration["FF_RESEARCH_BASE_URL"]
+        ?? builder.Configuration["Services:Research:BaseUrl"]
+        ?? "http://127.0.0.1:5268";
+    client.BaseAddress = new Uri(baseUrl);
+});
 builder.Services.AddHttpClient<MarketServiceClient>(client =>
 {
     var baseUrl = builder.Configuration["FF_MARKET_BASE_URL"]
@@ -575,6 +582,18 @@ app.MapPost("/players/{playerId}/onboarding-questline/{questId}/claim", async (
             statusCode: StatusCodes.Status409Conflict);
     }
 
+    if (string.Equals(claimed.Questline.Status, "completed", StringComparison.OrdinalIgnoreCase))
+    {
+        await AchievementGatewayEndpoints.TrackAsync(
+            players,
+            access.PlayerId!,
+            authorization,
+            configuration,
+            "onboarding_complete",
+            $"achievement:onboarding-complete:{access.PlayerId!.ToLowerInvariant()}",
+            app.Logger);
+    }
+
     return Results.Ok(new OnboardingQuestClaimGatewayResponse(
         Completed: true,
         Message: claimed.Message,
@@ -616,6 +635,19 @@ app.MapPost("/players/{playerId}/onboarding-questline/{questId}/skip", async (
     }
 
     var result = skip.Value!;
+    if (result.Completed &&
+        string.Equals(result.Questline.Status, "completed", StringComparison.OrdinalIgnoreCase))
+    {
+        await AchievementGatewayEndpoints.TrackAsync(
+            players,
+            access.PlayerId!,
+            request.Headers.Authorization.ToString(),
+            configuration,
+            "onboarding_complete",
+            $"achievement:onboarding-complete:{access.PlayerId!.ToLowerInvariant()}",
+            app.Logger);
+    }
+
     return result.Completed
         ? Results.Ok(result)
         : Results.Json(new ErrorResponse(result.Message), statusCode: StatusCodes.Status409Conflict);
@@ -682,6 +714,16 @@ app.MapPost("/players/{playerId}/citizenship/join", async (
         {
             return onboarding.Error;
         }
+
+        await AchievementGatewayEndpoints.TrackAsync(
+            players,
+            access.PlayerId!,
+            authorization,
+            configuration,
+            "choose_country",
+            $"achievement:choose-country:{access.PlayerId!.ToLowerInvariant()}",
+            app.Logger,
+            relatedId: citizenshipRequest.CountryId);
     }
 
     return Results.Json(mutation);
@@ -731,6 +773,16 @@ app.MapPost("/players/{playerId}/citizenship/change", async (
         {
             return onboarding.Error;
         }
+
+        await AchievementGatewayEndpoints.TrackAsync(
+            players,
+            access.PlayerId!,
+            authorization,
+            configuration,
+            "choose_country",
+            $"achievement:choose-country:{access.PlayerId!.ToLowerInvariant()}",
+            app.Logger,
+            relatedId: citizenshipRequest.CountryId);
     }
 
     return Results.Json(mutation);
@@ -744,10 +796,14 @@ app.MapPoliticsGatewayEndpoints();
 app.MapLawGatewayEndpoints();
 app.MapDiplomacyGatewayEndpoints();
 app.MapActivityGatewayEndpoints();
+app.MapPushNotificationGatewayEndpoints();
+app.MapAchievementGatewayEndpoints();
 app.MapRealtimeGatewayEndpoints();
 app.MapNewspaperGatewayEndpoints();
 app.MapAdminGatewayEndpoints();
 app.MapWorkforceGatewayEndpoints();
+app.MapResearchGatewayEndpoints();
+app.MapResourceLogisticsGatewayEndpoints();
 
 app.MapPost("/players/{playerId}/work", async (
     string playerId,
@@ -900,6 +956,15 @@ app.MapPost("/players/{playerId}/work", async (
         {
             return onboardingTrack.Error;
         }
+
+        await AchievementGatewayEndpoints.TrackAsync(
+            players,
+            access.PlayerId!,
+            authorization,
+            configuration,
+            "work",
+            $"achievement:work:{access.PlayerId!.ToLowerInvariant()}:{DateTimeOffset.UtcNow:yyyy-MM-dd}",
+            app.Logger);
     }
 
     return Results.Ok(action with { DailyObjectives = dailyObjectives });
@@ -974,6 +1039,15 @@ app.MapPost("/players/{playerId}/train", async (
         {
             return onboardingTrack.Error;
         }
+
+        await AchievementGatewayEndpoints.TrackAsync(
+            players,
+            access.PlayerId!,
+            authorization,
+            configuration,
+            "train",
+            $"achievement:train:{access.PlayerId!.ToLowerInvariant()}:{DateTimeOffset.UtcNow:yyyy-MM-dd}",
+            app.Logger);
     }
 
     return Results.Ok(action with { DailyObjectives = dailyObjectives });
@@ -1579,6 +1653,15 @@ app.MapPost("/players/{playerId}/companies", async (
         {
             return onboarding.Error;
         }
+
+        await AchievementGatewayEndpoints.TrackAsync(
+            players,
+            access.PlayerId!,
+            authorization,
+            configuration,
+            "company_action",
+            $"achievement:company-action:{access.PlayerId!.ToLowerInvariant()}",
+            app.Logger);
     }
 
     return Results.Json(mutation);
@@ -1673,6 +1756,16 @@ app.MapPost("/companies/{companyId}/join", async (
         {
             return onboarding.Error;
         }
+
+        await AchievementGatewayEndpoints.TrackAsync(
+            players,
+            access.PlayerId!,
+            authorization,
+            configuration,
+            "company_action",
+            $"achievement:company-action:{access.PlayerId!.ToLowerInvariant()}",
+            app.Logger,
+            relatedId: companyId);
     }
 
     return Results.Json(mutation);
@@ -2080,6 +2173,16 @@ app.MapPost("/players/{playerId}/factories/{factoryId}/produce", async (
         return onboardingTrack.Error;
     }
 
+    await AchievementGatewayEndpoints.TrackAsync(
+        players,
+        access.PlayerId!,
+        authorization,
+        configuration,
+        "production_start",
+        $"achievement:production-start:{result.Job.JobId.ToLowerInvariant()}",
+        app.Logger,
+        relatedId: result.Job.JobId);
+
     return Results.Ok(result with
     {
         Message = $"{result.Message} Input inventory reserved.",
@@ -2145,6 +2248,16 @@ app.MapPost("/players/{playerId}/production-jobs/{jobId}/claim", async (
         }
 
         var completed = completedClaim.Value!;
+        await AchievementGatewayEndpoints.TrackAsync(
+            players,
+            access.PlayerId!,
+            authorization,
+            configuration,
+            "production_claim",
+            $"achievement:production-claim:{completed.Job.JobId.ToLowerInvariant()}",
+            app.Logger,
+            relatedId: completed.Job.JobId);
+
         await ActivityGatewayEndpoints.EmitAsync(
             notifications,
             configuration,
@@ -2223,6 +2336,16 @@ app.MapPost("/players/{playerId}/production-jobs/{jobId}/claim", async (
         }
 
         dailyObjectives = objectiveTrack.Value;
+        await AchievementGatewayEndpoints.TrackAsync(
+            players,
+            access.PlayerId!,
+            authorization,
+            configuration,
+            "production_claim",
+            $"achievement:production-claim:{completion.Job.JobId.ToLowerInvariant()}",
+            app.Logger,
+            relatedId: completion.Job.JobId);
+
         await ActivityGatewayEndpoints.EmitAsync(
             notifications,
             configuration,
@@ -2277,6 +2400,7 @@ app.MapPost("/players/{playerId}/market/listings/{listingId}/buy", async (
     string listingId,
     HttpRequest request,
     MarketServiceClient market,
+    PlayerServiceClient players,
     EconomyServiceClient economy,
     WorldServiceClient world,
     NotificationServiceClient notifications,
@@ -2486,6 +2610,16 @@ app.MapPost("/players/{playerId}/market/listings/{listingId}/buy", async (
             : $"Sold {purchaseResult.Quantity} {reservedListing.ItemName} for {purchaseResult.TotalPrice} gold.",
         reservedListing.ListingId,
         $"activity:market-sale:{reservedListing.SellerId.ToLowerInvariant()}:{reservedListing.ListingId.ToLowerInvariant()}:{reservationId.ToLowerInvariant()}");
+
+    await AchievementGatewayEndpoints.TrackAsync(
+        players,
+        access.PlayerId!,
+        authorization,
+        configuration,
+        "market_trade",
+        $"achievement:market-trade:{access.PlayerId!.ToLowerInvariant()}:{reservationId.ToLowerInvariant()}",
+        app.Logger,
+        relatedId: reservedListing.ListingId);
 
     return Results.Ok(purchaseResult);
 }).WithName("BuyMarketListing");
@@ -2979,6 +3113,16 @@ app.MapPost("/players/{playerId}/combat/missions/{missionId}/fight", async (
     {
         return onboardingTrack.Error;
     }
+
+    await AchievementGatewayEndpoints.TrackAsync(
+        players,
+        access.PlayerId!,
+        authorization,
+        configuration,
+        "fight",
+        $"achievement:fight:{access.PlayerId!.ToLowerInvariant()}:{missionDto.MissionId}:{fightKey.ToLowerInvariant()}",
+        app.Logger,
+        relatedId: missionDto.MissionId);
 
     await ActivityGatewayEndpoints.EmitAsync(
         notifications,
@@ -4340,7 +4484,8 @@ internal sealed record ProductionJobDto(
     DateTimeOffset CreatedAt,
     DateTimeOffset UpdatedAt,
     bool CanClaim,
-    ProductionBonusDto? AppliedBonus = null);
+    ProductionBonusDto? AppliedBonus = null,
+    int ResearchDurationReductionPercent = 0);
 
 internal sealed record ProductionClaimTicketDto(
     bool ReadyToClaim,

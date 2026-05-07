@@ -51,6 +51,7 @@ app.MapGet("/regions/{regionId}", async (string regionId, WorldStore world) =>
         : Results.Ok(region);
 }).WithName("GetRegion");
 
+app.MapResourceSiteEndpoints();
 app.MapTerritoryEndpoints();
 app.MapBattleEndpoints();
 app.MapMilitaryUnitEndpoints();
@@ -223,7 +224,9 @@ internal sealed partial class WorldStore : IDisposable
         await InitializePoliticsSchemaAsync();
         await InitializeLawsSchemaAsync();
         await InitializeDiplomacySchemaAsync();
+        await InitializeResourceSiteSchemaAsync();
         await SeedCatalogAsync();
+        await SeedResourceSitesAsync();
         await SeedTerritoryAsync();
         await SeedTreasuryAsync();
         await SeedBattlesAsync();

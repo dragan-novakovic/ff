@@ -469,6 +469,13 @@ class _ProductionJobTile extends StatelessWidget {
             const SizedBox(height: 8),
             _ProductionBonusBanner(bonus: job.appliedBonus!),
           ],
+          if (job.researchDurationReductionPercent > 0) ...[
+            const SizedBox(height: 8),
+            Text(
+              'Research speed bonus: -${job.researchDurationReductionPercent}% duration',
+              style: TextStyle(color: Colors.blueGrey.shade700),
+            ),
+          ],
           const SizedBox(height: 8),
           LinearProgressIndicator(value: job.progress),
           const SizedBox(height: 6),

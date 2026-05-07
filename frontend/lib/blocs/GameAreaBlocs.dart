@@ -407,6 +407,235 @@ class FactoriesBloc extends ChangeNotifier {
   }
 }
 
+class ResearchBloc extends ChangeNotifier {
+  ResearchBloc({BackendApiClient? apiClient})
+      : _apiClient = apiClient ?? BackendApiClient();
+
+  final BackendApiClient _apiClient;
+  ResearchDashboard? dashboard;
+  ResearchScopeState? selectedCompanyResearch;
+  ResearchMutationResult? lastMutation;
+  String? error;
+  bool isLoading = false;
+  bool isLoadingCompany = false;
+  final Set<String> operationKeys = {};
+
+  void setBearerToken(String? token) {
+    _apiClient.bearerToken = token;
+  }
+
+  void clear() {
+    dashboard = null;
+    selectedCompanyResearch = null;
+    lastMutation = null;
+    error = null;
+    isLoading = false;
+    isLoadingCompany = false;
+    operationKeys.clear();
+    notifyListeners();
+  }
+
+  Future<void> load(String playerId) async {
+    isLoading = true;
+    error = null;
+    notifyListeners();
+
+    try {
+      dashboard = await _apiClient.fetchResearchDashboard(playerId);
+      final selectedCompanyId = selectedCompanyResearch?.scopeId;
+      if (selectedCompanyId != null &&
+          dashboard!.companies
+              .any((company) => company.companyId == selectedCompanyId)) {
+        selectedCompanyResearch =
+            await _apiClient.fetchCompanyResearch(selectedCompanyId);
+      } else {
+        selectedCompanyResearch = null;
+      }
+    } on BackendApiException catch (e) {
+      error = e.message;
+    } on Exception {
+      error = 'Could not load research.';
+    } finally {
+      isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> loadCompany(String companyId) async {
+    isLoadingCompany = true;
+    error = null;
+    notifyListeners();
+
+    try {
+      selectedCompanyResearch =
+          await _apiClient.fetchCompanyResearch(companyId);
+    } on BackendApiException catch (e) {
+      error = e.message;
+    } on Exception {
+      error = 'Could not load company research.';
+    } finally {
+      isLoadingCompany = false;
+      notifyListeners();
+    }
+  }
+
+  Future<ResearchMutationResult?> start({
+    required String scopeType,
+    required String scopeId,
+    required String technologyId,
+    required String idempotencyKey,
+  }) async {
+    final operationKey = '$scopeType:$scopeId:start:$technologyId';
+    if (operationKeys.contains(operationKey)) {
+      return null;
+    }
+
+    operationKeys.add(operationKey);
+    error = null;
+    notifyListeners();
+
+    try {
+      final result = scopeType == 'company'
+          ? await _apiClient.startCompanyResearch(
+              companyId: scopeId,
+              technologyId: technologyId,
+              idempotencyKey: idempotencyKey,
+            )
+          : await _apiClient.startCountryResearch(
+              countryId: scopeId,
+              technologyId: technologyId,
+              idempotencyKey: idempotencyKey,
+            );
+      _applyMutation(result);
+      return result;
+    } on BackendApiException catch (e) {
+      error = e.message;
+      return null;
+    } on Exception {
+      error = 'Could not start research.';
+      return null;
+    } finally {
+      operationKeys.remove(operationKey);
+      notifyListeners();
+    }
+  }
+
+  Future<ResearchMutationResult?> contribute({
+    required String scopeType,
+    required String scopeId,
+    required String projectId,
+    required int points,
+    required String idempotencyKey,
+  }) async {
+    final operationKey = '$scopeType:$scopeId:contribute:$projectId';
+    if (operationKeys.contains(operationKey)) {
+      return null;
+    }
+
+    operationKeys.add(operationKey);
+    error = null;
+    notifyListeners();
+
+    try {
+      final result = scopeType == 'company'
+          ? await _apiClient.contributeCompanyResearch(
+              companyId: scopeId,
+              projectId: projectId,
+              points: points,
+              idempotencyKey: idempotencyKey,
+            )
+          : await _apiClient.contributeCountryResearch(
+              countryId: scopeId,
+              projectId: projectId,
+              points: points,
+              idempotencyKey: idempotencyKey,
+            );
+      _applyMutation(result);
+      return result;
+    } on BackendApiException catch (e) {
+      error = e.message;
+      return null;
+    } on Exception {
+      error = 'Could not contribute research points.';
+      return null;
+    } finally {
+      operationKeys.remove(operationKey);
+      notifyListeners();
+    }
+  }
+
+  Future<ResearchMutationResult?> complete({
+    required String scopeType,
+    required String scopeId,
+    required String projectId,
+    required String idempotencyKey,
+  }) async {
+    final operationKey = '$scopeType:$scopeId:complete:$projectId';
+    if (operationKeys.contains(operationKey)) {
+      return null;
+    }
+
+    operationKeys.add(operationKey);
+    error = null;
+    notifyListeners();
+
+    try {
+      final result = scopeType == 'company'
+          ? await _apiClient.completeCompanyResearch(
+              companyId: scopeId,
+              projectId: projectId,
+              idempotencyKey: idempotencyKey,
+            )
+          : await _apiClient.completeCountryResearch(
+              countryId: scopeId,
+              projectId: projectId,
+              idempotencyKey: idempotencyKey,
+            );
+      _applyMutation(result);
+      return result;
+    } on BackendApiException catch (e) {
+      error = e.message;
+      return null;
+    } on Exception {
+      error = 'Could not complete research.';
+      return null;
+    } finally {
+      operationKeys.remove(operationKey);
+      notifyListeners();
+    }
+  }
+
+  void _applyMutation(ResearchMutationResult result) {
+    lastMutation = result;
+    final state = result.state;
+    if (state == null) {
+      return;
+    }
+
+    if (state.scopeType == 'company') {
+      selectedCompanyResearch = state;
+      return;
+    }
+
+    final currentDashboard = dashboard;
+    if (currentDashboard != null) {
+      dashboard = ResearchDashboard(
+        playerId: currentDashboard.playerId,
+        citizenship: currentDashboard.citizenship,
+        country: state,
+        companies: currentDashboard.companies,
+        updatedAt: result.updatedAt,
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    _apiClient.close();
+    super.dispose();
+  }
+}
+
 class MarketBloc extends ChangeNotifier {
   MarketBloc({BackendApiClient? apiClient})
       : _apiClient = apiClient ?? BackendApiClient();
@@ -1847,6 +2076,7 @@ class CountryBattlesBloc extends ChangeNotifier {
   CampaignDetails? selectedCampaign;
   CountryBattleLeaderboard? countryLeaderboard;
   PlayerBattleParticipationStatus? participationStatus;
+  CombatReportList? myCombatReports;
   BattleContributionResult? lastContribution;
   CampaignMutationResult? lastCampaignMutation;
   CampaignRewardClaimResult? lastRewardClaim;
@@ -1873,6 +2103,7 @@ class CountryBattlesBloc extends ChangeNotifier {
     selectedCampaign = null;
     countryLeaderboard = null;
     participationStatus = null;
+    myCombatReports = null;
     lastContribution = null;
     lastCampaignMutation = null;
     lastRewardClaim = null;
@@ -1897,10 +2128,12 @@ class CountryBattlesBloc extends ChangeNotifier {
         _apiClient.fetchCountryBattles(),
         _apiClient.fetchCampaigns(status: 'active', limit: 25),
         _apiClient.fetchCountryBattleLeaderboard(limit: 25),
+        _apiClient.fetchPlayerCombatReports(playerId: playerId, limit: 10),
       ]);
       battles = results[0] as CountryBattleList;
       campaigns = results[1] as CampaignList;
       countryLeaderboard = results[2] as CountryBattleLeaderboard;
+      myCombatReports = results[3] as CombatReportList;
       final selected = selectedBattle?.battle.battleId;
       if (selected != null) {
         await loadDetails(playerId: playerId, battleId: selected);
@@ -1926,6 +2159,7 @@ class CountryBattlesBloc extends ChangeNotifier {
         selectedBattle = BattleDetails(
           battle: refreshed.first,
           contributions: selected.contributions,
+          reports: selected.reports,
           campaign: selected.campaign,
           phases: selected.phases,
           countryLeaderboard: selected.countryLeaderboard,
@@ -1953,9 +2187,15 @@ class CountryBattlesBloc extends ChangeNotifier {
           playerId: playerId,
           battleId: battleId,
         ),
+        _apiClient.fetchPlayerCombatReports(
+          playerId: playerId,
+          battleId: battleId,
+          limit: 10,
+        ),
       ]);
       selectedBattle = results[0] as BattleDetails;
       participationStatus = results[1] as PlayerBattleParticipationStatus;
+      myCombatReports = results[2] as CombatReportList;
       final campaign = selectedBattle?.campaign;
       if (campaign != null) {
         selectedCampaign = CampaignDetails(

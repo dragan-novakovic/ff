@@ -189,6 +189,17 @@ class _CountryBattlesPageState extends State<CountryBattlesPage> {
                   _ContributionResultCard(result: bloc.lastContribution!),
                 if (bloc.lastRewardClaim != null)
                   _CampaignRewardClaimCard(result: bloc.lastRewardClaim!),
+                if (bloc.myCombatReports != null)
+                  _CombatReportListCard(
+                    title: bloc.selectedBattle == null
+                        ? 'My combat reports'
+                        : 'My reports in ${bloc.selectedBattle!.battle.name}',
+                    emptyMessage: bloc.selectedBattle == null
+                        ? 'You have not generated combat reports yet.'
+                        : 'You have not generated reports in this battle yet.',
+                    reports: bloc.myCombatReports!.reports,
+                    maxReports: 5,
+                  ),
                 _SectionHeader(
                   title: 'Campaigns',
                   subtitle:
@@ -885,6 +896,16 @@ class _BattleDetailsCard extends StatelessWidget {
                   ),
                 ),
               ),
+            const SizedBox(height: 16),
+            Text('Latest combat reports',
+                style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 8),
+            if (details.reports.isEmpty)
+              const Text('No detailed combat reports have been recorded yet.')
+            else
+              ...details.reports.take(5).map(
+                    (report) => _CombatReportTile(report: report),
+                  ),
           ],
         ),
       ),
@@ -898,6 +919,7 @@ class _ContributionResultCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final report = result.report;
     return Card(
       color: result.completed ? Colors.green.shade50 : Colors.orange.shade50,
       child: ListTile(
@@ -909,8 +931,84 @@ class _ContributionResultCard extends StatelessWidget {
         subtitle: Text(
           'Damage ${result.fight.attackerDamage}; '
           'energy ${result.contribution?.energySpent ?? 0}; '
-          'weapon: ${result.weaponDamage?.message ?? 'no durability used'}.',
+          'weapon: ${result.weaponDamage?.message ?? 'no durability used'}.'
+          '${report == null ? '' : ' Report ${report.reportId} • ${report.scoreAfter}.'}',
         ),
+      ),
+    );
+  }
+}
+
+class _CombatReportListCard extends StatelessWidget {
+  final String title;
+  final String emptyMessage;
+  final List<CombatReport> reports;
+  final int maxReports;
+
+  const _CombatReportListCard({
+    required this.title,
+    required this.emptyMessage,
+    required this.reports,
+    required this.maxReports,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      color: Colors.indigo.shade50,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.receipt_long_outlined),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    title,
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            if (reports.isEmpty)
+              Text(emptyMessage)
+            else
+              ...reports.take(maxReports).map(
+                    (report) => _CombatReportTile(report: report),
+                  ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CombatReportTile extends StatelessWidget {
+  final CombatReport report;
+
+  const _CombatReportTile({required this.report});
+
+  @override
+  Widget build(BuildContext context) {
+    final weapon = report.hasWeapon
+        ? '${report.weaponName} durability ${report.weaponDurabilityBefore ?? '?'} -> ${report.weaponDurabilityAfter ?? '?'}'
+        : 'unarmed';
+    return ListTile(
+      dense: true,
+      contentPadding: EdgeInsets.zero,
+      leading: Icon(
+        report.side == 'attacker' ? Icons.north_east : Icons.shield,
+      ),
+      title: Text(
+        '${report.countryCode} ${Utils.number(report.damage)} damage • ${report.scoreAfter}',
+      ),
+      subtitle: Text(
+        '${report.battleName} • ${report.roundsCompleted} rounds • '
+        '${report.goldReward} gold / ${report.experienceReward} XP • $weapon',
       ),
     );
   }

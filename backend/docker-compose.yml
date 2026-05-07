@@ -1,8 +1,8 @@
-name: ff-backend
+name: ${FF_COMPOSE_PROJECT_NAME:-ff-backend}
 
 x-dotnet-environment: &dotnet-environment
-  ASPNETCORE_ENVIRONMENT: Development
-  DOTNET_ENVIRONMENT: Development
+  ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Development}
+  DOTNET_ENVIRONMENT: ${DOTNET_ENVIRONMENT:-Development}
   ASPNETCORE_URLS: http://+:8080
 
 x-backend-dependencies: &backend-dependencies
@@ -22,8 +22,8 @@ x-api-healthcheck: &api-healthcheck
 
 services:
   gateway-service:
-    image: ff/gateway-service:dev
-    container_name: ff-gateway-service
+    image: ff/gateway-service:${FF_IMAGE_TAG:-dev}
+    container_name: ${FF_CONTAINER_PREFIX:-ff}-gateway-service
     restart: unless-stopped
     build:
       context: .
@@ -37,18 +37,19 @@ services:
       FF_PLAYER_BASE_URL: http://player-service:8080
       FF_ECONOMY_BASE_URL: http://economy-service:8080
       FF_PRODUCTION_BASE_URL: http://production-service:8080
+      FF_RESEARCH_BASE_URL: http://research-service:8080
       FF_MARKET_BASE_URL: http://market-service:8080
       FF_COMBAT_BASE_URL: http://combat-service:8080
       FF_SOCIAL_CHAT_BASE_URL: http://social-chat-service:8080
       FF_WORLD_BASE_URL: http://world-service:8080
       FF_NOTIFICATION_BASE_URL: http://notification-service:8080
       FF_ADMIN_BASE_URL: http://admin-service:8080
-      FF_GATEWAY_CONNECTION_STRING: Host=postgres;Port=5432;Database=${POSTGRES_DB:-ff_dev};Username=${POSTGRES_USER:-ff_dev};Password=${POSTGRES_PASSWORD:-ff_dev_password};Include Error Detail=true
+      FF_GATEWAY_CONNECTION_STRING: "Host=${POSTGRES_HOST:-postgres};Port=${POSTGRES_PORT:-5432};Database=${POSTGRES_DB:-ff_dev};Username=${POSTGRES_USER:-ff_dev};Password=${POSTGRES_PASSWORD:-ff_dev_password};Include Error Detail=${FF_DB_INCLUDE_ERROR_DETAIL:-true}"
       FF_IDENTITY_TOKEN_SECRET: ${FF_IDENTITY_TOKEN_SECRET:-ff-development-token-secret-change-me}
       FF_INTERNAL_SERVICE_TOKEN: ${FF_INTERNAL_SERVICE_TOKEN:-ff-development-internal-token-change-me}
       FF_ADMIN_TOKEN: ${FF_ADMIN_TOKEN:-}
     ports:
-      - "127.0.0.1:${GATEWAY_PORT:-5124}:8080"
+      - "${FF_PORT_BIND_ADDRESS:-127.0.0.1}:${GATEWAY_PORT:-5124}:8080"
     depends_on:
       <<: *backend-dependencies
       identity-service:
@@ -56,6 +57,8 @@ services:
       social-chat-service:
         condition: service_healthy
       world-service:
+        condition: service_healthy
+      research-service:
         condition: service_healthy
       notification-service:
         condition: service_healthy
@@ -66,8 +69,8 @@ services:
       - backend
 
   identity-service:
-    image: ff/identity-service:dev
-    container_name: ff-identity-service
+    image: ff/identity-service:${FF_IMAGE_TAG:-dev}
+    container_name: ${FF_CONTAINER_PREFIX:-ff}-identity-service
     restart: unless-stopped
     build:
       context: .
@@ -77,21 +80,24 @@ services:
         PROJECT_DLL: Ff.Identity.Api.dll
     environment:
       <<: *dotnet-environment
-      FF_IDENTITY_CONNECTION_STRING: Host=postgres;Port=5432;Database=${POSTGRES_DB:-ff_dev};Username=${POSTGRES_USER:-ff_dev};Password=${POSTGRES_PASSWORD:-ff_dev_password};Include Error Detail=true
+      FF_IDENTITY_CONNECTION_STRING: "Host=${POSTGRES_HOST:-postgres};Port=${POSTGRES_PORT:-5432};Database=${POSTGRES_DB:-ff_dev};Username=${POSTGRES_USER:-ff_dev};Password=${POSTGRES_PASSWORD:-ff_dev_password};Include Error Detail=${FF_DB_INCLUDE_ERROR_DETAIL:-true}"
       FF_IDENTITY_TOKEN_SECRET: ${FF_IDENTITY_TOKEN_SECRET:-ff-development-token-secret-change-me}
-      FF_IDENTITY_SEED_EMAIL: ${FF_IDENTITY_SEED_EMAIL:-demo@ff.local}
-      FF_IDENTITY_SEED_PASSWORD: ${FF_IDENTITY_SEED_PASSWORD:-secret}
-      FF_IDENTITY_SEED_USERNAME: ${FF_IDENTITY_SEED_USERNAME:-demo}
+      FF_IDENTITY_SEED_EMAIL: ${FF_IDENTITY_SEED_EMAIL-demo@ff.local}
+      FF_IDENTITY_SEED_PASSWORD: ${FF_IDENTITY_SEED_PASSWORD-secret}
+      FF_IDENTITY_SEED_USERNAME: ${FF_IDENTITY_SEED_USERNAME-demo}
+      FF_IDENTITY_ACCESS_TOKEN_LIFETIME_MINUTES: ${FF_IDENTITY_ACCESS_TOKEN_LIFETIME_MINUTES:-15}
+      FF_IDENTITY_REFRESH_SESSION_DAYS: ${FF_IDENTITY_REFRESH_SESSION_DAYS:-30}
+      FF_IDENTITY_ACCOUNT_TOKEN_LIFETIME_MINUTES: ${FF_IDENTITY_ACCOUNT_TOKEN_LIFETIME_MINUTES:-30}
     ports:
-      - "127.0.0.1:${IDENTITY_PORT:-5125}:8080"
+      - "${FF_PORT_BIND_ADDRESS:-127.0.0.1}:${IDENTITY_PORT:-5125}:8080"
     depends_on: *backend-dependencies
     healthcheck: *api-healthcheck
     networks:
       - backend
 
   admin-service:
-    image: ff/admin-service:dev
-    container_name: ff-admin-service
+    image: ff/admin-service:${FF_IMAGE_TAG:-dev}
+    container_name: ${FF_CONTAINER_PREFIX:-ff}-admin-service
     restart: unless-stopped
     build:
       context: .
@@ -101,18 +107,18 @@ services:
         PROJECT_DLL: Ff.Admin.Api.dll
     environment:
       <<: *dotnet-environment
-      FF_ADMIN_CONNECTION_STRING: Host=postgres;Port=5432;Database=${POSTGRES_DB:-ff_dev};Username=${POSTGRES_USER:-ff_dev};Password=${POSTGRES_PASSWORD:-ff_dev_password};Include Error Detail=true
+      FF_ADMIN_CONNECTION_STRING: "Host=${POSTGRES_HOST:-postgres};Port=${POSTGRES_PORT:-5432};Database=${POSTGRES_DB:-ff_dev};Username=${POSTGRES_USER:-ff_dev};Password=${POSTGRES_PASSWORD:-ff_dev_password};Include Error Detail=${FF_DB_INCLUDE_ERROR_DETAIL:-true}"
       FF_ADMIN_TOKEN: ${FF_ADMIN_TOKEN:-}
     ports:
-      - "127.0.0.1:${ADMIN_PORT:-5130}:8080"
+      - "${FF_PORT_BIND_ADDRESS:-127.0.0.1}:${ADMIN_PORT:-5130}:8080"
     depends_on: *backend-dependencies
     healthcheck: *api-healthcheck
     networks:
       - backend
 
   economy-service:
-    image: ff/economy-service:dev
-    container_name: ff-economy-service
+    image: ff/economy-service:${FF_IMAGE_TAG:-dev}
+    container_name: ${FF_CONTAINER_PREFIX:-ff}-economy-service
     restart: unless-stopped
     build:
       context: .
@@ -122,18 +128,18 @@ services:
         PROJECT_DLL: Ff.Economy.Api.dll
     environment:
       <<: *dotnet-environment
-      FF_ECONOMY_CONNECTION_STRING: Host=postgres;Port=5432;Database=${POSTGRES_DB:-ff_dev};Username=${POSTGRES_USER:-ff_dev};Password=${POSTGRES_PASSWORD:-ff_dev_password};Include Error Detail=true
+      FF_ECONOMY_CONNECTION_STRING: "Host=${POSTGRES_HOST:-postgres};Port=${POSTGRES_PORT:-5432};Database=${POSTGRES_DB:-ff_dev};Username=${POSTGRES_USER:-ff_dev};Password=${POSTGRES_PASSWORD:-ff_dev_password};Include Error Detail=${FF_DB_INCLUDE_ERROR_DETAIL:-true}"
       FF_INTERNAL_SERVICE_TOKEN: ${FF_INTERNAL_SERVICE_TOKEN:-ff-development-internal-token-change-me}
     ports:
-      - "127.0.0.1:${ECONOMY_PORT:-5141}:8080"
+      - "${FF_PORT_BIND_ADDRESS:-127.0.0.1}:${ECONOMY_PORT:-5141}:8080"
     depends_on: *backend-dependencies
     healthcheck: *api-healthcheck
     networks:
       - backend
 
   market-service:
-    image: ff/market-service:dev
-    container_name: ff-market-service
+    image: ff/market-service:${FF_IMAGE_TAG:-dev}
+    container_name: ${FF_CONTAINER_PREFIX:-ff}-market-service
     restart: unless-stopped
     build:
       context: .
@@ -143,18 +149,18 @@ services:
         PROJECT_DLL: Ff.Market.Api.dll
     environment:
       <<: *dotnet-environment
-      FF_MARKET_CONNECTION_STRING: Host=postgres;Port=5432;Database=${POSTGRES_DB:-ff_dev};Username=${POSTGRES_USER:-ff_dev};Password=${POSTGRES_PASSWORD:-ff_dev_password};Include Error Detail=true
+      FF_MARKET_CONNECTION_STRING: "Host=${POSTGRES_HOST:-postgres};Port=${POSTGRES_PORT:-5432};Database=${POSTGRES_DB:-ff_dev};Username=${POSTGRES_USER:-ff_dev};Password=${POSTGRES_PASSWORD:-ff_dev_password};Include Error Detail=${FF_DB_INCLUDE_ERROR_DETAIL:-true}"
       FF_INTERNAL_SERVICE_TOKEN: ${FF_INTERNAL_SERVICE_TOKEN:-ff-development-internal-token-change-me}
     ports:
-      - "127.0.0.1:${MARKET_PORT:-5275}:8080"
+      - "${FF_PORT_BIND_ADDRESS:-127.0.0.1}:${MARKET_PORT:-5275}:8080"
     depends_on: *backend-dependencies
     healthcheck: *api-healthcheck
     networks:
       - backend
 
   notification-service:
-    image: ff/notification-service:dev
-    container_name: ff-notification-service
+    image: ff/notification-service:${FF_IMAGE_TAG:-dev}
+    container_name: ${FF_CONTAINER_PREFIX:-ff}-notification-service
     restart: unless-stopped
     build:
       context: .
@@ -165,16 +171,20 @@ services:
         RUNTIME_IMAGE: mcr.microsoft.com/dotnet/aspnet:8.0
     environment:
       <<: *dotnet-environment
-      FF_NOTIFICATION_CONNECTION_STRING: Host=postgres;Port=5432;Database=${POSTGRES_DB:-ff_dev};Username=${POSTGRES_USER:-ff_dev};Password=${POSTGRES_PASSWORD:-ff_dev_password};Include Error Detail=true
+      FF_NOTIFICATION_CONNECTION_STRING: "Host=${POSTGRES_HOST:-postgres};Port=${POSTGRES_PORT:-5432};Database=${POSTGRES_DB:-ff_dev};Username=${POSTGRES_USER:-ff_dev};Password=${POSTGRES_PASSWORD:-ff_dev_password};Include Error Detail=${FF_DB_INCLUDE_ERROR_DETAIL:-true}"
       FF_INTERNAL_SERVICE_TOKEN: ${FF_INTERNAL_SERVICE_TOKEN:-ff-development-internal-token-change-me}
+      FF_PUSH_VAPID_PUBLIC_KEY: ${FF_PUSH_VAPID_PUBLIC_KEY:-}
+      FF_PUSH_VAPID_PRIVATE_KEY: ${FF_PUSH_VAPID_PRIVATE_KEY:-}
+      FF_PUSH_VAPID_SUBJECT: ${FF_PUSH_VAPID_SUBJECT:-mailto:admin@ff.local}
+      FF_PUSH_DELIVERY_INTERVAL_SECONDS: ${FF_PUSH_DELIVERY_INTERVAL_SECONDS:-15}
     depends_on: *backend-dependencies
     healthcheck: *api-healthcheck
     networks:
       - backend
 
   player-service:
-    image: ff/player-service:dev
-    container_name: ff-player-service
+    image: ff/player-service:${FF_IMAGE_TAG:-dev}
+    container_name: ${FF_CONTAINER_PREFIX:-ff}-player-service
     restart: unless-stopped
     build:
       context: .
@@ -184,19 +194,19 @@ services:
         PROJECT_DLL: Ff.Player.Api.dll
     environment:
       <<: *dotnet-environment
-      FF_PLAYER_CONNECTION_STRING: Host=postgres;Port=5432;Database=${POSTGRES_DB:-ff_dev};Username=${POSTGRES_USER:-ff_dev};Password=${POSTGRES_PASSWORD:-ff_dev_password};Include Error Detail=true
+      FF_PLAYER_CONNECTION_STRING: "Host=${POSTGRES_HOST:-postgres};Port=${POSTGRES_PORT:-5432};Database=${POSTGRES_DB:-ff_dev};Username=${POSTGRES_USER:-ff_dev};Password=${POSTGRES_PASSWORD:-ff_dev_password};Include Error Detail=${FF_DB_INCLUDE_ERROR_DETAIL:-true}"
       FF_IDENTITY_TOKEN_SECRET: ${FF_IDENTITY_TOKEN_SECRET:-ff-development-token-secret-change-me}
       FF_INTERNAL_SERVICE_TOKEN: ${FF_INTERNAL_SERVICE_TOKEN:-ff-development-internal-token-change-me}
     ports:
-      - "127.0.0.1:${PLAYER_PORT:-5192}:8080"
+      - "${FF_PORT_BIND_ADDRESS:-127.0.0.1}:${PLAYER_PORT:-5192}:8080"
     depends_on: *backend-dependencies
     healthcheck: *api-healthcheck
     networks:
       - backend
 
   production-service:
-    image: ff/production-service:dev
-    container_name: ff-production-service
+    image: ff/production-service:${FF_IMAGE_TAG:-dev}
+    container_name: ${FF_CONTAINER_PREFIX:-ff}-production-service
     restart: unless-stopped
     build:
       context: .
@@ -206,17 +216,37 @@ services:
         PROJECT_DLL: Ff.Production.Api.dll
     environment:
       <<: *dotnet-environment
-      FF_PRODUCTION_CONNECTION_STRING: Host=postgres;Port=5432;Database=${POSTGRES_DB:-ff_dev};Username=${POSTGRES_USER:-ff_dev};Password=${POSTGRES_PASSWORD:-ff_dev_password};Include Error Detail=true
+      FF_PRODUCTION_CONNECTION_STRING: "Host=${POSTGRES_HOST:-postgres};Port=${POSTGRES_PORT:-5432};Database=${POSTGRES_DB:-ff_dev};Username=${POSTGRES_USER:-ff_dev};Password=${POSTGRES_PASSWORD:-ff_dev_password};Include Error Detail=${FF_DB_INCLUDE_ERROR_DETAIL:-true}"
     ports:
-      - "127.0.0.1:${PRODUCTION_PORT:-5148}:8080"
+      - "${FF_PORT_BIND_ADDRESS:-127.0.0.1}:${PRODUCTION_PORT:-5148}:8080"
+    depends_on: *backend-dependencies
+    healthcheck: *api-healthcheck
+    networks:
+      - backend
+
+  research-service:
+    image: ff/research-service:${FF_IMAGE_TAG:-dev}
+    container_name: ${FF_CONTAINER_PREFIX:-ff}-research-service
+    restart: unless-stopped
+    build:
+      context: .
+      dockerfile: Dockerfile.dotnet
+      args:
+        PROJECT_PATH: services/research-service/Ff.Research.Api/Ff.Research.Api.csproj
+        PROJECT_DLL: Ff.Research.Api.dll
+    environment:
+      <<: *dotnet-environment
+      FF_RESEARCH_CONNECTION_STRING: "Host=${POSTGRES_HOST:-postgres};Port=${POSTGRES_PORT:-5432};Database=${POSTGRES_DB:-ff_dev};Username=${POSTGRES_USER:-ff_dev};Password=${POSTGRES_PASSWORD:-ff_dev_password};Include Error Detail=${FF_DB_INCLUDE_ERROR_DETAIL:-true}"
+    ports:
+      - "${FF_PORT_BIND_ADDRESS:-127.0.0.1}:${RESEARCH_PORT:-5268}:8080"
     depends_on: *backend-dependencies
     healthcheck: *api-healthcheck
     networks:
       - backend
 
   scheduler-service:
-    image: ff/scheduler-service:dev
-    container_name: ff-scheduler-service
+    image: ff/scheduler-service:${FF_IMAGE_TAG:-dev}
+    container_name: ${FF_CONTAINER_PREFIX:-ff}-scheduler-service
     restart: unless-stopped
     build:
       context: .
@@ -231,8 +261,8 @@ services:
       - backend
 
   social-chat-service:
-    image: ff/social-chat-service:dev
-    container_name: ff-social-chat-service
+    image: ff/social-chat-service:${FF_IMAGE_TAG:-dev}
+    container_name: ${FF_CONTAINER_PREFIX:-ff}-social-chat-service
     restart: unless-stopped
     build:
       context: .
@@ -242,17 +272,17 @@ services:
         PROJECT_DLL: Ff.SocialChat.Api.dll
     environment:
       <<: *dotnet-environment
-      FF_SOCIAL_CHAT_CONNECTION_STRING: Host=postgres;Port=5432;Database=${POSTGRES_DB:-ff_dev};Username=${POSTGRES_USER:-ff_dev};Password=${POSTGRES_PASSWORD:-ff_dev_password};Include Error Detail=true
+      FF_SOCIAL_CHAT_CONNECTION_STRING: "Host=${POSTGRES_HOST:-postgres};Port=${POSTGRES_PORT:-5432};Database=${POSTGRES_DB:-ff_dev};Username=${POSTGRES_USER:-ff_dev};Password=${POSTGRES_PASSWORD:-ff_dev_password};Include Error Detail=${FF_DB_INCLUDE_ERROR_DETAIL:-true}"
     ports:
-      - "127.0.0.1:${SOCIAL_CHAT_PORT:-5096}:8080"
+      - "${FF_PORT_BIND_ADDRESS:-127.0.0.1}:${SOCIAL_CHAT_PORT:-5096}:8080"
     depends_on: *backend-dependencies
     healthcheck: *api-healthcheck
     networks:
       - backend
 
   world-service:
-    image: ff/world-service:dev
-    container_name: ff-world-service
+    image: ff/world-service:${FF_IMAGE_TAG:-dev}
+    container_name: ${FF_CONTAINER_PREFIX:-ff}-world-service
     restart: unless-stopped
     build:
       context: .
@@ -262,18 +292,18 @@ services:
         PROJECT_DLL: Ff.World.Api.dll
     environment:
       <<: *dotnet-environment
-      FF_WORLD_CONNECTION_STRING: Host=postgres;Port=5432;Database=${POSTGRES_DB:-ff_dev};Username=${POSTGRES_USER:-ff_dev};Password=${POSTGRES_PASSWORD:-ff_dev_password};Include Error Detail=true
+      FF_WORLD_CONNECTION_STRING: "Host=${POSTGRES_HOST:-postgres};Port=${POSTGRES_PORT:-5432};Database=${POSTGRES_DB:-ff_dev};Username=${POSTGRES_USER:-ff_dev};Password=${POSTGRES_PASSWORD:-ff_dev_password};Include Error Detail=${FF_DB_INCLUDE_ERROR_DETAIL:-true}"
       FF_IDENTITY_TOKEN_SECRET: ${FF_IDENTITY_TOKEN_SECRET:-ff-development-token-secret-change-me}
     ports:
-      - "127.0.0.1:${WORLD_PORT:-5205}:8080"
+      - "${FF_PORT_BIND_ADDRESS:-127.0.0.1}:${WORLD_PORT:-5205}:8080"
     depends_on: *backend-dependencies
     healthcheck: *api-healthcheck
     networks:
       - backend
 
   combat-service:
-    image: ff/combat-service:dev
-    container_name: ff-combat-service
+    image: ff/combat-service:${FF_IMAGE_TAG:-dev}
+    container_name: ${FF_CONTAINER_PREFIX:-ff}-combat-service
     restart: unless-stopped
     build:
       context: ./services/combat-service
@@ -281,7 +311,7 @@ services:
     environment:
       COMBAT_SERVICE_ADDR: 0.0.0.0:8080
     ports:
-      - "127.0.0.1:${COMBAT_PORT:-8081}:8080"
+      - "${FF_PORT_BIND_ADDRESS:-127.0.0.1}:${COMBAT_PORT:-8081}:8080"
     depends_on: *backend-dependencies
     healthcheck: *api-healthcheck
     networks:
@@ -289,14 +319,14 @@ services:
 
   postgres:
     image: postgres:16-alpine
-    container_name: ff-postgres
+    container_name: ${FF_CONTAINER_PREFIX:-ff}-postgres
     restart: unless-stopped
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-ff_dev}
       POSTGRES_USER: ${POSTGRES_USER:-ff_dev}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ff_dev_password}
     ports:
-      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
+      - "${FF_PORT_BIND_ADDRESS:-127.0.0.1}:${POSTGRES_PUBLISHED_PORT:-5432}:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
       - ./shared/docker/postgres/init:/docker-entrypoint-initdb.d:ro
@@ -311,11 +341,11 @@ services:
 
   redis:
     image: redis:7-alpine
-    container_name: ff-redis
+    container_name: ${FF_CONTAINER_PREFIX:-ff}-redis
     restart: unless-stopped
     command: ["redis-server", "/usr/local/etc/redis/redis.conf"]
     ports:
-      - "127.0.0.1:${REDIS_PORT:-6379}:6379"
+      - "${FF_PORT_BIND_ADDRESS:-127.0.0.1}:${REDIS_PORT:-6379}:6379"
     volumes:
       - redis-data:/data
       - ./shared/docker/redis/redis.conf:/usr/local/etc/redis/redis.conf:ro
@@ -330,12 +360,12 @@ services:
 
   nats:
     image: nats:2.10-alpine
-    container_name: ff-nats
+    container_name: ${FF_CONTAINER_PREFIX:-ff}-nats
     restart: unless-stopped
     command: ["-c", "/etc/nats/nats-server.conf"]
     ports:
-      - "127.0.0.1:${NATS_CLIENT_PORT:-4222}:4222"
-      - "127.0.0.1:${NATS_MONITORING_PORT:-8222}:8222"
+      - "${FF_PORT_BIND_ADDRESS:-127.0.0.1}:${NATS_CLIENT_PORT:-4222}:4222"
+      - "${FF_PORT_BIND_ADDRESS:-127.0.0.1}:${NATS_MONITORING_PORT:-8222}:8222"
     volumes:
       - nats-data:/data/nats
       - ./shared/docker/nats/nats-server.conf:/etc/nats/nats-server.conf:ro
@@ -348,11 +378,78 @@ services:
     networks:
       - backend
 
+  otel-collector:
+    image: ${OTEL_COLLECTOR_IMAGE:-otel/opentelemetry-collector-contrib:0.111.0}
+    container_name: ${FF_CONTAINER_PREFIX:-ff}-otel-collector
+    profiles: ["observability"]
+    restart: unless-stopped
+    command: ["--config=/etc/otel-collector.yaml"]
+    volumes:
+      - ./shared/observability/otel-collector.yaml:/etc/otel-collector.yaml:ro
+    ports:
+      - "${FF_PORT_BIND_ADDRESS:-127.0.0.1}:${OTEL_GRPC_PORT:-4317}:4317"
+      - "${FF_PORT_BIND_ADDRESS:-127.0.0.1}:${OTEL_HTTP_PORT:-4318}:4318"
+    networks:
+      - backend
+
+  prometheus:
+    image: ${PROMETHEUS_IMAGE:-prom/prometheus:v2.55.1}
+    container_name: ${FF_CONTAINER_PREFIX:-ff}-prometheus
+    profiles: ["observability"]
+    restart: unless-stopped
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+    volumes:
+      - ./shared/observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    ports:
+      - "${FF_PORT_BIND_ADDRESS:-127.0.0.1}:${PROMETHEUS_PORT:-9090}:9090"
+    depends_on:
+      - otel-collector
+    networks:
+      - backend
+
+  loki:
+    image: ${LOKI_IMAGE:-grafana/loki:3.2.1}
+    container_name: ${FF_CONTAINER_PREFIX:-ff}-loki
+    profiles: ["observability"]
+    restart: unless-stopped
+    command: ["-config.file=/etc/loki/local-config.yaml"]
+    volumes:
+      - ./shared/observability/loki-config.yaml:/etc/loki/local-config.yaml:ro
+      - loki-data:/loki
+    ports:
+      - "${FF_PORT_BIND_ADDRESS:-127.0.0.1}:${LOKI_PORT:-3100}:3100"
+    networks:
+      - backend
+
+  grafana:
+    image: ${GRAFANA_IMAGE:-grafana/grafana:11.3.0}
+    container_name: ${FF_CONTAINER_PREFIX:-ff}-grafana
+    profiles: ["observability"]
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+    volumes:
+      - ./shared/observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - grafana-data:/var/lib/grafana
+    ports:
+      - "${FF_PORT_BIND_ADDRESS:-127.0.0.1}:${GRAFANA_PORT:-3000}:3000"
+    depends_on:
+      - prometheus
+      - loki
+    networks:
+      - backend
+
 networks:
   backend:
-    name: ff-backend
+    name: ${FF_NETWORK_NAME:-ff-backend}
 
 volumes:
   postgres-data:
   redis-data:
   nats-data:
+  prometheus-data:
+  grafana-data:
+  loki-data:

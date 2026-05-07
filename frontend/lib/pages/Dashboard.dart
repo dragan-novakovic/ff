@@ -1,9 +1,12 @@
+import 'package:ff/blocs/AchievementsBloc.dart';
 import 'package:ff/blocs/ActivityFeedBloc.dart';
 import 'package:ff/blocs/GameAreaBlocs.dart';
 import 'package:ff/blocs/OnboardingQuestlineBloc.dart';
 import 'package:ff/blocs/PlayerBloc.dart';
+import 'package:ff/blocs/PushNotificationsBloc.dart';
 import 'package:ff/blocs/RealtimeUpdatesBloc.dart';
 import 'package:ff/components/OnboardingGuidanceCard.dart';
+import 'package:ff/models/Achievements.dart';
 import 'package:ff/models/DailyObjectives.dart';
 import 'package:ff/models/GameAreas.dart';
 import 'package:ff/models/OnboardingQuestline.dart';
@@ -35,7 +38,9 @@ class DashboardState extends State<Dashboard> {
   late final PoliticsBloc _politicsBloc;
   late final DiplomacyBloc _diplomacyBloc;
   late final ActivityFeedBloc _activityFeedBloc;
+  late final AchievementsBloc _achievementsBloc;
   late final OnboardingQuestlineBloc _onboardingBloc;
+  late final PushNotificationsBloc _pushNotificationsBloc;
   late final RealtimeUpdatesBloc _realtimeBloc;
 
   @override
@@ -49,8 +54,11 @@ class DashboardState extends State<Dashboard> {
     _politicsBloc = Provider.of<PoliticsBloc>(context, listen: false);
     _diplomacyBloc = Provider.of<DiplomacyBloc>(context, listen: false);
     _activityFeedBloc = Provider.of<ActivityFeedBloc>(context, listen: false);
+    _achievementsBloc = Provider.of<AchievementsBloc>(context, listen: false);
     _onboardingBloc =
         Provider.of<OnboardingQuestlineBloc>(context, listen: false);
+    _pushNotificationsBloc =
+        Provider.of<PushNotificationsBloc>(context, listen: false);
     _realtimeBloc = RealtimeUpdatesBloc();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) {
@@ -72,6 +80,8 @@ class DashboardState extends State<Dashboard> {
     _loadOnboardingQuestline();
     _loadEconomyWallet();
     _loadActivityFeed();
+    _loadAchievements();
+    _loadPushNotifications();
     _startRealtime();
   }
 
@@ -108,6 +118,16 @@ class DashboardState extends State<Dashboard> {
     await _activityFeedBloc.load(widget.uid, limit: 10);
   }
 
+  Future<void> _loadAchievements() async {
+    _achievementsBloc.setBearerToken(_loginBloc.currentToken);
+    await _achievementsBloc.load(widget.uid);
+  }
+
+  Future<void> _loadPushNotifications() async {
+    _pushNotificationsBloc.setBearerToken(_loginBloc.currentToken);
+    await _pushNotificationsBloc.load(widget.uid);
+  }
+
   void _startRealtime() {
     _realtimeBloc.setBearerToken(_loginBloc.currentToken);
     _realtimeBloc.start(
@@ -130,6 +150,7 @@ class DashboardState extends State<Dashboard> {
       await _loadDailyObjectives();
       await _loadOnboardingQuestline();
       await _loadEconomyWallet();
+      await _loadAchievements();
     }
     if (!mounted) {
       return;
@@ -149,6 +170,7 @@ class DashboardState extends State<Dashboard> {
     if (result != null) {
       await _loadDailyObjectives();
       await _loadOnboardingQuestline();
+      await _loadAchievements();
     }
     if (!mounted) {
       return;
@@ -215,6 +237,7 @@ class DashboardState extends State<Dashboard> {
       if (result.wallet != null || result.rewards.gold > 0) {
         await _loadEconomyWallet();
       }
+      await _loadAchievements();
     }
     if (!mounted) {
       return;
@@ -234,6 +257,9 @@ class DashboardState extends State<Dashboard> {
       playerId: widget.uid,
       questId: quest.questId,
     );
+    if (result != null) {
+      await _loadAchievements();
+    }
     if (!mounted) {
       return;
     }
@@ -255,6 +281,7 @@ class DashboardState extends State<Dashboard> {
     _politicsBloc.clear();
     _diplomacyBloc.clear();
     _activityFeedBloc.clear();
+    _achievementsBloc.clear();
     _onboardingBloc.clear();
     await _loginBloc.logout();
     if (!mounted) {
@@ -315,9 +342,10 @@ class DashboardState extends State<Dashboard> {
           }
           if (snapshot.hasData) {
             final user = snapshot.data as User;
-            return Consumer3<PlayerBloc, InventoryBloc,
-                OnboardingQuestlineBloc>(
-              builder: (context, playerBloc, inventoryBloc, onboardingBloc, _) {
+            return Consumer4<PlayerBloc, InventoryBloc, OnboardingQuestlineBloc,
+                AchievementsBloc>(
+              builder: (context, playerBloc, inventoryBloc, onboardingBloc,
+                  achievementsBloc, _) {
                 return _dashboardScaffold(
                   drawer: Drawer(
                       child: dashboardDrawer(context, user, playerBloc.state,
@@ -328,6 +356,7 @@ class DashboardState extends State<Dashboard> {
                     playerBloc,
                     inventoryBloc: inventoryBloc,
                     onboardingBloc: onboardingBloc,
+                    achievementsBloc: achievementsBloc,
                     onRetry: _loadPlayerState,
                     onWork: _work,
                     onTrain: _train,
@@ -579,6 +608,14 @@ Widget dashboardDrawer(
                   subtitle: "Factories",
                   route: '/factories'),
               navTile(context, user,
+                  title: "Development",
+                  subtitle: "Research",
+                  route: '/research'),
+              navTile(context, user,
+                  title: "Development",
+                  subtitle: "Resources & Logistics",
+                  route: '/resource-logistics'),
+              navTile(context, user,
                   title: "Development", subtitle: "Training Grounds"),
               navTile(context, user,
                   title: "Development",
@@ -673,11 +710,19 @@ Widget dashboardDrawer(
                   subtitle: "Rankings",
                   route: '/rankings'),
               navTile(context, user,
+                  title: "Medals",
+                  subtitle: "Achievements",
+                  route: '/achievements'),
+              navTile(context, user,
                   title: "Profile", subtitle: "Public", route: '/profile'),
               navTile(context, user,
                   title: "Notifications",
                   subtitle: "Activity",
                   route: '/activity'),
+              navTile(context, user,
+                  title: "Notifications",
+                  subtitle: "Push",
+                  route: '/push-notifications'),
             ],
           ),
         ),
@@ -736,6 +781,7 @@ Widget dashboardBody(
   PlayerBloc playerBloc, {
   required InventoryBloc inventoryBloc,
   required OnboardingQuestlineBloc onboardingBloc,
+  required AchievementsBloc achievementsBloc,
   required Future<void> Function() onRetry,
   required Future<void> Function() onWork,
   required Future<void> Function() onTrain,
@@ -801,6 +847,12 @@ Widget dashboardBody(
                   ),
         ),
         _progressionCard(context, state, inventoryBloc.inventory),
+        _achievementsSummaryCard(
+          context,
+          achievementsBloc.summary,
+          isLoading: achievementsBloc.isLoading,
+          error: achievementsBloc.error,
+        ),
         _dailyActionsCard(
           state,
           isWorking: playerBloc.isWorking,
@@ -910,6 +962,81 @@ Widget _progressionCard(
             ],
           ),
         ],
+      ),
+    ),
+  );
+}
+
+Widget _achievementsSummaryCard(
+  BuildContext context,
+  AchievementsSummary? summary, {
+  required bool isLoading,
+  required String? error,
+}) {
+  return Card(
+    margin: EdgeInsets.all(12.0),
+    child: InkWell(
+      onTap: () => Navigator.pushNamed(context, '/achievements'),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.emoji_events, color: Colors.amber),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Achievements & medals',
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                ),
+                if (isLoading)
+                  const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                else
+                  const Icon(Icons.chevron_right),
+              ],
+            ),
+            const SizedBox(height: 12),
+            if (error != null && summary == null)
+              Text(error, style: const TextStyle(color: Colors.redAccent))
+            else if (summary == null)
+              const Text(
+                'Open the medal cabinet to load persisted achievements.',
+                style: TextStyle(color: Colors.grey),
+              )
+            else ...[
+              LinearProgressIndicator(value: summary.progress, minHeight: 8),
+              const SizedBox(height: 8),
+              Text(
+                '${summary.totalUnlocked}/${summary.totalAvailable} unlocked • ${summary.totalPoints} points • ${summary.unclaimedCount} claimable',
+                style: const TextStyle(color: Colors.grey),
+              ),
+              if (summary.recentUnlocks.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: summary.recentUnlocks.take(3).map((unlock) {
+                    return Chip(
+                      avatar: Icon(
+                        Icons.military_tech,
+                        color: _achievementRarityColor(unlock.medalRarity),
+                        size: 18,
+                      ),
+                      label: Text(unlock.title),
+                    );
+                  }).toList(),
+                ),
+              ],
+            ],
+          ],
+        ),
       ),
     ),
   );
@@ -1263,4 +1390,17 @@ String _formatSeconds(int seconds) {
   }
 
   return seconds == 1 ? '1 second' : '$seconds seconds';
+}
+
+Color _achievementRarityColor(String rarity) {
+  switch (rarity.toLowerCase()) {
+    case 'gold':
+      return Colors.amber.shade700;
+    case 'silver':
+      return Colors.blueGrey;
+    case 'platinum':
+      return Colors.lightBlue.shade700;
+    default:
+      return Colors.brown;
+  }
 }

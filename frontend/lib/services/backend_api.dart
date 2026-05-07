@@ -3,13 +3,16 @@ import 'dart:convert';
 
 import 'package:ff/models/ActivityFeed.dart';
 import 'package:ff/models/AdminConsole.dart';
+import 'package:ff/models/Achievements.dart';
 import 'package:ff/models/AuthSecurity.dart';
 import 'package:ff/models/DailyObjectives.dart';
 import 'package:ff/models/GameAreas.dart';
 import 'package:ff/models/MessageModel.dart';
 import 'package:ff/models/OnboardingQuestline.dart';
 import 'package:ff/models/PlayerState.dart';
+import 'package:ff/models/PushNotifications.dart';
 import 'package:ff/models/RealtimeUpdates.dart';
+import 'package:ff/models/ResourceLogistics.dart';
 import 'package:ff/models/User.dart';
 import 'package:http/http.dart' as http;
 
@@ -259,6 +262,57 @@ class BackendApiClient {
     return _activityReadAllResultFromJson(data);
   }
 
+  Future<PushNotificationSettings> fetchPushNotificationSettings(
+      String playerId) async {
+    final data = await _get('/players/$playerId/push-notifications');
+    if (data is! Map<String, dynamic>) {
+      throw BackendApiException('Invalid push notification settings response.');
+    }
+
+    return _pushNotificationSettingsFromJson(data);
+  }
+
+  Future<PushSubscriptionMutationResult> savePushSubscription({
+    required String playerId,
+    required String endpoint,
+    required String p256dh,
+    required String auth,
+    String? userAgent,
+  }) async {
+    final data =
+        await _post('/players/$playerId/push-notifications/subscriptions', {
+      'endpoint': endpoint,
+      'p256dh': p256dh,
+      'auth': auth,
+      if (userAgent != null && userAgent.isNotEmpty) 'userAgent': userAgent,
+    });
+    return _pushSubscriptionMutationFromJson(data);
+  }
+
+  Future<PushSubscriptionMutationResult> disablePushSubscription({
+    required String playerId,
+    required String endpoint,
+  }) async {
+    final data = await _post(
+      '/players/$playerId/push-notifications/subscriptions/disable',
+      {'endpoint': endpoint},
+    );
+    return _pushSubscriptionMutationFromJson(data);
+  }
+
+  Future<PushDeliveryList> fetchPushDeliveries(String playerId,
+      {int limit = 25}) async {
+    final data = await _get(
+      '/players/$playerId/push-notifications/deliveries',
+      queryParameters: {'limit': limit.toString()},
+    );
+    if (data is! Map<String, dynamic>) {
+      throw BackendApiException('Invalid push delivery response.');
+    }
+
+    return _pushDeliveryListFromJson(data);
+  }
+
   Future<DailyObjectivesSummary> fetchDailyObjectives(String playerId) async {
     final data = await _get('/players/$playerId/daily-objectives');
     if (data is! Map<String, dynamic>) {
@@ -280,6 +334,28 @@ class BackendApiClient {
       extraHeaders: {'Idempotency-Key': idempotencyKey},
     );
     return _dailyObjectiveClaimResultFromJson(data);
+  }
+
+  Future<AchievementsSummary> fetchAchievements(String playerId) async {
+    final data = await _get('/players/$playerId/achievements');
+    if (data is! Map<String, dynamic>) {
+      throw BackendApiException('Invalid achievements response from backend.');
+    }
+
+    return _achievementsSummaryFromJson(data);
+  }
+
+  Future<AchievementClaimResult> claimAchievement({
+    required String playerId,
+    required String achievementId,
+    required String idempotencyKey,
+  }) async {
+    final data = await _post(
+      '/players/$playerId/achievements/$achievementId/claim',
+      {},
+      extraHeaders: {'Idempotency-Key': idempotencyKey},
+    );
+    return _achievementClaimResultFromJson(data);
   }
 
   Future<OnboardingQuestline> fetchOnboardingQuestline(String playerId) async {
@@ -711,6 +787,154 @@ class BackendApiClient {
     return _factoryUpgradeGatewayResultFromJson(data);
   }
 
+  Future<ResearchTechnologyCatalog> fetchResearchTechnologies({
+    String? scopeType,
+  }) async {
+    final data = await _get(
+      '/research/technologies',
+      queryParameters: {
+        if (scopeType != null && scopeType.isNotEmpty) 'scopeType': scopeType,
+      },
+    );
+    if (data is! Map<String, dynamic>) {
+      throw BackendApiException(
+          'Invalid research technology response from backend.');
+    }
+
+    return _researchTechnologyCatalogFromJson(data);
+  }
+
+  Future<ResearchDashboard> fetchResearchDashboard(String playerId) async {
+    final data = await _get('/players/$playerId/research');
+    if (data is! Map<String, dynamic>) {
+      throw BackendApiException('Invalid research response from backend.');
+    }
+
+    return _researchDashboardFromJson(data);
+  }
+
+  Future<ResearchScopeState> fetchCountryResearch(String countryId) async {
+    final data = await _get('/research/countries/$countryId');
+    if (data is! Map<String, dynamic>) {
+      throw BackendApiException(
+          'Invalid country research response from backend.');
+    }
+
+    return _researchScopeStateFromJson(data);
+  }
+
+  Future<ResearchScopeState> fetchCompanyResearch(String companyId) async {
+    final data = await _get('/research/companies/$companyId');
+    if (data is! Map<String, dynamic>) {
+      throw BackendApiException(
+          'Invalid company research response from backend.');
+    }
+
+    return _researchScopeStateFromJson(data);
+  }
+
+  Future<ResearchBonusList> fetchCountryResearchBonuses(
+      String countryId) async {
+    final data = await _get('/research/countries/$countryId/bonuses');
+    if (data is! Map<String, dynamic>) {
+      throw BackendApiException(
+          'Invalid country research bonus response from backend.');
+    }
+
+    return _researchBonusListFromJson(data);
+  }
+
+  Future<ResearchBonusList> fetchCompanyResearchBonuses(
+      String companyId) async {
+    final data = await _get('/research/companies/$companyId/bonuses');
+    if (data is! Map<String, dynamic>) {
+      throw BackendApiException(
+          'Invalid company research bonus response from backend.');
+    }
+
+    return _researchBonusListFromJson(data);
+  }
+
+  Future<ResearchMutationResult> startCountryResearch({
+    required String countryId,
+    required String technologyId,
+    required String idempotencyKey,
+  }) async {
+    final data = await _post(
+      '/research/countries/$countryId/technologies/$technologyId/start',
+      {},
+      extraHeaders: {'Idempotency-Key': idempotencyKey},
+    );
+    return _researchMutationResultFromJson(data);
+  }
+
+  Future<ResearchMutationResult> contributeCountryResearch({
+    required String countryId,
+    required String projectId,
+    required int points,
+    required String idempotencyKey,
+  }) async {
+    final data = await _post(
+      '/research/countries/$countryId/projects/$projectId/contribute',
+      {'points': points},
+      extraHeaders: {'Idempotency-Key': idempotencyKey},
+    );
+    return _researchMutationResultFromJson(data);
+  }
+
+  Future<ResearchMutationResult> completeCountryResearch({
+    required String countryId,
+    required String projectId,
+    required String idempotencyKey,
+  }) async {
+    final data = await _post(
+      '/research/countries/$countryId/projects/$projectId/complete',
+      {},
+      extraHeaders: {'Idempotency-Key': idempotencyKey},
+    );
+    return _researchMutationResultFromJson(data);
+  }
+
+  Future<ResearchMutationResult> startCompanyResearch({
+    required String companyId,
+    required String technologyId,
+    required String idempotencyKey,
+  }) async {
+    final data = await _post(
+      '/research/companies/$companyId/technologies/$technologyId/start',
+      {},
+      extraHeaders: {'Idempotency-Key': idempotencyKey},
+    );
+    return _researchMutationResultFromJson(data);
+  }
+
+  Future<ResearchMutationResult> contributeCompanyResearch({
+    required String companyId,
+    required String projectId,
+    required int points,
+    required String idempotencyKey,
+  }) async {
+    final data = await _post(
+      '/research/companies/$companyId/projects/$projectId/contribute',
+      {'points': points},
+      extraHeaders: {'Idempotency-Key': idempotencyKey},
+    );
+    return _researchMutationResultFromJson(data);
+  }
+
+  Future<ResearchMutationResult> completeCompanyResearch({
+    required String companyId,
+    required String projectId,
+    required String idempotencyKey,
+  }) async {
+    final data = await _post(
+      '/research/companies/$companyId/projects/$projectId/complete',
+      {},
+      extraHeaders: {'Idempotency-Key': idempotencyKey},
+    );
+    return _researchMutationResultFromJson(data);
+  }
+
   Future<CompanyPortfolio> fetchCompanies(String playerId) async {
     final data = await _get('/players/$playerId/companies');
     if (data is! Map<String, dynamic>) {
@@ -737,6 +961,98 @@ class BackendApiClient {
     }
 
     return _companyAssetsFromJson(data);
+  }
+
+  Future<ResourceSiteList> fetchResourceSites({
+    String? countryId,
+    String? regionId,
+  }) async {
+    final data = await _get(
+      '/resource-sites',
+      queryParameters: {
+        if (countryId != null && countryId.isNotEmpty) 'countryId': countryId,
+        if (regionId != null && regionId.isNotEmpty) 'regionId': regionId,
+      },
+    );
+    if (data is! Map<String, dynamic>) {
+      throw BackendApiException('Invalid resource sites response.');
+    }
+
+    return _resourceSiteListFromJson(data);
+  }
+
+  Future<ResourceLogisticsDashboard> fetchCompanyResourceLogistics(
+      String companyId) async {
+    final data = await _get('/companies/$companyId/resource-logistics');
+    if (data is! Map<String, dynamic>) {
+      throw BackendApiException('Invalid resource logistics response.');
+    }
+
+    return _resourceLogisticsDashboardFromJson(data);
+  }
+
+  Future<ExtractionMutationResult> startCompanyResourceExtraction({
+    required String companyId,
+    required String siteId,
+    required int requestedRuns,
+    required String idempotencyKey,
+  }) async {
+    final data = await _post(
+      '/companies/$companyId/resource-extractions',
+      {
+        'siteId': siteId,
+        'requestedRuns': requestedRuns,
+        'idempotencyKey': idempotencyKey,
+      },
+      extraHeaders: {'Idempotency-Key': idempotencyKey},
+    );
+    return _extractionMutationFromJson(data);
+  }
+
+  Future<ExtractionClaimResult> claimCompanyResourceExtraction({
+    required String companyId,
+    required String jobId,
+  }) async {
+    final data = await _post(
+        '/companies/$companyId/resource-extractions/$jobId/claim', {});
+    return _extractionClaimFromJson(data);
+  }
+
+  Future<ShipmentMutationResult> dispatchCompanyShipment({
+    required String companyId,
+    required InventoryItem item,
+    required ResourceSite origin,
+    required ResourceSite destination,
+    required int quantity,
+    required int durationSeconds,
+    required String idempotencyKey,
+  }) async {
+    final data = await _post(
+      '/companies/$companyId/shipments',
+      {
+        'itemId': item.itemId,
+        'itemName': item.name,
+        'itemCategory': item.category,
+        'quantity': quantity,
+        'originRegionId': origin.regionId,
+        'originRegionName': origin.siteName,
+        'destinationRegionId': destination.regionId,
+        'destinationRegionName': destination.siteName,
+        'durationSeconds': durationSeconds,
+        'idempotencyKey': idempotencyKey,
+      },
+      extraHeaders: {'Idempotency-Key': idempotencyKey},
+    );
+    return _shipmentMutationFromJson(data);
+  }
+
+  Future<ShipmentMutationResult> deliverCompanyShipment({
+    required String companyId,
+    required String shipmentId,
+  }) async {
+    final data =
+        await _post('/companies/$companyId/shipments/$shipmentId/deliver', {});
+    return _shipmentMutationFromJson(data);
   }
 
   Future<CompanyUpgradeState> fetchCompanyUpgrades(String companyId) async {
@@ -1594,6 +1910,46 @@ class BackendApiClient {
     return _battleDetailsFromJson(data);
   }
 
+  Future<CombatReportList> fetchBattleReports({
+    required String battleId,
+    String? playerId,
+    int limit = 25,
+  }) async {
+    final query = <String, String>{
+      'limit': limit.toString(),
+    };
+    if (playerId != null && playerId.isNotEmpty) {
+      query['playerId'] = playerId;
+    }
+    final data =
+        await _get('/world/battles/$battleId/reports', queryParameters: query);
+    if (data is! Map<String, dynamic>) {
+      throw BackendApiException('Invalid battle reports response.');
+    }
+
+    return _combatReportListFromJson(data);
+  }
+
+  Future<CombatReportList> fetchPlayerCombatReports({
+    required String playerId,
+    String? battleId,
+    int limit = 25,
+  }) async {
+    final query = <String, String>{
+      'limit': limit.toString(),
+    };
+    if (battleId != null && battleId.isNotEmpty) {
+      query['battleId'] = battleId;
+    }
+    final data =
+        await _get('/players/$playerId/combat-reports', queryParameters: query);
+    if (data is! Map<String, dynamic>) {
+      throw BackendApiException('Invalid combat reports response.');
+    }
+
+    return _combatReportListFromJson(data);
+  }
+
   Future<PlayerBattleParticipationStatus> fetchBattleParticipation({
     required String playerId,
     required String battleId,
@@ -2324,6 +2680,32 @@ class BackendApiClient {
     }
   }
 
+  PushNotificationSettings _pushNotificationSettingsFromJson(
+      Map<String, dynamic> data) {
+    try {
+      return PushNotificationSettings.fromJson(data);
+    } on FormatException catch (e) {
+      throw BackendApiException(e.message);
+    }
+  }
+
+  PushSubscriptionMutationResult _pushSubscriptionMutationFromJson(
+      Map<String, dynamic> data) {
+    try {
+      return PushSubscriptionMutationResult.fromJson(data);
+    } on FormatException catch (e) {
+      throw BackendApiException(e.message);
+    }
+  }
+
+  PushDeliveryList _pushDeliveryListFromJson(Map<String, dynamic> data) {
+    try {
+      return PushDeliveryList.fromJson(data);
+    } on FormatException catch (e) {
+      throw BackendApiException(e.message);
+    }
+  }
+
   RealtimeUpdatesEnvelope _realtimeUpdatesFromJson(Map<String, dynamic> data) {
     try {
       return RealtimeUpdatesEnvelope.fromJson(data);
@@ -2344,6 +2726,23 @@ class BackendApiClient {
       Map<String, dynamic> data) {
     try {
       return DailyObjectiveClaimResult.fromJson(data);
+    } on FormatException catch (e) {
+      throw BackendApiException(e.message);
+    }
+  }
+
+  AchievementsSummary _achievementsSummaryFromJson(Map<String, dynamic> data) {
+    try {
+      return AchievementsSummary.fromJson(data);
+    } on FormatException catch (e) {
+      throw BackendApiException(e.message);
+    }
+  }
+
+  AchievementClaimResult _achievementClaimResultFromJson(
+      Map<String, dynamic> data) {
+    try {
+      return AchievementClaimResult.fromJson(data);
     } on FormatException catch (e) {
       throw BackendApiException(e.message);
     }
@@ -2562,6 +2961,48 @@ class BackendApiClient {
     }
   }
 
+  ResearchTechnologyCatalog _researchTechnologyCatalogFromJson(
+      Map<String, dynamic> data) {
+    try {
+      return ResearchTechnologyCatalog.fromJson(data);
+    } on FormatException catch (e) {
+      throw BackendApiException(e.message);
+    }
+  }
+
+  ResearchDashboard _researchDashboardFromJson(Map<String, dynamic> data) {
+    try {
+      return ResearchDashboard.fromJson(data);
+    } on FormatException catch (e) {
+      throw BackendApiException(e.message);
+    }
+  }
+
+  ResearchScopeState _researchScopeStateFromJson(Map<String, dynamic> data) {
+    try {
+      return ResearchScopeState.fromJson(data);
+    } on FormatException catch (e) {
+      throw BackendApiException(e.message);
+    }
+  }
+
+  ResearchBonusList _researchBonusListFromJson(Map<String, dynamic> data) {
+    try {
+      return ResearchBonusList.fromJson(data);
+    } on FormatException catch (e) {
+      throw BackendApiException(e.message);
+    }
+  }
+
+  ResearchMutationResult _researchMutationResultFromJson(
+      Map<String, dynamic> data) {
+    try {
+      return ResearchMutationResult.fromJson(data);
+    } on FormatException catch (e) {
+      throw BackendApiException(e.message);
+    }
+  }
+
   CompanyPortfolio _companyPortfolioFromJson(Map<String, dynamic> data) {
     try {
       return CompanyPortfolio.fromJson(data);
@@ -2581,6 +3022,48 @@ class BackendApiClient {
   CompanyAssets _companyAssetsFromJson(Map<String, dynamic> data) {
     try {
       return CompanyAssets.fromJson(data);
+    } on FormatException catch (e) {
+      throw BackendApiException(e.message);
+    }
+  }
+
+  ResourceSiteList _resourceSiteListFromJson(Map<String, dynamic> data) {
+    try {
+      return ResourceSiteList.fromJson(data);
+    } on FormatException catch (e) {
+      throw BackendApiException(e.message);
+    }
+  }
+
+  ResourceLogisticsDashboard _resourceLogisticsDashboardFromJson(
+      Map<String, dynamic> data) {
+    try {
+      return ResourceLogisticsDashboard.fromJson(data);
+    } on FormatException catch (e) {
+      throw BackendApiException(e.message);
+    }
+  }
+
+  ExtractionMutationResult _extractionMutationFromJson(
+      Map<String, dynamic> data) {
+    try {
+      return ExtractionMutationResult.fromJson(data);
+    } on FormatException catch (e) {
+      throw BackendApiException(e.message);
+    }
+  }
+
+  ExtractionClaimResult _extractionClaimFromJson(Map<String, dynamic> data) {
+    try {
+      return ExtractionClaimResult.fromJson(data);
+    } on FormatException catch (e) {
+      throw BackendApiException(e.message);
+    }
+  }
+
+  ShipmentMutationResult _shipmentMutationFromJson(Map<String, dynamic> data) {
+    try {
+      return ShipmentMutationResult.fromJson(data);
     } on FormatException catch (e) {
       throw BackendApiException(e.message);
     }
@@ -2952,6 +3435,14 @@ class BackendApiClient {
   BattleDetails _battleDetailsFromJson(Map<String, dynamic> data) {
     try {
       return BattleDetails.fromJson(data);
+    } on FormatException catch (e) {
+      throw BackendApiException(e.message);
+    }
+  }
+
+  CombatReportList _combatReportListFromJson(Map<String, dynamic> data) {
+    try {
+      return CombatReportList.fromJson(data);
     } on FormatException catch (e) {
       throw BackendApiException(e.message);
     }

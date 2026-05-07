@@ -1,3 +1,5 @@
+using Microsoft.Extensions.Logging;
+
 internal static class BattleGatewayEndpoints
 {
     private const int MinimumBattleEnergy = 10;
@@ -39,6 +41,35 @@ internal static class BattleGatewayEndpoints
                 request.Headers.Authorization.ToString());
         }).WithName("GetGatewayBattle");
 
+        app.MapGet("/world/battles/{battleId}/reports", async (
+            string battleId,
+            string? playerId,
+            int? limit,
+            HttpRequest request,
+            WorldServiceClient world,
+            DevTokenValidator tokens) =>
+        {
+            var error = ValidateBearer(request, tokens);
+            if (error is not null)
+            {
+                return error;
+            }
+
+            var query = new List<string>();
+            if (!string.IsNullOrWhiteSpace(playerId))
+            {
+                query.Add($"playerId={Uri.EscapeDataString(playerId.Trim())}");
+            }
+            if (limit is not null)
+            {
+                query.Add($"limit={Math.Clamp(limit.Value, 1, 100)}");
+            }
+            var suffix = query.Count == 0 ? string.Empty : $"?{string.Join('&', query)}";
+            return await world.GetAsync(
+                $"battles/{Uri.EscapeDataString(battleId)}/reports{suffix}",
+                request.Headers.Authorization.ToString());
+        }).WithName("GetGatewayBattleCombatReports");
+
         app.MapGet("/players/{playerId}/battles/{battleId}/participation", async (
             string playerId,
             string battleId,
@@ -57,6 +88,35 @@ internal static class BattleGatewayEndpoints
                 request.Headers.Authorization.ToString());
         }).WithName("GetGatewayBattleParticipation");
 
+        app.MapGet("/players/{playerId}/combat-reports", async (
+            string playerId,
+            string? battleId,
+            int? limit,
+            HttpRequest request,
+            WorldServiceClient world,
+            DevTokenValidator tokens) =>
+        {
+            var access = ValidatePlayerAccess(playerId, request, tokens);
+            if (access.Error is not null)
+            {
+                return access.Error;
+            }
+
+            var query = new List<string>();
+            if (!string.IsNullOrWhiteSpace(battleId))
+            {
+                query.Add($"battleId={Uri.EscapeDataString(battleId.Trim())}");
+            }
+            if (limit is not null)
+            {
+                query.Add($"limit={Math.Clamp(limit.Value, 1, 100)}");
+            }
+            var suffix = query.Count == 0 ? string.Empty : $"?{string.Join('&', query)}";
+            return await world.GetAsync(
+                $"players/{Uri.EscapeDataString(access.PlayerId!)}/combat-reports{suffix}",
+                request.Headers.Authorization.ToString());
+        }).WithName("GetGatewayPlayerCombatReports");
+
         app.MapPost("/players/{playerId}/battles/{battleId}/contribute", ContributeToBattle)
             .WithName("ContributeGatewayBattle");
     }
@@ -72,6 +132,7 @@ internal static class BattleGatewayEndpoints
         EconomyServiceClient economy,
         NotificationServiceClient notifications,
         IConfiguration configuration,
+        ILoggerFactory loggerFactory,
         DevTokenValidator tokens)
     {
         var access = ValidatePlayerAccess(playerId, request, tokens);
@@ -309,7 +370,19 @@ internal static class BattleGatewayEndpoints
                 GoldReward: appliedProgression.Rewards.Gold,
                 ExperienceReward: appliedProgression.Rewards.Experience,
                 Message: playerMessage,
-                IdempotencyKey: $"{actionPrefix}:world"));
+                IdempotencyKey: $"{actionPrefix}:world",
+                Fight: new FightReportRequestDto(
+                    Winner: fightResult.Winner,
+                    RoundsRequested: fightResult.RoundsRequested,
+                    RoundsCompleted: fightResult.RoundsCompleted,
+                    AttackerDamage: fightResult.AttackerDamage,
+                    DefenderDamage: fightResult.DefenderDamage,
+                    AttackerRemainingEnergy: fightResult.AttackerRemainingEnergy,
+                    DefenderRemainingEnergy: fightResult.DefenderRemainingEnergy),
+                Weapon: BuildWeaponReport(
+                    weaponBeforeFight,
+                    equipmentAfterFight,
+                    weaponDamage)));
         if (contribution.Error is not null)
         {
             return contribution.Error;
@@ -332,12 +405,34 @@ internal static class BattleGatewayEndpoints
             battle.BattleId,
             $"activity:battle-contribution:{access.PlayerId!.ToLowerInvariant()}:{battle.BattleId.ToLowerInvariant()}:{idempotencyKey.ToLowerInvariant()}");
 
+        var achievementLogger = loggerFactory.CreateLogger(nameof(AchievementGatewayEndpoints));
+        await AchievementGatewayEndpoints.TrackAsync(
+            players,
+            access.PlayerId!,
+            authorization,
+            configuration,
+            "battle_contribution",
+            $"achievement:battle-contribution:{access.PlayerId!.ToLowerInvariant()}:{battle.BattleId.ToLowerInvariant()}:{idempotencyKey.ToLowerInvariant()}",
+            achievementLogger,
+            relatedId: battle.BattleId);
+        await AchievementGatewayEndpoints.TrackAsync(
+            players,
+            access.PlayerId!,
+            authorization,
+            configuration,
+            "battle_damage",
+            $"achievement:battle-damage:{access.PlayerId!.ToLowerInvariant()}:{battle.BattleId.ToLowerInvariant()}:{idempotencyKey.ToLowerInvariant()}",
+            achievementLogger,
+            quantity: damage,
+            relatedId: battle.BattleId);
+
         return Results.Ok(new BattleContributionGatewayResponse(
             Completed: true,
             Message: contributionResult.Message,
             Battle: contributionResult.Battle!,
             Contribution: contributionResult.Contribution,
             Participation: contributionResult.Participation,
+            Report: contributionResult.Report,
             Fight: fightResult,
             PlayerAction: appliedProgression,
             MissionProgress: appliedProgression.MissionProgress,
@@ -354,6 +449,31 @@ internal static class BattleGatewayEndpoints
             : Results.Json(
                 new ErrorResponse("A valid bearer token is required."),
                 statusCode: StatusCodes.Status401Unauthorized);
+    }
+
+    private static WeaponReportRequestDto? BuildWeaponReport(
+        EquippedWeaponDto? weaponBeforeFight,
+        EquipmentResponseDto equipmentAfterFight,
+        DamageWeaponResponseDto? weaponDamage)
+    {
+        if (weaponBeforeFight is null)
+        {
+            return null;
+        }
+
+        var weaponAfterFight = equipmentAfterFight.Weapon;
+        var durabilityAfter = weaponAfterFight is not null &&
+            string.Equals(weaponAfterFight.ItemId, weaponBeforeFight.ItemId, StringComparison.OrdinalIgnoreCase)
+            ? weaponAfterFight.Durability
+            : (int?)null;
+
+        return new WeaponReportRequestDto(
+            ItemId: weaponBeforeFight.ItemId,
+            Name: weaponBeforeFight.Name,
+            WeaponPower: weaponBeforeFight.WeaponPower,
+            DurabilityBefore: weaponBeforeFight.Durability,
+            DurabilityAfter: durabilityAfter,
+            DurabilityDamage: Math.Max(0, weaponDamage?.DurabilityLost ?? 0));
     }
 
     private static PlayerAccessResult ValidatePlayerAccess(
@@ -401,7 +521,26 @@ internal sealed record BattleContributionCommitRequestDto(
     int GoldReward,
     int ExperienceReward,
     string Message,
-    string IdempotencyKey);
+    string IdempotencyKey,
+    FightReportRequestDto Fight,
+    WeaponReportRequestDto? Weapon);
+
+internal sealed record FightReportRequestDto(
+    string Winner,
+    int RoundsRequested,
+    int RoundsCompleted,
+    int AttackerDamage,
+    int DefenderDamage,
+    int AttackerRemainingEnergy,
+    int DefenderRemainingEnergy);
+
+internal sealed record WeaponReportRequestDto(
+    string? ItemId,
+    string? Name,
+    int? WeaponPower,
+    int? DurabilityBefore,
+    int? DurabilityAfter,
+    int DurabilityDamage);
 
 internal sealed record BattleContributionGatewayResponse(
     bool Completed,
@@ -409,6 +548,7 @@ internal sealed record BattleContributionGatewayResponse(
     CountryBattleDto Battle,
     BattleContributionDto? Contribution,
     PlayerBattleParticipationDto? Participation,
+    CombatReportDto? Report,
     FightResponseDto Fight,
     PlayerActionResponseDto PlayerAction,
     MissionProgressDto? MissionProgress,
@@ -427,6 +567,7 @@ internal sealed record BattleContributionResultDto(
     CountryBattleDto? Battle,
     BattleContributionDto? Contribution,
     PlayerBattleParticipationDto? Participation,
+    CombatReportDto? Report,
     DateTimeOffset UpdatedAt);
 
 internal sealed record CountryBattleDto(
@@ -474,6 +615,76 @@ internal sealed record BattleContributionDto(
     int ExperienceReward,
     string Message,
     DateTimeOffset CreatedAt);
+
+internal sealed record CombatReportListResponseDto(
+    string? BattleId,
+    string? PlayerId,
+    CombatReportDto[] Reports,
+    DateTimeOffset UpdatedAt);
+
+internal sealed record CombatReportDto(
+    string ReportId,
+    string ContributionId,
+    string BattleId,
+    string PlayerId,
+    string CountryId,
+    string CountryName,
+    string CountryCode,
+    string Side,
+    string BattleName,
+    string BattleType,
+    string RegionId,
+    string RegionName,
+    string AttackerCountryId,
+    string AttackerCountryName,
+    string AttackerCountryCode,
+    string DefenderCountryId,
+    string DefenderCountryName,
+    string DefenderCountryCode,
+    int Damage,
+    int EnergySpent,
+    int RoundsCompleted,
+    bool Won,
+    int GoldReward,
+    int ExperienceReward,
+    string FightWinner,
+    int FightRoundsRequested,
+    int FightRoundsCompleted,
+    int AttackerDamage,
+    int DefenderDamage,
+    int AttackerRemainingEnergy,
+    int DefenderRemainingEnergy,
+    int AttackerScoreAfter,
+    int DefenderScoreAfter,
+    int TargetScore,
+    string StatusAfter,
+    string? WinnerCountryId,
+    string? WinnerCountryName,
+    string? WeaponItemId,
+    string? WeaponName,
+    int? WeaponPower,
+    int? WeaponDurabilityBefore,
+    int? WeaponDurabilityAfter,
+    int WeaponDurabilityDamage,
+    string? CampaignId,
+    string? CampaignName,
+    CombatReportPhaseDto[] PhaseSnapshots,
+    string Message,
+    DateTimeOffset CreatedAt);
+
+internal sealed record CombatReportPhaseDto(
+    string PhaseId,
+    string CampaignId,
+    string BattleId,
+    string BattleName,
+    int PhaseNumber,
+    string Name,
+    string Objectives,
+    int TargetDamage,
+    int AttackerDamage,
+    int DefenderDamage,
+    string Status,
+    DateTimeOffset? CompletedAt);
 
 internal sealed record PlayerBattleParticipationDto(
     string PlayerId,

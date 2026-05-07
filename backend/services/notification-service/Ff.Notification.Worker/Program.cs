@@ -2,14 +2,15 @@ using Ff.Notification.Worker;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddSingleton<ActivityNotificationStore>();
+builder.Services.AddHostedService<PushNotificationDispatcher>();
 
 var metadata = new ServiceMetadata(
     Service: "notification-service",
     DisplayName: "Notification Service",
     Domain: "Persisted player activity feed and notifications",
-    Description: "Owns persisted player activity events created by gameplay services and exposes read/unread notification state for the gateway.",
-    Owns: ["activity events", "notification read state"],
-    Responsibilities: ["Persist player activity feed entries", "Serve notification counts", "Mark notifications read"]);
+    Description: "Owns persisted player activity events, browser push subscriptions, and delivery state created by gameplay services.",
+    Owns: ["activity events", "notification read state", "push subscriptions", "push delivery outbox"],
+    Responsibilities: ["Persist player activity feed entries", "Serve notification counts", "Mark notifications read", "Dispatch web push notifications"]);
 
 var app = builder.Build();
 
@@ -91,6 +92,87 @@ app.MapPost("/internal/activity-events", async (
     var result = await store.CreateAsync(request);
     return ToStoreResult(result);
 }).WithName("CreateInternalActivityEvent");
+
+app.MapGet("/players/{playerId}/push", async (
+    string playerId,
+    HttpRequest request,
+    ActivityNotificationStore store,
+    IConfiguration configuration) =>
+{
+    if (!HasValidInternalToken(request, configuration))
+    {
+        return Results.Json(
+            new ErrorResponse("Internal service authorization is required."),
+            statusCode: StatusCodes.Status401Unauthorized);
+    }
+
+    var result = await store.GetPushSubscriptionsAsync(
+        playerId,
+        configuration["FF_PUSH_VAPID_PUBLIC_KEY"]);
+    return ToStoreResult(result);
+}).WithName("GetPlayerPushNotifications");
+
+app.MapPost("/players/{playerId}/push/subscriptions", async (
+    string playerId,
+    PushSubscriptionUpsertRequest request,
+    HttpRequest httpRequest,
+    ActivityNotificationStore store,
+    IConfiguration configuration) =>
+{
+    if (!HasValidInternalToken(httpRequest, configuration))
+    {
+        return Results.Json(
+            new ErrorResponse("Internal service authorization is required."),
+            statusCode: StatusCodes.Status401Unauthorized);
+    }
+
+    var result = await store.UpsertPushSubscriptionAsync(
+        playerId,
+        request with
+        {
+            UserAgent = string.IsNullOrWhiteSpace(request.UserAgent)
+                ? httpRequest.Headers.UserAgent.ToString()
+                : request.UserAgent
+        },
+        configuration["FF_PUSH_VAPID_PUBLIC_KEY"]);
+    return ToStoreResult(result);
+}).WithName("UpsertPlayerPushSubscription");
+
+app.MapPost("/players/{playerId}/push/subscriptions/disable", async (
+    string playerId,
+    PushSubscriptionDisableRequest request,
+    HttpRequest httpRequest,
+    ActivityNotificationStore store,
+    IConfiguration configuration) =>
+{
+    if (!HasValidInternalToken(httpRequest, configuration))
+    {
+        return Results.Json(
+            new ErrorResponse("Internal service authorization is required."),
+            statusCode: StatusCodes.Status401Unauthorized);
+    }
+
+    var result = await store.DisablePushSubscriptionAsync(playerId, request);
+    return ToStoreResult(result);
+}).WithName("DisablePlayerPushSubscription");
+
+app.MapGet("/players/{playerId}/push/deliveries", async (
+    string playerId,
+    int? limit,
+    HttpRequest request,
+    ActivityNotificationStore store,
+    IConfiguration configuration) =>
+{
+    if (!HasValidInternalToken(request, configuration))
+    {
+        return Results.Json(
+            new ErrorResponse("Internal service authorization is required."),
+            statusCode: StatusCodes.Status401Unauthorized);
+    }
+
+    var result = await store.ListPushDeliveriesAsync(playerId, limit);
+    return ToStoreResult(result);
+}).WithName("GetPlayerPushDeliveries");
 
 app.Run();
 

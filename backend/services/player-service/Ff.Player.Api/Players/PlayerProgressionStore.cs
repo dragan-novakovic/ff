@@ -200,6 +200,59 @@ internal sealed class PlayerProgressionStore : IDisposable
                 UNIQUE (player_id, quest_id)
             );
 
+            CREATE TABLE IF NOT EXISTS player.achievement_catalog (
+                achievement_id text PRIMARY KEY,
+                action_type text NOT NULL,
+                title text NOT NULL,
+                description text NOT NULL,
+                category text NOT NULL,
+                medal_name text NOT NULL,
+                medal_rarity text NOT NULL,
+                target_count integer NOT NULL,
+                points integer NOT NULL DEFAULT 0,
+                display_order integer NOT NULL,
+                enabled boolean NOT NULL DEFAULT true,
+                created_at timestamptz NOT NULL,
+                updated_at timestamptz NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS player.achievement_progress (
+                player_id text NOT NULL,
+                achievement_id text NOT NULL REFERENCES player.achievement_catalog (achievement_id),
+                current_count integer NOT NULL DEFAULT 0,
+                unlocked_at timestamptz NULL,
+                claimed_at timestamptz NULL,
+                updated_at timestamptz NOT NULL,
+                PRIMARY KEY (player_id, achievement_id)
+            );
+
+            CREATE TABLE IF NOT EXISTS player.achievement_events (
+                event_id text PRIMARY KEY,
+                player_id text NOT NULL,
+                action_type text NOT NULL,
+                quantity integer NOT NULL,
+                related_id text NULL,
+                created_at timestamptz NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS player.achievement_awards (
+                award_id text PRIMARY KEY,
+                player_id text NOT NULL,
+                achievement_id text NOT NULL REFERENCES player.achievement_catalog (achievement_id),
+                points_awarded integer NOT NULL,
+                medal_rarity text NOT NULL,
+                awarded_at timestamptz NOT NULL,
+                UNIQUE (player_id, achievement_id)
+            );
+
+            CREATE TABLE IF NOT EXISTS player.achievement_claims (
+                claim_id text PRIMARY KEY,
+                player_id text NOT NULL,
+                achievement_id text NOT NULL REFERENCES player.achievement_catalog (achievement_id),
+                claimed_at timestamptz NOT NULL,
+                UNIQUE (player_id, achievement_id)
+            );
+
             INSERT INTO player.daily_objective_catalog (
                 objective_id, action_type, title, description, target_count,
                 reward_gold, reward_experience, reward_strength, reward_energy,
@@ -254,6 +307,44 @@ internal sealed class PlayerProgressionStore : IDisposable
                 enabled = EXCLUDED.enabled,
                 updated_at = CURRENT_TIMESTAMP;
 
+            INSERT INTO player.achievement_catalog (
+                achievement_id, action_type, title, description, category, medal_name,
+                medal_rarity, target_count, points, display_order, enabled, created_at, updated_at
+            )
+            VALUES
+                ('first-work-shift', 'work', 'First Shift', 'Complete your first citizen work action.', 'Work & Training', 'Bronze Worker Medal', 'bronze', 1, 10, 10, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+                ('steady-worker', 'work', 'Steady Worker', 'Complete five citizen work actions.', 'Work & Training', 'Silver Worker Medal', 'silver', 5, 25, 20, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+                ('first-training', 'train', 'Training Initiate', 'Complete your first training session.', 'Work & Training', 'Bronze Training Medal', 'bronze', 1, 10, 30, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+                ('disciplined-trainee', 'train', 'Disciplined Trainee', 'Complete five training sessions.', 'Work & Training', 'Silver Training Medal', 'silver', 5, 25, 40, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+                ('mission-rookie', 'fight', 'Mission Rookie', 'Fight your first combat mission.', 'Battles & Campaigns', 'Bronze Combat Medal', 'bronze', 1, 15, 50, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+                ('battle-volunteer', 'battle_contribution', 'Battle Volunteer', 'Contribute to a country battle.', 'Battles & Campaigns', 'Bronze Battle Medal', 'bronze', 1, 20, 60, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+                ('battle-damage-100', 'battle_damage', 'Battle Tested', 'Deal 100 total damage in country battles.', 'Battles & Campaigns', 'Silver Battle Medal', 'silver', 100, 35, 70, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+                ('production-starter', 'production_start', 'Production Starter', 'Start your first factory production job.', 'Economy & Production', 'Bronze Production Medal', 'bronze', 1, 15, 80, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+                ('production-collector', 'production_claim', 'Production Collector', 'Claim your first completed production job.', 'Economy & Production', 'Silver Production Medal', 'silver', 1, 20, 90, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+                ('market-trader', 'market_trade', 'Market Trader', 'Complete your first market purchase or sale.', 'Economy & Market', 'Bronze Trade Medal', 'bronze', 1, 15, 100, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+                ('deal-maker', 'market_trade', 'Deal Maker', 'Complete five market trades.', 'Economy & Market', 'Silver Trade Medal', 'silver', 5, 30, 110, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+                ('company-worker', 'company_work', 'Company Worker', 'Complete your first company workforce shift.', 'Companies & Workforce', 'Bronze Workforce Medal', 'bronze', 1, 20, 120, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+                ('company-regular', 'company_work', 'Company Regular', 'Complete five company workforce shifts.', 'Companies & Workforce', 'Silver Workforce Medal', 'silver', 5, 35, 130, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+                ('company-life', 'company_action', 'Company Life', 'Create, join, or otherwise take a company action.', 'Companies & Workforce', 'Company Citizen Medal', 'bronze', 1, 15, 140, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+                ('country-citizen', 'choose_country', 'Citizen', 'Join or change citizenship through the world system.', 'Territory & Citizenship', 'Citizenship Medal', 'bronze', 1, 15, 150, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+                ('onboarding-graduate', 'onboarding_complete', 'Onboarding Graduate', 'Complete the onboarding questline.', 'Onboarding', 'Graduate Medal', 'gold', 1, 50, 160, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+                ('party-member', 'party_action', 'Party Member', 'Create or join a political party.', 'Politics & Laws', 'Civic Medal', 'bronze', 1, 20, 170, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+                ('law-maker', 'law_vote', 'Law Maker', 'Cast a vote or participate in a law proposal.', 'Politics & Laws', 'Congress Medal', 'silver', 1, 25, 180, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+                ('press-voice', 'newspaper_publish', 'Press Voice', 'Publish your first newspaper article.', 'Media & Newspapers', 'Press Medal', 'bronze', 1, 20, 190, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+                ('campaign-helper', 'campaign_action', 'Campaign Helper', 'Take part in a political or military campaign.', 'Battles & Campaigns', 'Campaign Medal', 'silver', 1, 25, 200, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            ON CONFLICT (achievement_id) DO UPDATE
+            SET action_type = EXCLUDED.action_type,
+                title = EXCLUDED.title,
+                description = EXCLUDED.description,
+                category = EXCLUDED.category,
+                medal_name = EXCLUDED.medal_name,
+                medal_rarity = EXCLUDED.medal_rarity,
+                target_count = EXCLUDED.target_count,
+                points = EXCLUDED.points,
+                display_order = EXCLUDED.display_order,
+                enabled = EXCLUDED.enabled,
+                updated_at = CURRENT_TIMESTAMP;
+
             CREATE INDEX IF NOT EXISTS daily_objective_progress_player_reset_idx
             ON player.daily_objective_progress (player_id, reset_date);
 
@@ -265,6 +356,18 @@ internal sealed class PlayerProgressionStore : IDisposable
 
             CREATE INDEX IF NOT EXISTS onboarding_quest_events_player_action_idx
             ON player.onboarding_quest_events (player_id, action_type, created_at);
+
+            CREATE INDEX IF NOT EXISTS achievement_catalog_action_idx
+            ON player.achievement_catalog (action_type, enabled);
+
+            CREATE INDEX IF NOT EXISTS achievement_progress_player_idx
+            ON player.achievement_progress (player_id, achievement_id);
+
+            CREATE INDEX IF NOT EXISTS achievement_events_player_action_idx
+            ON player.achievement_events (player_id, action_type, created_at);
+
+            CREATE INDEX IF NOT EXISTS achievement_awards_player_awarded_idx
+            ON player.achievement_awards (player_id, awarded_at DESC);
 
             CREATE INDEX IF NOT EXISTS progression_level_ranking_idx
             ON player.progression (level DESC, experience DESC, strength DESC, updated_at ASC, player_id ASC);
@@ -337,6 +440,196 @@ internal sealed class PlayerProgressionStore : IDisposable
         await transaction.CommitAsync();
 
         return BuildOnboardingQuestlineResponse(normalizedPlayerId, quests, now);
+    }
+
+    public async Task<AchievementsSummary> GetAchievementsAsync(string playerId)
+    {
+        var normalizedPlayerId = NormalizePlayerId(playerId);
+        await EnsureExistsAsync(normalizedPlayerId);
+
+        await using var connection = await _dataSource.OpenConnectionAsync();
+        await using var transaction = await connection.BeginTransactionAsync();
+        var now = DateTimeOffset.UtcNow;
+
+        await EnsureAchievementProgressAsync(connection, transaction, normalizedPlayerId, now);
+        var achievements = await ReadAchievementsAsync(connection, transaction, normalizedPlayerId);
+        var recentUnlocks = await ReadRecentAchievementUnlocksAsync(connection, transaction, normalizedPlayerId, 10);
+        await transaction.CommitAsync();
+
+        return BuildAchievementsSummary(normalizedPlayerId, achievements, recentUnlocks, now);
+    }
+
+    public async Task<AchievementUnlocksResponse> GetRecentAchievementUnlocksAsync(string playerId, int? limit)
+    {
+        var normalizedPlayerId = NormalizePlayerId(playerId);
+        await EnsureExistsAsync(normalizedPlayerId);
+
+        await using var connection = await _dataSource.OpenConnectionAsync();
+        await using var transaction = await connection.BeginTransactionAsync();
+        var now = DateTimeOffset.UtcNow;
+        var safeLimit = Math.Clamp(limit ?? 10, 1, 50);
+
+        await EnsureAchievementProgressAsync(connection, transaction, normalizedPlayerId, now);
+        var recentUnlocks = await ReadRecentAchievementUnlocksAsync(
+            connection,
+            transaction,
+            normalizedPlayerId,
+            safeLimit);
+        await transaction.CommitAsync();
+
+        return new AchievementUnlocksResponse(normalizedPlayerId, recentUnlocks.ToArray(), now);
+    }
+
+    public async Task<AchievementsSummary> TrackAchievementAsync(
+        string playerId,
+        AchievementTrackRequest request)
+    {
+        var normalizedPlayerId = NormalizePlayerId(playerId);
+        var actionType = NormalizeId(request.ActionType);
+        var eventId = request.IdempotencyKey.Trim().ToLowerInvariant();
+        var quantity = Math.Max(1, request.Quantity);
+        var relatedId = string.IsNullOrWhiteSpace(request.RelatedId)
+            ? null
+            : request.RelatedId.Trim().ToLowerInvariant();
+        await EnsureExistsAsync(normalizedPlayerId);
+
+        await using var connection = await _dataSource.OpenConnectionAsync();
+        await using var transaction = await connection.BeginTransactionAsync();
+        var now = DateTimeOffset.UtcNow;
+
+        await EnsureAchievementProgressAsync(connection, transaction, normalizedPlayerId, now);
+        var existingEventPlayerId = await ReadAchievementEventPlayerIdAsync(connection, transaction, eventId);
+        if (existingEventPlayerId is null)
+        {
+            await AddAchievementEventAsync(
+                connection,
+                transaction,
+                eventId,
+                normalizedPlayerId,
+                actionType,
+                quantity,
+                relatedId,
+                now);
+            var newlyUnlocked = await IncrementAchievementProgressAsync(
+                connection,
+                transaction,
+                normalizedPlayerId,
+                actionType,
+                quantity,
+                now);
+            foreach (var achievement in newlyUnlocked)
+            {
+                await AddAchievementAwardAsync(
+                    connection,
+                    transaction,
+                    $"achievement-award:{normalizedPlayerId}:{achievement.AchievementId}",
+                    normalizedPlayerId,
+                    achievement,
+                    now);
+            }
+        }
+
+        var achievements = await ReadAchievementsAsync(connection, transaction, normalizedPlayerId);
+        var recentUnlocks = await ReadRecentAchievementUnlocksAsync(connection, transaction, normalizedPlayerId, 10);
+        await transaction.CommitAsync();
+
+        return BuildAchievementsSummary(normalizedPlayerId, achievements, recentUnlocks, now);
+    }
+
+    public async Task<AchievementClaimResponse> ClaimAchievementAsync(
+        string playerId,
+        string achievementId,
+        AchievementClaimRequest request)
+    {
+        var normalizedPlayerId = NormalizePlayerId(playerId);
+        var normalizedAchievementId = NormalizeId(achievementId);
+        var claimId = request.IdempotencyKey.Trim().ToLowerInvariant();
+        await EnsureExistsAsync(normalizedPlayerId);
+
+        await using var connection = await _dataSource.OpenConnectionAsync();
+        await using var transaction = await connection.BeginTransactionAsync();
+        var now = DateTimeOffset.UtcNow;
+
+        await EnsureAchievementProgressAsync(connection, transaction, normalizedPlayerId, now);
+        var existingClaim = await ReadAchievementClaimAsync(connection, transaction, claimId);
+        if (existingClaim is not null)
+        {
+            var achievements = await ReadAchievementsAsync(connection, transaction, normalizedPlayerId);
+            var recentUnlocks = await ReadRecentAchievementUnlocksAsync(connection, transaction, normalizedPlayerId, 10);
+            await transaction.CommitAsync();
+
+            var achievement = achievements.FirstOrDefault(candidate =>
+                string.Equals(candidate.AchievementId, normalizedAchievementId, StringComparison.Ordinal));
+            var completed = string.Equals(existingClaim.PlayerId, normalizedPlayerId, StringComparison.Ordinal) &&
+                string.Equals(existingClaim.AchievementId, normalizedAchievementId, StringComparison.Ordinal);
+            return new AchievementClaimResponse(
+                Completed: completed,
+                Message: completed
+                    ? "Achievement medal was already claimed."
+                    : "Achievement claim idempotency key was already used.",
+                Achievement: achievement,
+                Achievements: BuildAchievementsSummary(normalizedPlayerId, achievements, recentUnlocks, now));
+        }
+
+        var achievementForUpdate = await ReadAchievementForUpdateAsync(
+            connection,
+            transaction,
+            normalizedPlayerId,
+            normalizedAchievementId);
+        if (achievementForUpdate is null)
+        {
+            var achievements = await ReadAchievementsAsync(connection, transaction, normalizedPlayerId);
+            var recentUnlocks = await ReadRecentAchievementUnlocksAsync(connection, transaction, normalizedPlayerId, 10);
+            await transaction.CommitAsync();
+            return new AchievementClaimResponse(
+                Completed: false,
+                Message: "Achievement was not found.",
+                Achievement: null,
+                Achievements: BuildAchievementsSummary(normalizedPlayerId, achievements, recentUnlocks, now));
+        }
+
+        if (!achievementForUpdate.Unlocked)
+        {
+            var achievements = await ReadAchievementsAsync(connection, transaction, normalizedPlayerId);
+            var recentUnlocks = await ReadRecentAchievementUnlocksAsync(connection, transaction, normalizedPlayerId, 10);
+            await transaction.CommitAsync();
+            return new AchievementClaimResponse(
+                Completed: false,
+                Message: "Achievement has not been unlocked yet.",
+                Achievement: achievementForUpdate,
+                Achievements: BuildAchievementsSummary(normalizedPlayerId, achievements, recentUnlocks, now));
+        }
+
+        if (!achievementForUpdate.Claimed)
+        {
+            await MarkAchievementClaimedAsync(
+                connection,
+                transaction,
+                normalizedPlayerId,
+                normalizedAchievementId,
+                now);
+            await AddAchievementClaimAsync(
+                connection,
+                transaction,
+                claimId,
+                normalizedPlayerId,
+                normalizedAchievementId,
+                now);
+        }
+
+        var updatedAchievements = await ReadAchievementsAsync(connection, transaction, normalizedPlayerId);
+        var updatedRecentUnlocks = await ReadRecentAchievementUnlocksAsync(connection, transaction, normalizedPlayerId, 10);
+        await transaction.CommitAsync();
+        var updatedAchievement = updatedAchievements.FirstOrDefault(candidate =>
+            string.Equals(candidate.AchievementId, normalizedAchievementId, StringComparison.Ordinal)) ?? achievementForUpdate;
+
+        return new AchievementClaimResponse(
+            Completed: true,
+            Message: updatedAchievement.Claimed
+                ? $"Claimed {updatedAchievement.MedalName}."
+                : "Achievement medal was already claimed.",
+            Achievement: updatedAchievement,
+            Achievements: BuildAchievementsSummary(normalizedPlayerId, updatedAchievements, updatedRecentUnlocks, now));
     }
 
     public async Task<OnboardingQuestlineResponse> TrackOnboardingQuestAsync(
@@ -1992,6 +2285,302 @@ internal sealed class PlayerProgressionStore : IDisposable
         return ReadState(reader);
     }
 
+    private static async Task EnsureAchievementProgressAsync(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
+        string playerId,
+        DateTimeOffset now)
+    {
+        await using var command = new NpgsqlCommand("""
+            INSERT INTO player.achievement_progress (
+                player_id, achievement_id, current_count, updated_at
+            )
+            SELECT @player_id, achievement_id, 0, @updated_at
+            FROM player.achievement_catalog
+            WHERE enabled
+            ON CONFLICT (player_id, achievement_id) DO NOTHING;
+            """, connection, transaction);
+        command.Parameters.AddWithValue("player_id", playerId);
+        command.Parameters.AddWithValue("updated_at", now);
+        await command.ExecuteNonQueryAsync();
+    }
+
+    private static async Task<List<AchievementProgressDto>> ReadAchievementsAsync(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
+        string playerId)
+    {
+        await using var command = new NpgsqlCommand("""
+            SELECT c.achievement_id, c.action_type, c.title, c.description, c.category,
+                   c.medal_name, c.medal_rarity, c.points,
+                   p.current_count, c.target_count, p.unlocked_at, p.claimed_at, c.display_order
+            FROM player.achievement_catalog c
+            JOIN player.achievement_progress p
+              ON p.achievement_id = c.achievement_id
+            WHERE p.player_id = @player_id
+              AND c.enabled
+            ORDER BY c.display_order, c.achievement_id;
+            """, connection, transaction);
+        command.Parameters.AddWithValue("player_id", playerId);
+
+        var achievements = new List<AchievementProgressDto>();
+        await using var reader = await command.ExecuteReaderAsync();
+        while (await reader.ReadAsync())
+        {
+            achievements.Add(ReadAchievementProgress(reader));
+        }
+
+        return achievements;
+    }
+
+    private static async Task<AchievementProgressDto?> ReadAchievementForUpdateAsync(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
+        string playerId,
+        string achievementId)
+    {
+        await using var command = new NpgsqlCommand("""
+            SELECT c.achievement_id, c.action_type, c.title, c.description, c.category,
+                   c.medal_name, c.medal_rarity, c.points,
+                   p.current_count, c.target_count, p.unlocked_at, p.claimed_at, c.display_order
+            FROM player.achievement_catalog c
+            JOIN player.achievement_progress p
+              ON p.achievement_id = c.achievement_id
+            WHERE p.player_id = @player_id
+              AND p.achievement_id = @achievement_id
+              AND c.enabled
+            FOR UPDATE OF p;
+            """, connection, transaction);
+        command.Parameters.AddWithValue("player_id", playerId);
+        command.Parameters.AddWithValue("achievement_id", achievementId);
+
+        await using var reader = await command.ExecuteReaderAsync();
+        return await reader.ReadAsync() ? ReadAchievementProgress(reader) : null;
+    }
+
+    private static async Task<List<AchievementUnlockDto>> ReadRecentAchievementUnlocksAsync(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
+        string playerId,
+        int limit)
+    {
+        await using var command = new NpgsqlCommand("""
+            SELECT a.achievement_id, c.title, c.category, c.medal_name, c.medal_rarity,
+                   a.points_awarded, a.awarded_at, p.claimed_at IS NOT NULL AS claimed
+            FROM player.achievement_awards a
+            JOIN player.achievement_catalog c
+              ON c.achievement_id = a.achievement_id
+            JOIN player.achievement_progress p
+              ON p.player_id = a.player_id
+             AND p.achievement_id = a.achievement_id
+            WHERE a.player_id = @player_id
+              AND c.enabled
+            ORDER BY a.awarded_at DESC, c.display_order, a.achievement_id
+            LIMIT @limit;
+            """, connection, transaction);
+        command.Parameters.AddWithValue("player_id", playerId);
+        command.Parameters.AddWithValue("limit", Math.Clamp(limit, 1, 50));
+
+        var unlocks = new List<AchievementUnlockDto>();
+        await using var reader = await command.ExecuteReaderAsync();
+        while (await reader.ReadAsync())
+        {
+            unlocks.Add(new AchievementUnlockDto(
+                AchievementId: reader.GetString(0),
+                Title: reader.GetString(1),
+                Category: reader.GetString(2),
+                MedalName: reader.GetString(3),
+                MedalRarity: reader.GetString(4),
+                Points: reader.GetInt32(5),
+                AwardedAt: reader.GetFieldValue<DateTimeOffset>(6),
+                Claimed: reader.GetBoolean(7)));
+        }
+
+        return unlocks;
+    }
+
+    private static async Task<string?> ReadAchievementEventPlayerIdAsync(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
+        string eventId)
+    {
+        await using var command = new NpgsqlCommand("""
+            SELECT player_id
+            FROM player.achievement_events
+            WHERE event_id = @event_id;
+            """, connection, transaction);
+        command.Parameters.AddWithValue("event_id", eventId);
+        var result = await command.ExecuteScalarAsync();
+        return result as string;
+    }
+
+    private static async Task AddAchievementEventAsync(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
+        string eventId,
+        string playerId,
+        string actionType,
+        int quantity,
+        string? relatedId,
+        DateTimeOffset now)
+    {
+        await using var command = new NpgsqlCommand("""
+            INSERT INTO player.achievement_events (
+                event_id, player_id, action_type, quantity, related_id, created_at
+            )
+            VALUES (
+                @event_id, @player_id, @action_type, @quantity, @related_id, @created_at
+            );
+            """, connection, transaction);
+        command.Parameters.AddWithValue("event_id", eventId);
+        command.Parameters.AddWithValue("player_id", playerId);
+        command.Parameters.AddWithValue("action_type", actionType);
+        command.Parameters.AddWithValue("quantity", quantity);
+        command.Parameters.AddWithValue("related_id", (object?)relatedId ?? DBNull.Value);
+        command.Parameters.AddWithValue("created_at", now);
+        await command.ExecuteNonQueryAsync();
+    }
+
+    private static async Task<List<AchievementProgressDto>> IncrementAchievementProgressAsync(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
+        string playerId,
+        string actionType,
+        int quantity,
+        DateTimeOffset now)
+    {
+        await using var command = new NpgsqlCommand("""
+            UPDATE player.achievement_progress p
+            SET current_count = LEAST(c.target_count, p.current_count + @quantity),
+                unlocked_at = CASE
+                    WHEN p.unlocked_at IS NULL AND p.current_count + @quantity >= c.target_count THEN @unlocked_at
+                    ELSE p.unlocked_at
+                END,
+                updated_at = @updated_at
+            FROM player.achievement_catalog c
+            WHERE p.achievement_id = c.achievement_id
+              AND p.player_id = @player_id
+              AND c.action_type = @action_type
+              AND c.enabled
+              AND (p.unlocked_at IS NULL OR p.current_count < c.target_count)
+            RETURNING c.achievement_id, c.action_type, c.title, c.description, c.category,
+                      c.medal_name, c.medal_rarity, c.points,
+                      p.current_count, c.target_count, p.unlocked_at, p.claimed_at, c.display_order,
+                      COALESCE(p.unlocked_at = @unlocked_at, FALSE) AS newly_unlocked;
+            """, connection, transaction);
+        command.Parameters.AddWithValue("player_id", playerId);
+        command.Parameters.AddWithValue("action_type", actionType);
+        command.Parameters.AddWithValue("quantity", quantity);
+        command.Parameters.AddWithValue("unlocked_at", now);
+        command.Parameters.AddWithValue("updated_at", now);
+
+        var newlyUnlocked = new List<AchievementProgressDto>();
+        await using var reader = await command.ExecuteReaderAsync();
+        while (await reader.ReadAsync())
+        {
+            var achievement = ReadAchievementProgress(reader);
+            if (reader.GetBoolean(13))
+            {
+                newlyUnlocked.Add(achievement);
+            }
+        }
+
+        return newlyUnlocked;
+    }
+
+    private static async Task AddAchievementAwardAsync(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
+        string awardId,
+        string playerId,
+        AchievementProgressDto achievement,
+        DateTimeOffset now)
+    {
+        await using var command = new NpgsqlCommand("""
+            INSERT INTO player.achievement_awards (
+                award_id, player_id, achievement_id, points_awarded, medal_rarity, awarded_at
+            )
+            VALUES (
+                @award_id, @player_id, @achievement_id, @points_awarded, @medal_rarity, @awarded_at
+            )
+            ON CONFLICT (player_id, achievement_id) DO NOTHING;
+            """, connection, transaction);
+        command.Parameters.AddWithValue("award_id", awardId);
+        command.Parameters.AddWithValue("player_id", playerId);
+        command.Parameters.AddWithValue("achievement_id", achievement.AchievementId);
+        command.Parameters.AddWithValue("points_awarded", achievement.Points);
+        command.Parameters.AddWithValue("medal_rarity", achievement.MedalRarity);
+        command.Parameters.AddWithValue("awarded_at", achievement.UnlockedAt ?? now);
+        await command.ExecuteNonQueryAsync();
+    }
+
+    private static async Task<AchievementClaimRecord?> ReadAchievementClaimAsync(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
+        string claimId)
+    {
+        await using var command = new NpgsqlCommand("""
+            SELECT player_id, achievement_id, claimed_at
+            FROM player.achievement_claims
+            WHERE claim_id = @claim_id;
+            """, connection, transaction);
+        command.Parameters.AddWithValue("claim_id", claimId);
+        await using var reader = await command.ExecuteReaderAsync();
+        return await reader.ReadAsync()
+            ? new AchievementClaimRecord(
+                PlayerId: reader.GetString(0),
+                AchievementId: reader.GetString(1),
+                ClaimedAt: reader.GetFieldValue<DateTimeOffset>(2))
+            : null;
+    }
+
+    private static async Task MarkAchievementClaimedAsync(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
+        string playerId,
+        string achievementId,
+        DateTimeOffset now)
+    {
+        await using var command = new NpgsqlCommand("""
+            UPDATE player.achievement_progress
+            SET claimed_at = @claimed_at,
+                updated_at = @updated_at
+            WHERE player_id = @player_id
+              AND achievement_id = @achievement_id
+              AND unlocked_at IS NOT NULL
+              AND claimed_at IS NULL;
+            """, connection, transaction);
+        command.Parameters.AddWithValue("player_id", playerId);
+        command.Parameters.AddWithValue("achievement_id", achievementId);
+        command.Parameters.AddWithValue("claimed_at", now);
+        command.Parameters.AddWithValue("updated_at", now);
+        await command.ExecuteNonQueryAsync();
+    }
+
+    private static async Task AddAchievementClaimAsync(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
+        string claimId,
+        string playerId,
+        string achievementId,
+        DateTimeOffset now)
+    {
+        await using var command = new NpgsqlCommand("""
+            INSERT INTO player.achievement_claims (
+                claim_id, player_id, achievement_id, claimed_at
+            )
+            VALUES (
+                @claim_id, @player_id, @achievement_id, @claimed_at
+            )
+            ON CONFLICT (player_id, achievement_id) DO NOTHING;
+            """, connection, transaction);
+        command.Parameters.AddWithValue("claim_id", claimId);
+        command.Parameters.AddWithValue("player_id", playerId);
+        command.Parameters.AddWithValue("achievement_id", achievementId);
+        command.Parameters.AddWithValue("claimed_at", now);
+        await command.ExecuteNonQueryAsync();
+    }
+
     private static async Task<int> CountRankedPlayersAsync(NpgsqlConnection connection)
     {
         await using var command = new NpgsqlCommand("SELECT count(*)::int FROM player.progression;", connection);
@@ -2371,6 +2960,30 @@ internal sealed class PlayerProgressionStore : IDisposable
             ClaimedAt: reader.GetFieldValue<DateTimeOffset>(6));
     }
 
+    private static AchievementProgressDto ReadAchievementProgress(NpgsqlDataReader reader)
+    {
+        var currentCount = reader.GetInt32(8);
+        var targetCount = reader.GetInt32(9);
+        DateTimeOffset? unlockedAt = reader.IsDBNull(10) ? null : reader.GetFieldValue<DateTimeOffset>(10);
+        DateTimeOffset? claimedAt = reader.IsDBNull(11) ? null : reader.GetFieldValue<DateTimeOffset>(11);
+        return new AchievementProgressDto(
+            AchievementId: reader.GetString(0),
+            ActionType: reader.GetString(1),
+            Title: reader.GetString(2),
+            Description: reader.GetString(3),
+            Category: reader.GetString(4),
+            MedalName: reader.GetString(5),
+            MedalRarity: reader.GetString(6),
+            Points: reader.GetInt32(7),
+            CurrentCount: currentCount,
+            TargetCount: targetCount,
+            Unlocked: unlockedAt is not null || currentCount >= targetCount,
+            Claimed: claimedAt is not null,
+            UnlockedAt: unlockedAt,
+            ClaimedAt: claimedAt,
+            DisplayOrder: reader.GetInt32(12));
+    }
+
     private static OnboardingQuestlineResponse BuildOnboardingQuestlineResponse(
         string playerId,
         IReadOnlyList<OnboardingQuestDto> quests,
@@ -2393,6 +3006,30 @@ internal sealed class PlayerProgressionStore : IDisposable
             CompletedCount: completedCount,
             TotalCount: totalCount,
             CompletionPercent: completionPercent,
+            UpdatedAt: updatedAt);
+    }
+
+    private static AchievementsSummary BuildAchievementsSummary(
+        string playerId,
+        IReadOnlyList<AchievementProgressDto> achievements,
+        IReadOnlyList<AchievementUnlockDto> recentUnlocks,
+        DateTimeOffset updatedAt)
+    {
+        var totalAvailable = achievements.Count;
+        var totalUnlocked = achievements.Count(achievement => achievement.Unlocked);
+        var totalPoints = achievements
+            .Where(achievement => achievement.Unlocked)
+            .Sum(achievement => achievement.Points);
+        var unclaimedCount = achievements.Count(achievement => achievement.Unlocked && !achievement.Claimed);
+
+        return new AchievementsSummary(
+            PlayerId: playerId,
+            Achievements: achievements.ToArray(),
+            RecentUnlocks: recentUnlocks.ToArray(),
+            TotalUnlocked: totalUnlocked,
+            TotalAvailable: totalAvailable,
+            TotalPoints: totalPoints,
+            UnclaimedCount: unclaimedCount,
             UpdatedAt: updatedAt);
     }
 
@@ -2603,6 +3240,62 @@ public sealed record OnboardingQuestSkipResponse(
     OnboardingQuestDto? Quest,
     OnboardingQuestlineResponse Questline);
 
+public sealed record AchievementsSummary(
+    string PlayerId,
+    AchievementProgressDto[] Achievements,
+    AchievementUnlockDto[] RecentUnlocks,
+    int TotalUnlocked,
+    int TotalAvailable,
+    int TotalPoints,
+    int UnclaimedCount,
+    DateTimeOffset UpdatedAt);
+
+public sealed record AchievementProgressDto(
+    string AchievementId,
+    string ActionType,
+    string Title,
+    string Description,
+    string Category,
+    string MedalName,
+    string MedalRarity,
+    int Points,
+    int CurrentCount,
+    int TargetCount,
+    bool Unlocked,
+    bool Claimed,
+    DateTimeOffset? UnlockedAt,
+    DateTimeOffset? ClaimedAt,
+    int DisplayOrder);
+
+public sealed record AchievementUnlockDto(
+    string AchievementId,
+    string Title,
+    string Category,
+    string MedalName,
+    string MedalRarity,
+    int Points,
+    DateTimeOffset AwardedAt,
+    bool Claimed);
+
+public sealed record AchievementUnlocksResponse(
+    string PlayerId,
+    AchievementUnlockDto[] Unlocks,
+    DateTimeOffset UpdatedAt);
+
+public sealed record AchievementTrackRequest(
+    string ActionType,
+    int Quantity,
+    string IdempotencyKey,
+    string? RelatedId);
+
+public sealed record AchievementClaimRequest(string IdempotencyKey);
+
+public sealed record AchievementClaimResponse(
+    bool Completed,
+    string Message,
+    AchievementProgressDto? Achievement,
+    AchievementsSummary Achievements);
+
 public sealed record CombatResultRequest(
     int EnergyCost,
     int GoldReward,
@@ -2671,4 +3364,9 @@ internal sealed record OnboardingQuestClaimRecord(
     int ExperienceAwarded,
     int StrengthAwarded,
     int EnergyAwarded,
+    DateTimeOffset ClaimedAt);
+
+internal sealed record AchievementClaimRecord(
+    string PlayerId,
+    string AchievementId,
     DateTimeOffset ClaimedAt);

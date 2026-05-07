@@ -1,3 +1,5 @@
+using Microsoft.Extensions.Logging;
+
 internal static class NewspaperGatewayEndpoints
 {
     public static void MapNewspaperGatewayEndpoints(this WebApplication app)
@@ -139,8 +141,10 @@ internal static class NewspaperGatewayEndpoints
         PublishArticleGatewayRequest articleRequest,
         HttpRequest request,
         SocialChatServiceClient socialChat,
+        PlayerServiceClient players,
         NotificationServiceClient notifications,
         IConfiguration configuration,
+        ILoggerFactory loggerFactory,
         DevTokenValidator tokens)
     {
         var access = ValidatePlayerAccess(playerId, request, tokens);
@@ -175,6 +179,16 @@ internal static class NewspaperGatewayEndpoints
                 $"Published \"{published.Article.Title}\" in {published.Article.NewspaperName}.",
                 published.Article.ArticleId,
                 $"activity:newspaper-article:{access.PlayerId!.ToLowerInvariant()}:{published.Article.ArticleId.ToLowerInvariant()}");
+
+            await AchievementGatewayEndpoints.TrackAsync(
+                players,
+                access.PlayerId!,
+                request.Headers.Authorization.ToString(),
+                configuration,
+                "newspaper_publish",
+                $"achievement:newspaper-publish:{access.PlayerId!.ToLowerInvariant()}:{published.Article.ArticleId.ToLowerInvariant()}",
+                loggerFactory.CreateLogger(nameof(AchievementGatewayEndpoints)),
+                relatedId: published.Article.ArticleId);
 
             foreach (var subscriberId in published.SubscriberPlayerIds
                 .Where(candidate => !string.IsNullOrWhiteSpace(candidate))

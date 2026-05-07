@@ -156,6 +156,99 @@ app.MapPost("/players/{playerId}/daily-objectives/{objectiveId}/claim", async (
     return Results.Ok(await players.ClaimDailyObjectiveAsync(access.PlayerId!, objectiveId, claimRequest));
 }).WithName("ClaimDailyObjective");
 
+app.MapGet("/players/{playerId}/achievements", async (
+    string playerId,
+    HttpRequest request,
+    PlayerProgressionStore players,
+    DevTokenValidator tokens) =>
+{
+    var access = ValidatePlayerAccess(playerId, request, tokens);
+    if (access.Error is not null)
+    {
+        return access.Error;
+    }
+
+    return Results.Ok(await players.GetAchievementsAsync(access.PlayerId!));
+}).WithName("GetPlayerAchievements");
+
+app.MapGet("/players/{playerId}/achievements/recent", async (
+    string playerId,
+    int? limit,
+    HttpRequest request,
+    PlayerProgressionStore players,
+    DevTokenValidator tokens) =>
+{
+    var access = ValidatePlayerAccess(playerId, request, tokens);
+    if (access.Error is not null)
+    {
+        return access.Error;
+    }
+
+    return Results.Ok(await players.GetRecentAchievementUnlocksAsync(access.PlayerId!, limit));
+}).WithName("GetRecentAchievementUnlocks");
+
+app.MapPost("/players/{playerId}/achievements/track", async (
+    string playerId,
+    AchievementTrackRequest trackRequest,
+    HttpRequest httpRequest,
+    PlayerProgressionStore players,
+    DevTokenValidator tokens,
+    IConfiguration configuration) =>
+{
+    var access = ValidatePlayerAccess(playerId, httpRequest, tokens);
+    if (access.Error is not null)
+    {
+        return access.Error;
+    }
+
+    if (!HasValidInternalToken(httpRequest, configuration))
+    {
+        return Results.Json(
+            new ErrorResponse("Internal service authorization is required."),
+            statusCode: StatusCodes.Status401Unauthorized);
+    }
+
+    if (string.IsNullOrWhiteSpace(trackRequest.ActionType) ||
+        trackRequest.Quantity <= 0 ||
+        string.IsNullOrWhiteSpace(trackRequest.IdempotencyKey))
+    {
+        return Results.BadRequest(new ErrorResponse("Achievement action type, quantity, and idempotency key are required."));
+    }
+
+    return Results.Ok(await players.TrackAchievementAsync(access.PlayerId!, trackRequest));
+}).WithName("TrackAchievement");
+
+app.MapPost("/players/{playerId}/achievements/{achievementId}/claim", async (
+    string playerId,
+    string achievementId,
+    AchievementClaimRequest claimRequest,
+    HttpRequest httpRequest,
+    PlayerProgressionStore players,
+    DevTokenValidator tokens,
+    IConfiguration configuration) =>
+{
+    var access = ValidatePlayerAccess(playerId, httpRequest, tokens);
+    if (access.Error is not null)
+    {
+        return access.Error;
+    }
+
+    if (!HasValidInternalToken(httpRequest, configuration))
+    {
+        return Results.Json(
+            new ErrorResponse("Internal service authorization is required."),
+            statusCode: StatusCodes.Status401Unauthorized);
+    }
+
+    if (string.IsNullOrWhiteSpace(achievementId) ||
+        string.IsNullOrWhiteSpace(claimRequest.IdempotencyKey))
+    {
+        return Results.BadRequest(new ErrorResponse("Achievement and idempotency key are required."));
+    }
+
+    return Results.Ok(await players.ClaimAchievementAsync(access.PlayerId!, achievementId, claimRequest));
+}).WithName("ClaimAchievement");
+
 app.MapGet("/players/{playerId}/onboarding-questline", async (
     string playerId,
     HttpRequest request,

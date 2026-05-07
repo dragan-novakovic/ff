@@ -446,6 +446,7 @@ class ProductionJob {
   final DateTime updatedAt;
   final bool canClaim;
   final ProductionBonus? appliedBonus;
+  final int researchDurationReductionPercent;
 
   ProductionJob({
     required this.jobId,
@@ -469,6 +470,7 @@ class ProductionJob {
     required this.updatedAt,
     required this.canClaim,
     required this.appliedBonus,
+    required this.researchDurationReductionPercent,
   });
 
   bool get isClaimed => claimedAt != null || status == 'claimed';
@@ -517,6 +519,8 @@ class ProductionJob {
       appliedBonus: json['appliedBonus'] == null
           ? null
           : ProductionBonus.fromJson(_requiredMap(json['appliedBonus'])),
+      researchDurationReductionPercent:
+          _optionalInt(json, 'researchDurationReductionPercent'),
     );
   }
 }
@@ -725,6 +729,406 @@ class FactoryUpgradeGatewayResult {
       message: _requiredString(json, 'message'),
       upgrade: FactoryUpgradeResult.fromJson(_requiredMap(json['upgrade'])),
       inventory: InventorySummary.fromJson(_requiredMap(json['inventory'])),
+    );
+  }
+}
+
+class ResearchDashboard {
+  final String playerId;
+  final PlayerCitizenship? citizenship;
+  final ResearchScopeState? country;
+  final List<ResearchCompanyScopeSummary> companies;
+  final DateTime updatedAt;
+
+  ResearchDashboard({
+    required this.playerId,
+    required this.citizenship,
+    required this.country,
+    required this.companies,
+    required this.updatedAt,
+  });
+
+  factory ResearchDashboard.fromJson(Map<String, dynamic> json) {
+    return ResearchDashboard(
+      playerId: _requiredString(json, 'playerId'),
+      citizenship: json['citizenship'] == null
+          ? null
+          : PlayerCitizenship.fromJson(_requiredMap(json['citizenship'])),
+      country: json['country'] == null
+          ? null
+          : ResearchScopeState.fromJson(_requiredMap(json['country'])),
+      companies: _requiredList(json, 'companies')
+          .map((company) =>
+              ResearchCompanyScopeSummary.fromJson(_requiredMap(company)))
+          .toList(),
+      updatedAt: _requiredDateTime(json, 'updatedAt'),
+    );
+  }
+}
+
+class ResearchCompanyScopeSummary {
+  final String companyId;
+  final String name;
+  final String? role;
+  final bool canManageResearch;
+
+  ResearchCompanyScopeSummary({
+    required this.companyId,
+    required this.name,
+    required this.role,
+    required this.canManageResearch,
+  });
+
+  factory ResearchCompanyScopeSummary.fromJson(Map<String, dynamic> json) {
+    return ResearchCompanyScopeSummary(
+      companyId: _requiredString(json, 'companyId'),
+      name: _requiredString(json, 'name'),
+      role: _optionalNullableString(json, 'role'),
+      canManageResearch: _requiredBool(json, 'canManageResearch'),
+    );
+  }
+}
+
+class ResearchTechnologyCatalog {
+  final String? scopeType;
+  final List<ResearchTechnology> technologies;
+  final DateTime updatedAt;
+
+  ResearchTechnologyCatalog({
+    required this.scopeType,
+    required this.technologies,
+    required this.updatedAt,
+  });
+
+  factory ResearchTechnologyCatalog.fromJson(Map<String, dynamic> json) {
+    return ResearchTechnologyCatalog(
+      scopeType: _optionalNullableString(json, 'scopeType'),
+      technologies: _requiredList(json, 'technologies')
+          .map((technology) =>
+              ResearchTechnology.fromJson(_requiredMap(technology)))
+          .toList(),
+      updatedAt: _requiredDateTime(json, 'updatedAt'),
+    );
+  }
+}
+
+class ResearchScopeState {
+  final String scopeType;
+  final String scopeId;
+  final String actorPlayerId;
+  final int availablePoints;
+  final int lifetimePoints;
+  final int pointCap;
+  final int hourlyPointRate;
+  final DateTime lastAccruedAt;
+  final List<ResearchTechnologyNode> technologies;
+  final List<ResearchProject> activeProjects;
+  final List<String> completedTechnologyIds;
+  final List<ResearchBonus> bonuses;
+  final DateTime updatedAt;
+
+  ResearchScopeState({
+    required this.scopeType,
+    required this.scopeId,
+    required this.actorPlayerId,
+    required this.availablePoints,
+    required this.lifetimePoints,
+    required this.pointCap,
+    required this.hourlyPointRate,
+    required this.lastAccruedAt,
+    required this.technologies,
+    required this.activeProjects,
+    required this.completedTechnologyIds,
+    required this.bonuses,
+    required this.updatedAt,
+  });
+
+  bool get hasProductionSpeedBonus => bonuses.any((bonus) =>
+      bonus.bonusType == 'production_speed_percent' && bonus.totalValue > 0);
+
+  int get productionSpeedBonusPercent => bonuses
+      .where((bonus) => bonus.bonusType == 'production_speed_percent')
+      .fold<int>(0, (sum, bonus) => sum + bonus.totalValue);
+
+  factory ResearchScopeState.fromJson(Map<String, dynamic> json) {
+    return ResearchScopeState(
+      scopeType: _requiredString(json, 'scopeType'),
+      scopeId: _requiredString(json, 'scopeId'),
+      actorPlayerId: _requiredString(json, 'actorPlayerId'),
+      availablePoints: _requiredInt(json, 'availablePoints'),
+      lifetimePoints: _requiredInt(json, 'lifetimePoints'),
+      pointCap: _requiredInt(json, 'pointCap'),
+      hourlyPointRate: _requiredInt(json, 'hourlyPointRate'),
+      lastAccruedAt: _requiredDateTime(json, 'lastAccruedAt'),
+      technologies: _requiredList(json, 'technologies')
+          .map((technology) =>
+              ResearchTechnologyNode.fromJson(_requiredMap(technology)))
+          .toList(),
+      activeProjects: _requiredList(json, 'activeProjects')
+          .map((project) => ResearchProject.fromJson(_requiredMap(project)))
+          .toList(),
+      completedTechnologyIds:
+          _requiredList(json, 'completedTechnologyIds').map((id) {
+        return id.toString();
+      }).toList(),
+      bonuses: _requiredList(json, 'bonuses')
+          .map((bonus) => ResearchBonus.fromJson(_requiredMap(bonus)))
+          .toList(),
+      updatedAt: _requiredDateTime(json, 'updatedAt'),
+    );
+  }
+}
+
+class ResearchTechnologyNode {
+  final ResearchTechnology technology;
+  final String status;
+  final bool isCompleted;
+  final bool canStart;
+  final String? blockedReason;
+  final ResearchProject? project;
+
+  ResearchTechnologyNode({
+    required this.technology,
+    required this.status,
+    required this.isCompleted,
+    required this.canStart,
+    required this.blockedReason,
+    required this.project,
+  });
+
+  bool get isActive => status == 'active' || status == 'ready';
+  bool get isReady => status == 'ready' || (project?.canComplete ?? false);
+  bool get isLocked => status == 'locked';
+
+  factory ResearchTechnologyNode.fromJson(Map<String, dynamic> json) {
+    return ResearchTechnologyNode(
+      technology: ResearchTechnology.fromJson(_requiredMap(json['technology'])),
+      status: _requiredString(json, 'status'),
+      isCompleted: _requiredBool(json, 'isCompleted'),
+      canStart: _requiredBool(json, 'canStart'),
+      blockedReason: _optionalNullableString(json, 'blockedReason'),
+      project: json['project'] == null
+          ? null
+          : ResearchProject.fromJson(_requiredMap(json['project'])),
+    );
+  }
+}
+
+class ResearchTechnology {
+  final String technologyId;
+  final String scopeType;
+  final String track;
+  final String name;
+  final String description;
+  final int tier;
+  final List<String> prerequisiteTechnologyIds;
+  final int requiredPoints;
+  final int durationSeconds;
+  final ResearchTechnologyBonus bonus;
+  final DateTime updatedAt;
+
+  ResearchTechnology({
+    required this.technologyId,
+    required this.scopeType,
+    required this.track,
+    required this.name,
+    required this.description,
+    required this.tier,
+    required this.prerequisiteTechnologyIds,
+    required this.requiredPoints,
+    required this.durationSeconds,
+    required this.bonus,
+    required this.updatedAt,
+  });
+
+  factory ResearchTechnology.fromJson(Map<String, dynamic> json) {
+    return ResearchTechnology(
+      technologyId: _requiredString(json, 'technologyId'),
+      scopeType: _requiredString(json, 'scopeType'),
+      track: _requiredString(json, 'track'),
+      name: _requiredString(json, 'name'),
+      description: _requiredString(json, 'description'),
+      tier: _requiredInt(json, 'tier'),
+      prerequisiteTechnologyIds:
+          _requiredList(json, 'prerequisiteTechnologyIds').map((id) {
+        return id.toString();
+      }).toList(),
+      requiredPoints: _requiredInt(json, 'requiredPoints'),
+      durationSeconds: _requiredInt(json, 'durationSeconds'),
+      bonus: ResearchTechnologyBonus.fromJson(_requiredMap(json['bonus'])),
+      updatedAt: _requiredDateTime(json, 'updatedAt'),
+    );
+  }
+}
+
+class ResearchTechnologyBonus {
+  final String bonusType;
+  final int bonusValue;
+  final String bonusTarget;
+  final String description;
+
+  ResearchTechnologyBonus({
+    required this.bonusType,
+    required this.bonusValue,
+    required this.bonusTarget,
+    required this.description,
+  });
+
+  factory ResearchTechnologyBonus.fromJson(Map<String, dynamic> json) {
+    return ResearchTechnologyBonus(
+      bonusType: _requiredString(json, 'bonusType'),
+      bonusValue: _requiredInt(json, 'bonusValue'),
+      bonusTarget: _requiredString(json, 'bonusTarget'),
+      description: _requiredString(json, 'description'),
+    );
+  }
+}
+
+class ResearchProject {
+  final String projectId;
+  final String scopeType;
+  final String scopeId;
+  final String technologyId;
+  final String status;
+  final int requiredPoints;
+  final int contributedPoints;
+  final int remainingPoints;
+  final int progressPercent;
+  final int durationSeconds;
+  final DateTime startedAt;
+  final DateTime readyAt;
+  final DateTime? completedAt;
+  final bool canComplete;
+  final DateTime updatedAt;
+
+  ResearchProject({
+    required this.projectId,
+    required this.scopeType,
+    required this.scopeId,
+    required this.technologyId,
+    required this.status,
+    required this.requiredPoints,
+    required this.contributedPoints,
+    required this.remainingPoints,
+    required this.progressPercent,
+    required this.durationSeconds,
+    required this.startedAt,
+    required this.readyAt,
+    required this.completedAt,
+    required this.canComplete,
+    required this.updatedAt,
+  });
+
+  double get progress => (progressPercent / 100).clamp(0, 1).toDouble();
+
+  factory ResearchProject.fromJson(Map<String, dynamic> json) {
+    return ResearchProject(
+      projectId: _requiredString(json, 'projectId'),
+      scopeType: _requiredString(json, 'scopeType'),
+      scopeId: _requiredString(json, 'scopeId'),
+      technologyId: _requiredString(json, 'technologyId'),
+      status: _requiredString(json, 'status'),
+      requiredPoints: _requiredInt(json, 'requiredPoints'),
+      contributedPoints: _requiredInt(json, 'contributedPoints'),
+      remainingPoints: _requiredInt(json, 'remainingPoints'),
+      progressPercent: _requiredInt(json, 'progressPercent'),
+      durationSeconds: _requiredInt(json, 'durationSeconds'),
+      startedAt: _requiredDateTime(json, 'startedAt'),
+      readyAt: _requiredDateTime(json, 'readyAt'),
+      completedAt: _optionalDateTime(json, 'completedAt'),
+      canComplete: _requiredBool(json, 'canComplete'),
+      updatedAt: _requiredDateTime(json, 'updatedAt'),
+    );
+  }
+}
+
+class ResearchBonus {
+  final String bonusType;
+  final String bonusTarget;
+  final int totalValue;
+  final List<String> sourceTechnologyIds;
+  final String description;
+  final DateTime updatedAt;
+
+  ResearchBonus({
+    required this.bonusType,
+    required this.bonusTarget,
+    required this.totalValue,
+    required this.sourceTechnologyIds,
+    required this.description,
+    required this.updatedAt,
+  });
+
+  factory ResearchBonus.fromJson(Map<String, dynamic> json) {
+    return ResearchBonus(
+      bonusType: _requiredString(json, 'bonusType'),
+      bonusTarget: _requiredString(json, 'bonusTarget'),
+      totalValue: _requiredInt(json, 'totalValue'),
+      sourceTechnologyIds: _requiredList(json, 'sourceTechnologyIds').map((id) {
+        return id.toString();
+      }).toList(),
+      description: _requiredString(json, 'description'),
+      updatedAt: _requiredDateTime(json, 'updatedAt'),
+    );
+  }
+}
+
+class ResearchBonusList {
+  final String scopeType;
+  final String scopeId;
+  final List<ResearchBonus> bonuses;
+  final DateTime updatedAt;
+
+  ResearchBonusList({
+    required this.scopeType,
+    required this.scopeId,
+    required this.bonuses,
+    required this.updatedAt,
+  });
+
+  factory ResearchBonusList.fromJson(Map<String, dynamic> json) {
+    return ResearchBonusList(
+      scopeType: _requiredString(json, 'scopeType'),
+      scopeId: _requiredString(json, 'scopeId'),
+      bonuses: _requiredList(json, 'bonuses')
+          .map((bonus) => ResearchBonus.fromJson(_requiredMap(bonus)))
+          .toList(),
+      updatedAt: _requiredDateTime(json, 'updatedAt'),
+    );
+  }
+}
+
+class ResearchMutationResult {
+  final bool completed;
+  final String message;
+  final ResearchProject? project;
+  final ResearchScopeState? state;
+  final List<ResearchBonus> activeBonuses;
+  final DateTime updatedAt;
+
+  ResearchMutationResult({
+    required this.completed,
+    required this.message,
+    required this.project,
+    required this.state,
+    required this.activeBonuses,
+    required this.updatedAt,
+  });
+
+  factory ResearchMutationResult.fromJson(Map<String, dynamic> json) {
+    return ResearchMutationResult(
+      completed: _requiredBool(json, 'completed'),
+      message: _requiredString(json, 'message'),
+      project: json['project'] == null
+          ? null
+          : ResearchProject.fromJson(_requiredMap(json['project'])),
+      state: json['state'] == null
+          ? null
+          : ResearchScopeState.fromJson(_requiredMap(json['state'])),
+      activeBonuses: _requiredList(json, 'activeBonuses')
+          .map((bonus) => ResearchBonus.fromJson(_requiredMap(bonus)))
+          .toList(),
+      updatedAt: _requiredDateTime(json, 'updatedAt'),
     );
   }
 }
@@ -3447,6 +3851,7 @@ class CountryBattle {
 class BattleDetails {
   final CountryBattle battle;
   final List<BattleContribution> contributions;
+  final List<CombatReport> reports;
   final WarCampaign? campaign;
   final List<BattlePhase> phases;
   final CountryBattleLeaderboard? countryLeaderboard;
@@ -3456,6 +3861,7 @@ class BattleDetails {
   BattleDetails({
     required this.battle,
     required this.contributions,
+    required this.reports,
     required this.campaign,
     required this.phases,
     required this.countryLeaderboard,
@@ -3468,6 +3874,11 @@ class BattleDetails {
         .map((contribution) =>
             BattleContribution.fromJson(_requiredMap(contribution)))
         .toList();
+    final reports = json['reports'] is List<dynamic>
+        ? (json['reports'] as List<dynamic>)
+            .map((report) => CombatReport.fromJson(_requiredMap(report)))
+            .toList()
+        : <CombatReport>[];
     final phases = json['phases'] is List<dynamic>
         ? (json['phases'] as List<dynamic>)
             .map((phase) => BattlePhase.fromJson(_requiredMap(phase)))
@@ -3476,6 +3887,7 @@ class BattleDetails {
     return BattleDetails(
       battle: CountryBattle.fromJson(_requiredMap(json['battle'])),
       contributions: contributions,
+      reports: reports,
       campaign: json['campaign'] == null
           ? null
           : WarCampaign.fromJson(_requiredMap(json['campaign'])),
@@ -3551,6 +3963,298 @@ class BattleContribution {
           _requiredInt(json, 'goldReward', fallbackField: 'gold_reward'),
       experienceReward: _requiredInt(json, 'experienceReward',
           fallbackField: 'experience_reward'),
+      message: _requiredString(json, 'message'),
+      createdAt:
+          _requiredDateTime(json, 'createdAt', fallbackField: 'created_at'),
+    );
+  }
+}
+
+class CombatReportList {
+  final String? battleId;
+  final String? playerId;
+  final List<CombatReport> reports;
+  final DateTime updatedAt;
+
+  CombatReportList({
+    required this.battleId,
+    required this.playerId,
+    required this.reports,
+    required this.updatedAt,
+  });
+
+  factory CombatReportList.fromJson(Map<String, dynamic> json) {
+    final reports = _requiredList(json, 'reports')
+        .map((report) => CombatReport.fromJson(_requiredMap(report)))
+        .toList();
+    return CombatReportList(
+      battleId: _optionalNullableString(json, 'battleId') ??
+          _optionalNullableString(json, 'battle_id'),
+      playerId: _optionalNullableString(json, 'playerId') ??
+          _optionalNullableString(json, 'player_id'),
+      reports: reports,
+      updatedAt: _requiredDateTime(json, 'updatedAt'),
+    );
+  }
+}
+
+class CombatReportPhase {
+  final String phaseId;
+  final String campaignId;
+  final String battleId;
+  final String battleName;
+  final int phaseNumber;
+  final String name;
+  final String objectives;
+  final int targetDamage;
+  final int attackerDamage;
+  final int defenderDamage;
+  final String status;
+  final DateTime? completedAt;
+
+  CombatReportPhase({
+    required this.phaseId,
+    required this.campaignId,
+    required this.battleId,
+    required this.battleName,
+    required this.phaseNumber,
+    required this.name,
+    required this.objectives,
+    required this.targetDamage,
+    required this.attackerDamage,
+    required this.defenderDamage,
+    required this.status,
+    required this.completedAt,
+  });
+
+  factory CombatReportPhase.fromJson(Map<String, dynamic> json) {
+    return CombatReportPhase(
+      phaseId: _requiredString(json, 'phaseId', fallbackField: 'phase_id'),
+      campaignId:
+          _requiredString(json, 'campaignId', fallbackField: 'campaign_id'),
+      battleId: _requiredString(json, 'battleId', fallbackField: 'battle_id'),
+      battleName:
+          _requiredString(json, 'battleName', fallbackField: 'battle_name'),
+      phaseNumber:
+          _requiredInt(json, 'phaseNumber', fallbackField: 'phase_number'),
+      name: _requiredString(json, 'name'),
+      objectives: _requiredString(json, 'objectives'),
+      targetDamage:
+          _requiredInt(json, 'targetDamage', fallbackField: 'target_damage'),
+      attackerDamage: _requiredInt(json, 'attackerDamage',
+          fallbackField: 'attacker_damage'),
+      defenderDamage: _requiredInt(json, 'defenderDamage',
+          fallbackField: 'defender_damage'),
+      status: _requiredString(json, 'status'),
+      completedAt: _optionalDateTime(json, 'completedAt') ??
+          _optionalDateTime(json, 'completed_at'),
+    );
+  }
+}
+
+class CombatReport {
+  final String reportId;
+  final String contributionId;
+  final String battleId;
+  final String playerId;
+  final String countryId;
+  final String countryName;
+  final String countryCode;
+  final String side;
+  final String battleName;
+  final String battleType;
+  final String regionId;
+  final String regionName;
+  final String attackerCountryId;
+  final String attackerCountryName;
+  final String attackerCountryCode;
+  final String defenderCountryId;
+  final String defenderCountryName;
+  final String defenderCountryCode;
+  final int damage;
+  final int energySpent;
+  final int roundsCompleted;
+  final bool won;
+  final int goldReward;
+  final int experienceReward;
+  final String fightWinner;
+  final int fightRoundsRequested;
+  final int fightRoundsCompleted;
+  final int attackerDamage;
+  final int defenderDamage;
+  final int attackerRemainingEnergy;
+  final int defenderRemainingEnergy;
+  final int attackerScoreAfter;
+  final int defenderScoreAfter;
+  final int targetScore;
+  final String statusAfter;
+  final String? winnerCountryId;
+  final String? winnerCountryName;
+  final String? weaponItemId;
+  final String? weaponName;
+  final int? weaponPower;
+  final int? weaponDurabilityBefore;
+  final int? weaponDurabilityAfter;
+  final int weaponDurabilityDamage;
+  final String? campaignId;
+  final String? campaignName;
+  final List<CombatReportPhase> phaseSnapshots;
+  final String message;
+  final DateTime createdAt;
+
+  CombatReport({
+    required this.reportId,
+    required this.contributionId,
+    required this.battleId,
+    required this.playerId,
+    required this.countryId,
+    required this.countryName,
+    required this.countryCode,
+    required this.side,
+    required this.battleName,
+    required this.battleType,
+    required this.regionId,
+    required this.regionName,
+    required this.attackerCountryId,
+    required this.attackerCountryName,
+    required this.attackerCountryCode,
+    required this.defenderCountryId,
+    required this.defenderCountryName,
+    required this.defenderCountryCode,
+    required this.damage,
+    required this.energySpent,
+    required this.roundsCompleted,
+    required this.won,
+    required this.goldReward,
+    required this.experienceReward,
+    required this.fightWinner,
+    required this.fightRoundsRequested,
+    required this.fightRoundsCompleted,
+    required this.attackerDamage,
+    required this.defenderDamage,
+    required this.attackerRemainingEnergy,
+    required this.defenderRemainingEnergy,
+    required this.attackerScoreAfter,
+    required this.defenderScoreAfter,
+    required this.targetScore,
+    required this.statusAfter,
+    required this.winnerCountryId,
+    required this.winnerCountryName,
+    required this.weaponItemId,
+    required this.weaponName,
+    required this.weaponPower,
+    required this.weaponDurabilityBefore,
+    required this.weaponDurabilityAfter,
+    required this.weaponDurabilityDamage,
+    required this.campaignId,
+    required this.campaignName,
+    required this.phaseSnapshots,
+    required this.message,
+    required this.createdAt,
+  });
+
+  bool get hasWeapon => weaponName != null && weaponName!.isNotEmpty;
+
+  String get scoreAfter =>
+      '$attackerCountryCode $attackerScoreAfter - $defenderScoreAfter $defenderCountryCode';
+
+  factory CombatReport.fromJson(Map<String, dynamic> json) {
+    final phaseSnapshots = json['phaseSnapshots'] is List<dynamic>
+        ? (json['phaseSnapshots'] as List<dynamic>)
+            .map((phase) => CombatReportPhase.fromJson(_requiredMap(phase)))
+            .toList()
+        : (json['phase_snapshots'] is List<dynamic>
+            ? (json['phase_snapshots'] as List<dynamic>)
+                .map((phase) => CombatReportPhase.fromJson(_requiredMap(phase)))
+                .toList()
+            : <CombatReportPhase>[]);
+    return CombatReport(
+      reportId: _requiredString(json, 'reportId', fallbackField: 'report_id'),
+      contributionId: _requiredString(json, 'contributionId',
+          fallbackField: 'contribution_id'),
+      battleId: _requiredString(json, 'battleId', fallbackField: 'battle_id'),
+      playerId: _requiredString(json, 'playerId', fallbackField: 'player_id'),
+      countryId:
+          _requiredString(json, 'countryId', fallbackField: 'country_id'),
+      countryName:
+          _requiredString(json, 'countryName', fallbackField: 'country_name'),
+      countryCode:
+          _requiredString(json, 'countryCode', fallbackField: 'country_code'),
+      side: _requiredString(json, 'side'),
+      battleName:
+          _requiredString(json, 'battleName', fallbackField: 'battle_name'),
+      battleType:
+          _requiredString(json, 'battleType', fallbackField: 'battle_type'),
+      regionId: _requiredString(json, 'regionId', fallbackField: 'region_id'),
+      regionName:
+          _requiredString(json, 'regionName', fallbackField: 'region_name'),
+      attackerCountryId: _requiredString(json, 'attackerCountryId',
+          fallbackField: 'attacker_country_id'),
+      attackerCountryName: _requiredString(json, 'attackerCountryName',
+          fallbackField: 'attacker_country_name'),
+      attackerCountryCode: _requiredString(json, 'attackerCountryCode',
+          fallbackField: 'attacker_country_code'),
+      defenderCountryId: _requiredString(json, 'defenderCountryId',
+          fallbackField: 'defender_country_id'),
+      defenderCountryName: _requiredString(json, 'defenderCountryName',
+          fallbackField: 'defender_country_name'),
+      defenderCountryCode: _requiredString(json, 'defenderCountryCode',
+          fallbackField: 'defender_country_code'),
+      damage: _requiredInt(json, 'damage'),
+      energySpent:
+          _requiredInt(json, 'energySpent', fallbackField: 'energy_spent'),
+      roundsCompleted: _requiredInt(json, 'roundsCompleted',
+          fallbackField: 'rounds_completed'),
+      won: _requiredBool(json, 'won'),
+      goldReward:
+          _requiredInt(json, 'goldReward', fallbackField: 'gold_reward'),
+      experienceReward: _requiredInt(json, 'experienceReward',
+          fallbackField: 'experience_reward'),
+      fightWinner:
+          _requiredString(json, 'fightWinner', fallbackField: 'fight_winner'),
+      fightRoundsRequested: _requiredInt(json, 'fightRoundsRequested',
+          fallbackField: 'fight_rounds_requested'),
+      fightRoundsCompleted: _requiredInt(json, 'fightRoundsCompleted',
+          fallbackField: 'fight_rounds_completed'),
+      attackerDamage: _requiredInt(json, 'attackerDamage',
+          fallbackField: 'attacker_damage'),
+      defenderDamage: _requiredInt(json, 'defenderDamage',
+          fallbackField: 'defender_damage'),
+      attackerRemainingEnergy: _requiredInt(json, 'attackerRemainingEnergy',
+          fallbackField: 'attacker_remaining_energy'),
+      defenderRemainingEnergy: _requiredInt(json, 'defenderRemainingEnergy',
+          fallbackField: 'defender_remaining_energy'),
+      attackerScoreAfter: _requiredInt(json, 'attackerScoreAfter',
+          fallbackField: 'attacker_score_after'),
+      defenderScoreAfter: _requiredInt(json, 'defenderScoreAfter',
+          fallbackField: 'defender_score_after'),
+      targetScore:
+          _requiredInt(json, 'targetScore', fallbackField: 'target_score'),
+      statusAfter:
+          _requiredString(json, 'statusAfter', fallbackField: 'status_after'),
+      winnerCountryId: _optionalNullableString(json, 'winnerCountryId') ??
+          _optionalNullableString(json, 'winner_country_id'),
+      winnerCountryName: _optionalNullableString(json, 'winnerCountryName') ??
+          _optionalNullableString(json, 'winner_country_name'),
+      weaponItemId: _optionalNullableString(json, 'weaponItemId') ??
+          _optionalNullableString(json, 'weapon_item_id'),
+      weaponName: _optionalNullableString(json, 'weaponName') ??
+          _optionalNullableString(json, 'weapon_name'),
+      weaponPower: _optionalNullableInt(json, 'weaponPower') ??
+          _optionalNullableInt(json, 'weapon_power'),
+      weaponDurabilityBefore:
+          _optionalNullableInt(json, 'weaponDurabilityBefore') ??
+              _optionalNullableInt(json, 'weapon_durability_before'),
+      weaponDurabilityAfter:
+          _optionalNullableInt(json, 'weaponDurabilityAfter') ??
+              _optionalNullableInt(json, 'weapon_durability_after'),
+      weaponDurabilityDamage: _requiredInt(json, 'weaponDurabilityDamage',
+          fallbackField: 'weapon_durability_damage'),
+      campaignId: _optionalNullableString(json, 'campaignId') ??
+          _optionalNullableString(json, 'campaign_id'),
+      campaignName: _optionalNullableString(json, 'campaignName') ??
+          _optionalNullableString(json, 'campaign_name'),
+      phaseSnapshots: phaseSnapshots,
       message: _requiredString(json, 'message'),
       createdAt:
           _requiredDateTime(json, 'createdAt', fallbackField: 'created_at'),
@@ -3645,6 +4349,7 @@ class BattleContributionResult {
   final CountryBattle battle;
   final BattleContribution? contribution;
   final PlayerBattleParticipation? participation;
+  final CombatReport? report;
   final FightResult fight;
   final MissionProgress? missionProgress;
   final EquipmentSummary equipment;
@@ -3657,6 +4362,7 @@ class BattleContributionResult {
     required this.battle,
     required this.contribution,
     required this.participation,
+    required this.report,
     required this.fight,
     required this.missionProgress,
     required this.equipment,
@@ -3676,6 +4382,9 @@ class BattleContributionResult {
           ? null
           : PlayerBattleParticipation.fromJson(
               _requiredMap(json['participation'])),
+      report: json['report'] == null
+          ? null
+          : CombatReport.fromJson(_requiredMap(json['report'])),
       fight: FightResult.fromJson(_requiredMap(json['fight'])),
       missionProgress: json['missionProgress'] == null
           ? null

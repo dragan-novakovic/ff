@@ -1,6 +1,7 @@
 import 'package:ff/pages/Chat/ChatBody.dart';
 import 'package:ff/pages/Chat/ChatView.dart';
 import 'package:ff/pages/ActivityFeedPage.dart';
+import 'package:ff/pages/AchievementsPage.dart';
 import 'package:ff/pages/AdminConsolePage.dart';
 import 'package:ff/pages/AccountSecurityPage.dart';
 import 'package:ff/pages/CompaniesPage.dart';
@@ -17,7 +18,10 @@ import 'package:ff/pages/NewspapersPage.dart';
 import 'package:ff/pages/MissionsPage.dart';
 import 'package:ff/pages/PoliticsPage.dart';
 import 'package:ff/pages/PublicProfilePage.dart';
+import 'package:ff/pages/PushNotificationsPage.dart';
 import 'package:ff/pages/RankingsPage.dart';
+import 'package:ff/pages/ResearchPage.dart';
+import 'package:ff/pages/ResourceLogisticsPage.dart';
 import 'package:ff/pages/TerritoryPage.dart';
 import 'package:ff/pages/WorldPage.dart';
 import 'package:ff/pages/WorkforcePage.dart';
@@ -26,10 +30,13 @@ import 'package:provider/provider.dart';
 import 'blocs/GameAreaBlocs.dart';
 import 'blocs/MessageBloc.dart';
 import 'blocs/ActivityFeedBloc.dart';
+import 'blocs/AchievementsBloc.dart';
 import 'blocs/LoginBloc.dart';
 import 'blocs/OnboardingQuestlineBloc.dart';
 import 'blocs/PlayerBloc.dart';
+import 'blocs/PushNotificationsBloc.dart';
 import 'blocs/RankingsBloc.dart';
+import 'blocs/ResourceLogisticsBloc.dart';
 import 'models/User.dart';
 
 void main() {
@@ -54,7 +61,11 @@ void main() {
       ChangeNotifierProvider(create: (_) => WorldBloc()),
       ChangeNotifierProvider(create: (_) => TerritoryBloc()),
       ChangeNotifierProvider(create: (_) => ActivityFeedBloc()),
+      ChangeNotifierProvider(create: (_) => PushNotificationsBloc()),
+      ChangeNotifierProvider(create: (_) => AchievementsBloc()),
       ChangeNotifierProvider(create: (_) => NewspapersBloc()),
+      ChangeNotifierProvider(create: (_) => ResearchBloc()),
+      ChangeNotifierProvider(create: (_) => ResourceLogisticsBloc()),
     ],
     child: MyApp(),
   ));
@@ -85,6 +96,12 @@ class _MyAppState extends State<MyApp> {
         '/factories': (context) => AuthenticatedGamePage(
               builder: (user) => FactoriesPage(user: user),
             ),
+        '/research': (context) => AuthenticatedGamePage(
+              builder: (user) => ResearchPage(user: user),
+            ),
+        '/resource-logistics': (context) => AuthenticatedGamePage(
+              builder: (user) => ResourceLogisticsPage(user: user),
+            ),
         '/companies': (context) => AuthenticatedGamePage(
               builder: (user) => CompaniesPage(user: user),
             ),
@@ -99,6 +116,12 @@ class _MyAppState extends State<MyApp> {
             ),
         '/activity': (context) => AuthenticatedGamePage(
               builder: (user) => ActivityFeedPage(user: user),
+            ),
+        '/push-notifications': (context) => AuthenticatedGamePage(
+              builder: (user) => PushNotificationsPage(user: user),
+            ),
+        '/achievements': (context) => AuthenticatedGamePage(
+              builder: (user) => AchievementsPage(user: user),
             ),
         '/media': (context) => AuthenticatedGamePage(
               builder: (user) => NewspapersPage(user: user),

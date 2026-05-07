@@ -1,3 +1,5 @@
+using Microsoft.Extensions.Logging;
+
 internal static class WorkforceGatewayEndpoints
 {
     public static void MapWorkforceGatewayEndpoints(this WebApplication app)
@@ -115,6 +117,7 @@ internal static class WorkforceGatewayEndpoints
             ProductionServiceClient production,
             WorldServiceClient world,
             IConfiguration configuration,
+            ILoggerFactory loggerFactory,
             DevTokenValidator tokens) =>
         {
             var access = ValidatePlayerAccess(playerId, request, tokens);
@@ -291,6 +294,16 @@ internal static class WorkforceGatewayEndpoints
                 {
                     return onboardingTrack.Error;
                 }
+
+                await AchievementGatewayEndpoints.TrackAsync(
+                    players,
+                    access.PlayerId!,
+                    authorization,
+                    configuration,
+                    "company_work",
+                    $"achievement:company-work:{workResult.WorkRecord.WorkId.ToLowerInvariant()}",
+                    loggerFactory.CreateLogger(nameof(AchievementGatewayEndpoints)),
+                    relatedId: workResult.WorkRecord.WorkId);
             }
             else
             {

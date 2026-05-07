@@ -1,6 +1,72 @@
 import 'package:ff/models/GameAreas.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+Map<String, dynamic> _combatReportJson() => {
+      'reportId': 'report-1',
+      'contributionId': 'contrib-1',
+      'battleId': 'battle-greenmarch',
+      'playerId': 'player-1',
+      'countryId': 'freiland',
+      'countryName': 'Freiland',
+      'countryCode': 'FRL',
+      'side': 'defender',
+      'battleName': 'Greenmarch Border Clash',
+      'battleType': 'conquest',
+      'regionId': 'greenmarch',
+      'regionName': 'Greenmarch',
+      'attackerCountryId': 'nordheim',
+      'attackerCountryName': 'Nordheim',
+      'attackerCountryCode': 'NRD',
+      'defenderCountryId': 'freiland',
+      'defenderCountryName': 'Freiland',
+      'defenderCountryCode': 'FRL',
+      'damage': 42,
+      'energySpent': 30,
+      'roundsCompleted': 3,
+      'won': true,
+      'goldReward': 3,
+      'experienceReward': 8,
+      'fightWinner': 'attacker',
+      'fightRoundsRequested': 3,
+      'fightRoundsCompleted': 3,
+      'attackerDamage': 42,
+      'defenderDamage': 30,
+      'attackerRemainingEnergy': 70,
+      'defenderRemainingEnergy': 70,
+      'attackerScoreAfter': 120,
+      'defenderScoreAfter': 122,
+      'targetScore': 500,
+      'statusAfter': 'active',
+      'winnerCountryId': null,
+      'winnerCountryName': null,
+      'weaponItemId': 'rifle-q1',
+      'weaponName': 'Rifle Q1',
+      'weaponPower': 2,
+      'weaponDurabilityBefore': 5,
+      'weaponDurabilityAfter': 4,
+      'weaponDurabilityDamage': 1,
+      'campaignId': 'campaign-greenmarch',
+      'campaignName': 'Greenmarch Liberation',
+      'phaseSnapshots': [
+        {
+          'phaseId': 'phase-1',
+          'campaignId': 'campaign-greenmarch',
+          'battleId': 'battle-greenmarch',
+          'battleName': 'Greenmarch Border Clash',
+          'phaseNumber': 1,
+          'name': 'Open the front',
+          'objectives': 'Deal enough battle damage to open the border.',
+          'targetDamage': 500,
+          'attackerDamage': 320,
+          'defenderDamage': 180,
+          'status': 'active',
+          'completedAt': null,
+        }
+      ],
+      'message': 'Battle contribution dealt 42 damage.',
+      'createdAt': '2026-05-06T12:05:00Z',
+    };
+
 void main() {
   test('parses inventory summary', () {
     final inventory = InventorySummary.fromJson({
@@ -1269,7 +1335,23 @@ void main() {
 
     expect(battles.battles.single.attackerProgress, closeTo(0.24, 0.001));
     expect(details.contributions.single.countryCode, 'FRL');
+    expect(details.reports, isEmpty);
     expect(participation.participation?.damage, 42);
+  });
+
+  test('parses combat report list with battle phase snapshots', () {
+    final reportList = CombatReportList.fromJson({
+      'battleId': 'battle-greenmarch',
+      'playerId': 'player-1',
+      'reports': [_combatReportJson()],
+      'updatedAt': '2026-05-06T12:06:00Z',
+    });
+
+    final report = reportList.reports.single;
+    expect(reportList.battleId, 'battle-greenmarch');
+    expect(report.scoreAfter, 'NRD 120 - 122 FRL');
+    expect(report.hasWeapon, isTrue);
+    expect(report.phaseSnapshots.single.name, 'Open the front');
   });
 
   test('parses campaign depth, phases, rewards, and leaderboards', () {
@@ -1513,12 +1595,14 @@ void main() {
         'updatedAt': '2026-05-06T12:05:00Z',
       },
       'weaponDamage': null,
+      'report': _combatReportJson(),
       'updatedAt': '2026-05-06T12:05:00Z',
     });
 
     expect(result.completed, isTrue);
     expect(result.contribution?.damage, 42);
     expect(result.participation?.contributionCount, 1);
+    expect(result.report?.reportId, 'report-1');
     expect(result.fight.roundsCompleted, 3);
     expect(result.missionProgress?.isOnCooldown, isFalse);
   });

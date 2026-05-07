@@ -1,12 +1,13 @@
 mod domain;
 
 use axum::{
+    extract::Path,
     http::StatusCode,
     response::{IntoResponse, Response},
     routing::{get, post},
     Json, Router,
 };
-use domain::{FightRequest, FightResponse};
+use domain::{CombatMission, FightRequest, FightResponse};
 use serde::Serialize;
 use std::{env, net::SocketAddr};
 
@@ -26,6 +27,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 fn app() -> Router {
     Router::new()
         .route("/health", get(health))
+        .route("/missions", get(missions))
+        .route("/missions/:mission_id", get(mission))
         .route("/simulate/fight", post(simulate_fight))
 }
 
@@ -42,8 +45,19 @@ async fn simulate_fight(
     domain::simulate_fight(request).map(Json).map_err(ApiError)
 }
 
+async fn missions() -> Json<Vec<CombatMission>> {
+    Json(domain::missions())
+}
+
+async fn mission(Path(mission_id): Path<String>) -> Result<Json<CombatMission>, MissionError> {
+    domain::find_mission(&mission_id).map(Json).ok_or(MissionError)
+}
+
 #[derive(Debug)]
 struct ApiError(domain::FightError);
+
+#[derive(Debug)]
+struct MissionError;
 
 #[derive(Serialize)]
 struct ErrorResponse {
@@ -63,5 +77,15 @@ impl IntoResponse for ApiError {
         });
 
         (StatusCode::BAD_REQUEST, body).into_response()
+    }
+}
+
+impl IntoResponse for MissionError {
+    fn into_response(self) -> Response {
+        let body = Json(ErrorResponse {
+            error: "mission was not found".to_string(),
+        });
+
+        (StatusCode::NOT_FOUND, body).into_response()
     }
 }

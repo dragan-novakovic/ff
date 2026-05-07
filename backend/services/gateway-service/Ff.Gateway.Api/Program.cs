@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using System.Net.Http.Json;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddCors(options =>
@@ -30,6 +31,34 @@ builder.Services.AddHttpClient<PlayerServiceClient>(client =>
     var baseUrl = builder.Configuration["FF_PLAYER_BASE_URL"]
         ?? builder.Configuration["Services:Player:BaseUrl"]
         ?? "http://127.0.0.1:5192";
+    client.BaseAddress = new Uri(baseUrl);
+});
+builder.Services.AddHttpClient<EconomyServiceClient>(client =>
+{
+    var baseUrl = builder.Configuration["FF_ECONOMY_BASE_URL"]
+        ?? builder.Configuration["Services:Economy:BaseUrl"]
+        ?? "http://127.0.0.1:5141";
+    client.BaseAddress = new Uri(baseUrl);
+});
+builder.Services.AddHttpClient<ProductionServiceClient>(client =>
+{
+    var baseUrl = builder.Configuration["FF_PRODUCTION_BASE_URL"]
+        ?? builder.Configuration["Services:Production:BaseUrl"]
+        ?? "http://127.0.0.1:5148";
+    client.BaseAddress = new Uri(baseUrl);
+});
+builder.Services.AddHttpClient<MarketServiceClient>(client =>
+{
+    var baseUrl = builder.Configuration["FF_MARKET_BASE_URL"]
+        ?? builder.Configuration["Services:Market:BaseUrl"]
+        ?? "http://127.0.0.1:5275";
+    client.BaseAddress = new Uri(baseUrl);
+});
+builder.Services.AddHttpClient<CombatServiceClient>(client =>
+{
+    var baseUrl = builder.Configuration["FF_COMBAT_BASE_URL"]
+        ?? builder.Configuration["Services:Combat:BaseUrl"]
+        ?? "http://127.0.0.1:8081";
     client.BaseAddress = new Uri(baseUrl);
 });
 builder.Services.AddSingleton<DevTokenValidator>();
@@ -96,6 +125,8 @@ app.MapPost("/players/{playerId}/work", async (
     string playerId,
     HttpRequest request,
     PlayerServiceClient players,
+    EconomyServiceClient economy,
+    IConfiguration configuration,
     DevTokenValidator tokens) =>
 {
     var access = ValidatePlayerAccess(playerId, request, tokens);
@@ -104,9 +135,48 @@ app.MapPost("/players/{playerId}/work", async (
         return access.Error;
     }
 
-    return await players.PostAsync(
+    var authorization = request.Headers.Authorization.ToString();
+    var work = await players.PostJsonAsync<object, PlayerActionResponseDto>(
         $"players/{Uri.EscapeDataString(access.PlayerId!)}/work",
-        request.Headers.Authorization.ToString());
+        authorization,
+        new { });
+    if (work.Error is not null)
+    {
+        return work.Error;
+    }
+
+    var action = work.Value!;
+    var shouldCreditWorkReward = action.Completed ||
+        action.Message.Contains("already worked today", StringComparison.OrdinalIgnoreCase);
+    var workGoldReward = action.Completed ? action.Rewards.Gold : 25;
+    if (shouldCreditWorkReward && workGoldReward > 0)
+    {
+        var walletCredit = await economy.PostJsonAsync<WalletCreditRequestDto, WalletCreditResponseDto>(
+            $"players/{Uri.EscapeDataString(access.PlayerId!)}/wallet/credit",
+            authorization,
+            new WalletCreditRequestDto(
+                Amount: workGoldReward,
+                EntryType: "work_reward",
+                Reason: action.Message,
+                IdempotencyKey: $"work:{access.PlayerId!.ToLowerInvariant()}:{DateTimeOffset.UtcNow:yyyy-MM-dd}"),
+            InternalToken(configuration));
+        if (walletCredit.Error is not null)
+        {
+            return walletCredit.Error;
+        }
+
+        var credit = walletCredit.Value!;
+        if (!credit.Completed)
+        {
+            return Results.Json(
+                new ErrorResponse(credit.Message),
+                statusCode: StatusCodes.Status409Conflict);
+        }
+
+        action = action with { Wallet = credit.Inventory };
+    }
+
+    return Results.Ok(action);
 }).WithName("Work");
 
 app.MapPost("/players/{playerId}/train", async (
@@ -125,6 +195,276 @@ app.MapPost("/players/{playerId}/train", async (
         $"players/{Uri.EscapeDataString(access.PlayerId!)}/train",
         request.Headers.Authorization.ToString());
 }).WithName("Train");
+
+app.MapGet("/players/{playerId}/inventory", async (
+    string playerId,
+    HttpRequest request,
+    EconomyServiceClient economy,
+    DevTokenValidator tokens) =>
+{
+    var access = ValidatePlayerAccess(playerId, request, tokens);
+    if (access.Error is not null)
+    {
+        return access.Error;
+    }
+
+    return await economy.GetAsync(
+        $"players/{Uri.EscapeDataString(access.PlayerId!)}/inventory",
+        request.Headers.Authorization.ToString());
+}).WithName("GetInventory");
+
+app.MapGet("/players/{playerId}/factories", async (
+    string playerId,
+    HttpRequest request,
+    ProductionServiceClient production,
+    DevTokenValidator tokens) =>
+{
+    var access = ValidatePlayerAccess(playerId, request, tokens);
+    if (access.Error is not null)
+    {
+        return access.Error;
+    }
+
+    return await production.GetAsync(
+        $"players/{Uri.EscapeDataString(access.PlayerId!)}/factories",
+        request.Headers.Authorization.ToString());
+}).WithName("GetFactories");
+
+app.MapPost("/players/{playerId}/factories/{factoryId}/produce", async (
+    string playerId,
+    string factoryId,
+    HttpRequest request,
+    ProductionServiceClient production,
+    EconomyServiceClient economy,
+    DevTokenValidator tokens) =>
+{
+    var access = ValidatePlayerAccess(playerId, request, tokens);
+    if (access.Error is not null)
+    {
+        return access.Error;
+    }
+
+    var authorization = request.Headers.Authorization.ToString();
+    var productionResult = await production.PostJsonAsync<object, ProductionResultDto>(
+        $"players/{Uri.EscapeDataString(access.PlayerId!)}/factories/{Uri.EscapeDataString(factoryId)}/produce",
+        authorization,
+        new { });
+    if (productionResult.Error is not null)
+    {
+        return productionResult.Error;
+    }
+
+    var result = productionResult.Value!;
+    var inventoryMutation = await economy.PostJsonAsync<InventoryConversionRequestDto, InventoryMutationResponseDto>(
+        $"players/{Uri.EscapeDataString(access.PlayerId!)}/inventory/convert",
+        authorization,
+        new InventoryConversionRequestDto(
+            InputItemId: result.ConsumedItemId,
+            InputQuantity: result.ConsumedQuantity,
+            OutputItemId: result.ProducedItemId,
+            OutputQuantity: result.ProducedQuantity,
+            Reason: result.Message));
+    if (inventoryMutation.Error is not null)
+    {
+        return inventoryMutation.Error;
+    }
+
+    var mutation = inventoryMutation.Value!;
+    if (!mutation.Completed)
+    {
+        return Results.Json(
+            new ErrorResponse(mutation.Message),
+            statusCode: StatusCodes.Status409Conflict);
+    }
+
+    return Results.Ok(result with
+    {
+        Message = $"{result.Message} Inventory updated.",
+        Note = mutation.Message,
+        Inventory = mutation.Inventory
+    });
+}).WithName("Produce");
+
+app.MapGet("/market/listings", async (
+    HttpRequest request,
+    MarketServiceClient market,
+    DevTokenValidator tokens) =>
+{
+    var error = ValidateBearer(request, tokens);
+    if (error is not null)
+    {
+        return error;
+    }
+
+    return await market.GetAsync("market/listings", request.Headers.Authorization.ToString());
+}).WithName("GetMarketListings");
+
+app.MapPost("/players/{playerId}/market/listings/{listingId}/buy", async (
+    string playerId,
+    string listingId,
+    HttpRequest request,
+    MarketServiceClient market,
+    EconomyServiceClient economy,
+    DevTokenValidator tokens) =>
+{
+    var access = ValidatePlayerAccess(playerId, request, tokens);
+    if (access.Error is not null)
+    {
+        return access.Error;
+    }
+
+    var authorization = request.Headers.Authorization.ToString();
+    var listingResult = await market.GetJsonAsync<MarketListingDto>(
+        $"market/listings/{Uri.EscapeDataString(listingId)}",
+        authorization);
+    if (listingResult.Error is not null)
+    {
+        return listingResult.Error;
+    }
+
+    var listing = listingResult.Value!;
+    var purchase = await economy.PostJsonAsync<MarketPurchaseRequestDto, MarketPurchaseResponseDto>(
+        $"players/{Uri.EscapeDataString(access.PlayerId!)}/market/buy",
+        authorization,
+        new MarketPurchaseRequestDto(
+            ListingId: listing.ListingId,
+            ItemId: listing.ItemId,
+            ItemName: listing.ItemName,
+            Category: listing.Category,
+            Quantity: 1,
+            PricePerUnit: listing.PricePerUnit));
+    if (purchase.Error is not null)
+    {
+        return purchase.Error;
+    }
+
+    return Results.Ok(purchase.Value!);
+}).WithName("BuyMarketListing");
+
+app.MapGet("/combat/missions", async (
+    HttpRequest request,
+    CombatServiceClient combat,
+    DevTokenValidator tokens) =>
+{
+    var error = ValidateBearer(request, tokens);
+    if (error is not null)
+    {
+        return error;
+    }
+
+    return await combat.GetAsync("missions", request.Headers.Authorization.ToString());
+}).WithName("GetCombatMissions");
+
+app.MapPost("/players/{playerId}/combat/missions/{missionId}/fight", async (
+    string playerId,
+    string missionId,
+    HttpRequest request,
+    PlayerServiceClient players,
+    CombatServiceClient combat,
+    EconomyServiceClient economy,
+    IConfiguration configuration,
+    DevTokenValidator tokens) =>
+{
+    var access = ValidatePlayerAccess(playerId, request, tokens);
+    if (access.Error is not null)
+    {
+        return access.Error;
+    }
+
+    var authorization = request.Headers.Authorization.ToString();
+    var playerState = await players.GetJsonAsync<PlayerStateForCombat>(
+        $"players/{Uri.EscapeDataString(access.PlayerId!)}/state",
+        authorization);
+    if (playerState.Error is not null)
+    {
+        return playerState.Error;
+    }
+
+    var mission = await combat.GetJsonAsync<CombatMissionDto>(
+        $"missions/{Uri.EscapeDataString(missionId)}",
+        authorization);
+    if (mission.Error is not null)
+    {
+        return mission.Error;
+    }
+
+    var state = playerState.Value!;
+    var missionDto = mission.Value!;
+    var simulatedAttackerEnergy = Math.Clamp(state.Energy, 0, 100);
+    var fight = await combat.PostJsonAsync<FightRequestDto, FightResponseDto>(
+        "simulate/fight",
+        authorization,
+        new FightRequestDto(
+            Attacker: new FighterDto(
+                Strength: Math.Max(1, state.Strength),
+                Energy: simulatedAttackerEnergy,
+                WeaponPower: 1),
+            Defender: missionDto.Defender,
+            Rounds: missionDto.Rounds));
+    if (fight.Error is not null)
+    {
+        return fight.Error;
+    }
+
+    var fightResult = fight.Value!;
+    var won = string.Equals(fightResult.Winner, "attacker", StringComparison.OrdinalIgnoreCase);
+    var energyCost = Math.Max(0, simulatedAttackerEnergy - fightResult.AttackerRemainingEnergy);
+    var progression = await players.PostJsonAsync<CombatResultRequestDto, PlayerActionResponseDto>(
+        $"players/{Uri.EscapeDataString(access.PlayerId!)}/combat/result",
+        authorization,
+        new CombatResultRequestDto(
+            EnergyCost: energyCost,
+            GoldReward: won ? missionDto.RewardGold : 0,
+            ExperienceReward: won ? missionDto.RewardExperience : 0,
+            Message: won
+                ? $"Mission complete. You earned {missionDto.RewardGold} gold and {missionDto.RewardExperience} XP."
+                : "Mission complete, but you did not win rewards."));
+    if (progression.Error is not null)
+    {
+        return progression.Error;
+    }
+
+    var appliedProgression = progression.Value!;
+    if (!appliedProgression.Completed)
+    {
+        return Results.Json(
+            new ErrorResponse(appliedProgression.Message),
+            statusCode: StatusCodes.Status409Conflict);
+    }
+
+    if (appliedProgression.Rewards.Gold > 0)
+    {
+        var walletCredit = await economy.PostJsonAsync<WalletCreditRequestDto, WalletCreditResponseDto>(
+            $"players/{Uri.EscapeDataString(access.PlayerId!)}/wallet/credit",
+            authorization,
+            new WalletCreditRequestDto(
+                Amount: appliedProgression.Rewards.Gold,
+                EntryType: "combat_reward",
+                Reason: appliedProgression.Message,
+                IdempotencyKey: $"combat:{access.PlayerId!.ToLowerInvariant()}:{missionDto.MissionId}:{Guid.NewGuid():N}"),
+            InternalToken(configuration));
+        if (walletCredit.Error is not null)
+        {
+            return walletCredit.Error;
+        }
+
+        var credit = walletCredit.Value!;
+        if (!credit.Completed)
+        {
+            return Results.Json(
+                new ErrorResponse(credit.Message),
+                statusCode: StatusCodes.Status409Conflict);
+        }
+
+        appliedProgression = appliedProgression with { Wallet = credit.Inventory };
+    }
+
+    return Results.Ok(new MissionFightResponse(
+        Mission: missionDto,
+        Fight: fightResult,
+        PlayerAction: appliedProgression,
+        Message: appliedProgression.Message));
+}).WithName("FightMission");
 
 app.MapGet("/messages", (string? fromId, string? toId) =>
 {
@@ -186,6 +526,22 @@ static PlayerAccessResult ValidatePlayerAccess(string playerId, HttpRequest requ
     return PlayerAccessResult.Allowed(token.PlayerId!);
 }
 
+static IResult? ValidateBearer(HttpRequest request, DevTokenValidator tokens)
+{
+    var token = tokens.Validate(request.Headers.Authorization.ToString());
+    return token.IsValid
+        ? null
+        : Results.Json(
+            new ErrorResponse("A valid bearer token is required."),
+            statusCode: StatusCodes.Status401Unauthorized);
+}
+
+static string InternalToken(IConfiguration configuration)
+{
+    return configuration["FF_INTERNAL_SERVICE_TOKEN"]
+        ?? "ff-development-internal-token-change-me";
+}
+
 internal sealed class IdentityServiceClient(HttpClient httpClient)
 {
     public Task<IResult> GetAsync(string path)
@@ -222,7 +578,7 @@ internal sealed class IdentityServiceClient(HttpClient httpClient)
     }
 }
 
-internal sealed class PlayerServiceClient(HttpClient httpClient)
+internal abstract class ForwardingServiceClient(HttpClient httpClient, string serviceName)
 {
     public Task<IResult> GetAsync(string path, string authorizationHeader)
     {
@@ -232,6 +588,20 @@ internal sealed class PlayerServiceClient(HttpClient httpClient)
     public Task<IResult> PostAsync(string path, string authorizationHeader)
     {
         return ForwardAsync(() => SendAsync(HttpMethod.Post, path, authorizationHeader));
+    }
+
+    public Task<ServiceJsonResult<TResponse>> GetJsonAsync<TResponse>(string path, string authorizationHeader)
+    {
+        return JsonAsync<TResponse>(() => SendAsync(HttpMethod.Get, path, authorizationHeader));
+    }
+
+    public Task<ServiceJsonResult<TResponse>> PostJsonAsync<TRequest, TResponse>(
+        string path,
+        string authorizationHeader,
+        TRequest body,
+        string? internalToken = null)
+    {
+        return JsonAsync<TResponse>(() => SendJsonAsync(path, authorizationHeader, body, internalToken));
     }
 
     private Task<HttpResponseMessage> SendAsync(HttpMethod method, string path, string authorizationHeader)
@@ -245,7 +615,27 @@ internal sealed class PlayerServiceClient(HttpClient httpClient)
         return httpClient.SendAsync(message);
     }
 
-    private static async Task<IResult> ForwardAsync(Func<Task<HttpResponseMessage>> send)
+    private Task<HttpResponseMessage> SendJsonAsync<TRequest>(
+        string path,
+        string authorizationHeader,
+        TRequest body,
+        string? internalToken)
+    {
+        var message = new HttpRequestMessage(HttpMethod.Post, path);
+        if (!string.IsNullOrWhiteSpace(authorizationHeader))
+        {
+            message.Headers.TryAddWithoutValidation("Authorization", authorizationHeader);
+        }
+        if (!string.IsNullOrWhiteSpace(internalToken))
+        {
+            message.Headers.TryAddWithoutValidation("X-FF-Internal-Token", internalToken);
+        }
+
+        message.Content = JsonContent.Create(body);
+        return httpClient.SendAsync(message);
+    }
+
+    private async Task<IResult> ForwardAsync(Func<Task<HttpResponseMessage>> send)
     {
         try
         {
@@ -257,17 +647,61 @@ internal sealed class PlayerServiceClient(HttpClient httpClient)
         catch (HttpRequestException)
         {
             return Results.Json(
-                new ErrorResponse("Player service is unavailable."),
+                new ErrorResponse($"{serviceName} is unavailable."),
                 statusCode: StatusCodes.Status502BadGateway);
         }
         catch (TaskCanceledException)
         {
             return Results.Json(
-                new ErrorResponse("Player service request timed out."),
+                new ErrorResponse($"{serviceName} request timed out."),
                 statusCode: StatusCodes.Status504GatewayTimeout);
         }
     }
+
+    private async Task<ServiceJsonResult<TResponse>> JsonAsync<TResponse>(Func<Task<HttpResponseMessage>> send)
+    {
+        try
+        {
+            using var response = await send();
+            if (!response.IsSuccessStatusCode)
+            {
+                var content = await response.Content.ReadAsStringAsync();
+                var contentType = response.Content.Headers.ContentType?.ToString() ?? "application/json";
+                return ServiceJsonResult<TResponse>.Failed(
+                    Results.Content(content, contentType, statusCode: (int)response.StatusCode));
+            }
+
+            var value = await response.Content.ReadFromJsonAsync<TResponse>();
+            return value is null
+                ? ServiceJsonResult<TResponse>.Failed(Results.Json(
+                    new ErrorResponse($"{serviceName} returned an empty response."),
+                    statusCode: StatusCodes.Status502BadGateway))
+                : ServiceJsonResult<TResponse>.Succeeded(value);
+        }
+        catch (HttpRequestException)
+        {
+            return ServiceJsonResult<TResponse>.Failed(Results.Json(
+                new ErrorResponse($"{serviceName} is unavailable."),
+                statusCode: StatusCodes.Status502BadGateway));
+        }
+        catch (TaskCanceledException)
+        {
+            return ServiceJsonResult<TResponse>.Failed(Results.Json(
+                new ErrorResponse($"{serviceName} request timed out."),
+                statusCode: StatusCodes.Status504GatewayTimeout));
+        }
+    }
 }
+
+internal sealed class PlayerServiceClient(HttpClient httpClient) : ForwardingServiceClient(httpClient, "Player service");
+
+internal sealed class EconomyServiceClient(HttpClient httpClient) : ForwardingServiceClient(httpClient, "Economy service");
+
+internal sealed class ProductionServiceClient(HttpClient httpClient) : ForwardingServiceClient(httpClient, "Production service");
+
+internal sealed class MarketServiceClient(HttpClient httpClient) : ForwardingServiceClient(httpClient, "Market service");
+
+internal sealed class CombatServiceClient(HttpClient httpClient) : ForwardingServiceClient(httpClient, "Combat service");
 
 internal sealed class DevTokenValidator
 {
@@ -380,6 +814,150 @@ internal sealed record RegisterRequest(string? Email, string? Password, string? 
 internal sealed record SendMessageRequest(string Content, string FromId, string ToId);
 
 internal sealed record MessageDto(string Id, string FromId, string ToId, string Content);
+
+internal sealed record ServiceJsonResult<T>(T? Value, IResult? Error)
+{
+    public static ServiceJsonResult<T> Succeeded(T value)
+    {
+        return new ServiceJsonResult<T>(value, null);
+    }
+
+    public static ServiceJsonResult<T> Failed(IResult error)
+    {
+        return new ServiceJsonResult<T>(default, error);
+    }
+}
+
+internal sealed record PlayerStateForCombat(int Energy, int Strength);
+
+internal sealed record InventoryConversionRequestDto(
+    string InputItemId,
+    int InputQuantity,
+    string OutputItemId,
+    int OutputQuantity,
+    string Reason);
+
+internal sealed record InventoryMutationResponseDto(
+    bool Completed,
+    string Message,
+    ItemChangeDto[] Changes,
+    InventoryResponseDto Inventory);
+
+internal sealed record InventoryResponseDto(
+    string PlayerId,
+    int WalletGold,
+    int StorageUsed,
+    int StorageLimit,
+    InventoryItemDto[] Items,
+    DateTimeOffset UpdatedAt);
+
+internal sealed record InventoryItemDto(
+    string ItemId,
+    string Name,
+    string Category,
+    int Quantity,
+    string Description);
+
+internal sealed record ItemChangeDto(
+    string ItemId,
+    string Name,
+    int QuantityDelta,
+    int FinalQuantity);
+
+internal sealed record ProductionResultDto(
+    bool Completed,
+    string FactoryId,
+    string Message,
+    string ConsumedItemId,
+    int ConsumedQuantity,
+    string ProducedItemId,
+    int ProducedQuantity,
+    string Note,
+    DateTimeOffset CompletedAt,
+    InventoryResponseDto? Inventory = null);
+
+internal sealed record MarketListingDto(
+    string ListingId,
+    string ItemId,
+    string ItemName,
+    string Category,
+    int Quantity,
+    int PricePerUnit,
+    string SellerId);
+
+internal sealed record MarketPurchaseRequestDto(
+    string ListingId,
+    string ItemId,
+    string ItemName,
+    string Category,
+    int Quantity,
+    int PricePerUnit);
+
+internal sealed record MarketPurchaseResponseDto(
+    bool Completed,
+    string Message,
+    string ListingId,
+    int Quantity,
+    int TotalPrice,
+    InventoryResponseDto Inventory);
+
+internal sealed record WalletCreditRequestDto(
+    int Amount,
+    string EntryType,
+    string Reason,
+    string IdempotencyKey);
+
+internal sealed record WalletCreditResponseDto(
+    bool Completed,
+    string Message,
+    int Amount,
+    InventoryResponseDto Inventory);
+
+internal sealed record CombatMissionDto(
+    [property: JsonPropertyName("mission_id")] string MissionId,
+    string Name,
+    string Description,
+    FighterDto Defender,
+    int Rounds,
+    [property: JsonPropertyName("reward_experience")] int RewardExperience,
+    [property: JsonPropertyName("reward_gold")] int RewardGold);
+
+internal sealed record FighterDto(
+    int Strength,
+    int Energy,
+    [property: JsonPropertyName("weapon_power")] int WeaponPower);
+
+internal sealed record FightRequestDto(FighterDto Attacker, FighterDto Defender, int Rounds);
+
+internal sealed record FightResponseDto(
+    string Winner,
+    [property: JsonPropertyName("rounds_requested")] int RoundsRequested,
+    [property: JsonPropertyName("rounds_completed")] int RoundsCompleted,
+    [property: JsonPropertyName("attacker_damage")] int AttackerDamage,
+    [property: JsonPropertyName("defender_damage")] int DefenderDamage,
+    [property: JsonPropertyName("attacker_remaining_energy")] int AttackerRemainingEnergy,
+    [property: JsonPropertyName("defender_remaining_energy")] int DefenderRemainingEnergy);
+
+internal sealed record CombatResultRequestDto(
+    int EnergyCost,
+    int GoldReward,
+    int ExperienceReward,
+    string Message);
+
+internal sealed record PlayerActionResponseDto(
+    bool Completed,
+    string Message,
+    PlayerRewardsDto Rewards,
+    object? State,
+    InventoryResponseDto? Wallet = null);
+
+internal sealed record PlayerRewardsDto(int Gold, int Experience, int Strength);
+
+internal sealed record MissionFightResponse(
+    CombatMissionDto Mission,
+    FightResponseDto Fight,
+    PlayerActionResponseDto PlayerAction,
+    string Message);
 
 internal sealed record ServiceMetadata(
     string Service,

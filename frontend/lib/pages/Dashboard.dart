@@ -1,4 +1,6 @@
+import 'package:ff/blocs/GameAreaBlocs.dart';
 import 'package:ff/blocs/PlayerBloc.dart';
+import 'package:ff/models/GameAreas.dart';
 import 'package:ff/models/PlayerState.dart';
 import 'package:ff/models/User.dart';
 import 'package:ff/utils/Utils.dart';
@@ -21,12 +23,14 @@ class Dashboard extends StatefulWidget {
 class DashboardState extends State<Dashboard> {
   late final LoginBloc _loginBloc;
   late final PlayerBloc _playerBloc;
+  late final InventoryBloc _inventoryBloc;
 
   @override
   void initState() {
     super.initState();
     _loginBloc = Provider.of<LoginBloc>(context, listen: false);
     _playerBloc = Provider.of<PlayerBloc>(context, listen: false);
+    _inventoryBloc = Provider.of<InventoryBloc>(context, listen: false);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) {
         return;
@@ -43,6 +47,7 @@ class DashboardState extends State<Dashboard> {
     });
     _loadProfile();
     _loadPlayerState();
+    _loadEconomyWallet();
   }
 
   Future<void> _loadProfile() async {
@@ -58,9 +63,17 @@ class DashboardState extends State<Dashboard> {
     await _playerBloc.loadState(widget.uid);
   }
 
+  Future<void> _loadEconomyWallet() async {
+    _inventoryBloc.setBearerToken(_loginBloc.currentToken);
+    await _inventoryBloc.load(widget.uid);
+  }
+
   Future<void> _work() async {
     _playerBloc.setBearerToken(_loginBloc.currentToken);
     final result = await _playerBloc.work(widget.uid);
+    if (result != null) {
+      await _loadEconomyWallet();
+    }
     if (!mounted) {
       return;
     }
@@ -90,6 +103,7 @@ class DashboardState extends State<Dashboard> {
 
   Future<void> _logout() async {
     _playerBloc.clear();
+    _inventoryBloc.clear();
     await _loginBloc.logout();
     if (!mounted) {
       return;
@@ -143,15 +157,17 @@ class DashboardState extends State<Dashboard> {
           }
           if (snapshot.hasData) {
             final user = snapshot.data as User;
-            return Consumer<PlayerBloc>(
-              builder: (context, playerBloc, _) {
+            return Consumer2<PlayerBloc, InventoryBloc>(
+              builder: (context, playerBloc, inventoryBloc, _) {
                 return _dashboardScaffold(
                   drawer: Drawer(
-                      child: dashboardDrawer(context, user, playerBloc.state)),
+                      child: dashboardDrawer(context, user, playerBloc.state,
+                          inventoryBloc.inventory)),
                   body: dashboardBody(
                     context,
                     user,
                     playerBloc,
+                    inventoryBloc: inventoryBloc,
                     onRetry: _loadPlayerState,
                     onWork: _work,
                     onTrain: _train,
@@ -233,7 +249,9 @@ Widget navTile(context, widget,
       },
     );
 
-Widget dashboardDrawer(context, User user, PlayerState? state) => ListView(
+Widget dashboardDrawer(
+        context, User user, PlayerState? state, InventorySummary? inventory) =>
+    ListView(
       children: <Widget>[
         Container(
           height: 250,
@@ -309,7 +327,9 @@ Widget dashboardDrawer(context, User user, PlayerState? state) => ListView(
                   color: Colors.white,
                   child: ListTile(
                     title: Text(
-                      state == null ? '--' : Utils.number(state.gold),
+                      inventory == null
+                          ? '--'
+                          : Utils.number(inventory.walletGold),
                       textAlign: TextAlign.center,
                       style: TextStyle(
                           color: Colors.blue,
@@ -330,16 +350,32 @@ Widget dashboardDrawer(context, User user, PlayerState? state) => ListView(
         InkWell(
           child: ExpansionTile(
             title: Text(
+              "Inventory",
+              style: TextStyle(color: Colors.blue, fontSize: 12.0),
+            ),
+            children: <Widget>[
+              navTile(context, user,
+                  title: "Storage", subtitle: "Inventory", route: '/inventory'),
+            ],
+          ),
+        ),
+        InkWell(
+          child: ExpansionTile(
+            title: Text(
               "My Buildings",
               style: TextStyle(color: Colors.blue, fontSize: 12.0),
             ),
             children: <Widget>[
               navTile(context, user,
-                  title: "Development", subtitle: "Factories"),
+                  title: "Development",
+                  subtitle: "Factories",
+                  route: '/factories'),
               navTile(context, user,
                   title: "Development", subtitle: "Training Grounds"),
               navTile(context, user,
-                  title: "Development", subtitle: "Buildings")
+                  title: "Development",
+                  subtitle: "Buildings",
+                  route: '/factories')
             ],
           ),
         ),
@@ -350,9 +386,12 @@ Widget dashboardDrawer(context, User user, PlayerState? state) => ListView(
               style: TextStyle(color: Colors.blue, fontSize: 12.0),
             ),
             children: <Widget>[
-              navTile(context, user, title: "Market", subtitle: "Food"),
-              navTile(context, user, title: "Market", subtitle: "Weapon"),
-              navTile(context, user, title: "Market", subtitle: "Factories")
+              navTile(context, user,
+                  title: "Market", subtitle: "Food", route: '/market'),
+              navTile(context, user,
+                  title: "Market", subtitle: "Weapon", route: '/market'),
+              navTile(context, user,
+                  title: "Market", subtitle: "Factories", route: '/market')
             ],
           ),
         ),
@@ -391,6 +430,7 @@ Widget dashboardBody(
   BuildContext context,
   User user,
   PlayerBloc playerBloc, {
+  required InventoryBloc inventoryBloc,
   required Future<void> Function() onRetry,
   required Future<void> Function() onWork,
   required Future<void> Function() onTrain,
@@ -429,7 +469,7 @@ Widget dashboardBody(
               ),
             ),
           ),
-        _progressionCard(context, state),
+        _progressionCard(context, state, inventoryBloc.inventory),
         _dailyActionsCard(
           state,
           isWorking: playerBloc.isWorking,
@@ -483,7 +523,8 @@ Widget _dashboardStatePlaceholder(
   );
 }
 
-Widget _progressionCard(BuildContext context, PlayerState state) {
+Widget _progressionCard(
+    BuildContext context, PlayerState state, InventorySummary? inventory) {
   return Card(
     margin: EdgeInsets.all(12.0),
     child: Padding(
@@ -520,8 +561,10 @@ Widget _progressionCard(BuildContext context, PlayerState state) {
               ),
               _statTile(
                 icon: Icons.paid,
-                label: 'Gold',
-                value: Utils.number(state.gold),
+                label: 'Wallet gold',
+                value: inventory == null
+                    ? '--'
+                    : Utils.number(inventory.walletGold),
               ),
             ],
           ),

@@ -8,6 +8,17 @@ pub const MAX_ROUNDS: u8 = 25;
 pub const MIN_WEAPON_POWER: u8 = 1;
 pub const MAX_WEAPON_POWER: u8 = 5;
 
+#[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
+pub struct CombatMission {
+    pub mission_id: &'static str,
+    pub name: &'static str,
+    pub description: &'static str,
+    pub defender: Fighter,
+    pub rounds: u8,
+    pub reward_experience: u32,
+    pub reward_gold: u32,
+}
+
 #[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq)]
 pub struct Fighter {
     pub strength: u32,
@@ -97,6 +108,43 @@ pub fn simulate_fight(request: FightRequest) -> Result<FightResponse, FightError
         attacker_remaining_energy: attacker_energy,
         defender_remaining_energy: defender_energy,
     })
+}
+
+pub fn missions() -> Vec<CombatMission> {
+    vec![
+        CombatMission {
+            mission_id: "training-bandits",
+            name: "Training Bandits",
+            description: "A low-risk skirmish for new citizens.",
+            defender: Fighter {
+                strength: 8,
+                energy: 80,
+                weapon_power: 1,
+            },
+            rounds: 3,
+            reward_experience: 15,
+            reward_gold: 5,
+        },
+        CombatMission {
+            mission_id: "border-raid",
+            name: "Border Raid",
+            description: "A tougher fight against an organized patrol.",
+            defender: Fighter {
+                strength: 14,
+                energy: 100,
+                weapon_power: 2,
+            },
+            rounds: 5,
+            reward_experience: 35,
+            reward_gold: 12,
+        },
+    ]
+}
+
+pub fn find_mission(mission_id: &str) -> Option<CombatMission> {
+    missions()
+        .into_iter()
+        .find(|mission| mission.mission_id.eq_ignore_ascii_case(mission_id))
 }
 
 fn validate_rounds(rounds: u8) -> Result<(), FightError> {

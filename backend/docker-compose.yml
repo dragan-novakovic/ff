@@ -35,7 +35,12 @@ services:
       <<: *dotnet-environment
       FF_IDENTITY_BASE_URL: http://identity-service:8080
       FF_PLAYER_BASE_URL: http://player-service:8080
+      FF_ECONOMY_BASE_URL: http://economy-service:8080
+      FF_PRODUCTION_BASE_URL: http://production-service:8080
+      FF_MARKET_BASE_URL: http://market-service:8080
+      FF_COMBAT_BASE_URL: http://combat-service:8080
       FF_IDENTITY_TOKEN_SECRET: ${FF_IDENTITY_TOKEN_SECRET:-ff-development-token-secret-change-me}
+      FF_INTERNAL_SERVICE_TOKEN: ${FF_INTERNAL_SERVICE_TOKEN:-ff-development-internal-token-change-me}
     ports:
       - "127.0.0.1:${GATEWAY_PORT:-5124}:8080"
     depends_on:
@@ -98,7 +103,10 @@ services:
       args:
         PROJECT_PATH: services/economy-service/Ff.Economy.Api/Ff.Economy.Api.csproj
         PROJECT_DLL: Ff.Economy.Api.dll
-    environment: *dotnet-environment
+    environment:
+      <<: *dotnet-environment
+      FF_ECONOMY_CONNECTION_STRING: Host=postgres;Port=5432;Database=${POSTGRES_DB:-ff_dev};Username=${POSTGRES_USER:-ff_dev};Password=${POSTGRES_PASSWORD:-ff_dev_password};Include Error Detail=true
+      FF_INTERNAL_SERVICE_TOKEN: ${FF_INTERNAL_SERVICE_TOKEN:-ff-development-internal-token-change-me}
     ports:
       - "127.0.0.1:${ECONOMY_PORT:-5141}:8080"
     depends_on: *backend-dependencies

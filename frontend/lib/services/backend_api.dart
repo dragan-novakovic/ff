@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:ff/models/GameAreas.dart';
 import 'package:ff/models/MessageModel.dart';
 import 'package:ff/models/PlayerState.dart';
 import 'package:ff/models/User.dart';
@@ -93,6 +94,72 @@ class BackendApiClient {
     return _playerActionFromJson(data);
   }
 
+  Future<InventorySummary> fetchInventory(String playerId) async {
+    final data = await _get('/players/$playerId/inventory');
+    if (data is! Map<String, dynamic>) {
+      throw BackendApiException('Invalid inventory response from backend.');
+    }
+
+    return _inventoryFromJson(data);
+  }
+
+  Future<FactoryPortfolio> fetchFactories(String playerId) async {
+    final data = await _get('/players/$playerId/factories');
+    if (data is! Map<String, dynamic>) {
+      throw BackendApiException('Invalid factories response from backend.');
+    }
+
+    return _factoryPortfolioFromJson(data);
+  }
+
+  Future<ProductionResult> produce(String playerId, String factoryId) async {
+    final data =
+        await _post('/players/$playerId/factories/$factoryId/produce', {});
+    return _productionResultFromJson(data);
+  }
+
+  Future<MarketListings> fetchMarketListings() async {
+    final data = await _get('/market/listings');
+    if (data is! Map<String, dynamic>) {
+      throw BackendApiException('Invalid market response from backend.');
+    }
+
+    return _marketListingsFromJson(data);
+  }
+
+  Future<MarketPurchaseResult> buyMarketListing({
+    required String playerId,
+    required String listingId,
+  }) async {
+    final data =
+        await _post('/players/$playerId/market/listings/$listingId/buy', {});
+    return _marketPurchaseResultFromJson(data);
+  }
+
+  Future<List<CombatMission>> fetchCombatMissions() async {
+    final data = await _get('/combat/missions');
+    if (data is! List<dynamic>) {
+      throw BackendApiException('Invalid missions response from backend.');
+    }
+
+    return data.map((mission) {
+      if (mission is! Map<String, dynamic>) {
+        throw BackendApiException('Invalid missions response from backend.');
+      }
+
+      return _combatMissionFromJson(mission);
+    }).toList();
+  }
+
+  Future<MissionFightResult> fightMission(
+    String playerId,
+    String missionId,
+  ) async {
+    final data =
+        await _post('/players/$playerId/combat/missions/$missionId/fight', {});
+    return _missionFightResultFromJson(data);
+  }
+
   Future<List<Message>> fetchMessages({String? fromId, String? toId}) async {
     final query = <String, String>{};
     if (fromId != null && fromId.isNotEmpty) {
@@ -173,6 +240,63 @@ class BackendApiClient {
   PlayerActionResult _playerActionFromJson(Map<String, dynamic> data) {
     try {
       return PlayerActionResult.fromJson(data);
+    } on FormatException catch (e) {
+      throw BackendApiException(e.message);
+    }
+  }
+
+  InventorySummary _inventoryFromJson(Map<String, dynamic> data) {
+    try {
+      return InventorySummary.fromJson(data);
+    } on FormatException catch (e) {
+      throw BackendApiException(e.message);
+    }
+  }
+
+  FactoryPortfolio _factoryPortfolioFromJson(Map<String, dynamic> data) {
+    try {
+      return FactoryPortfolio.fromJson(data);
+    } on FormatException catch (e) {
+      throw BackendApiException(e.message);
+    }
+  }
+
+  ProductionResult _productionResultFromJson(Map<String, dynamic> data) {
+    try {
+      return ProductionResult.fromJson(data);
+    } on FormatException catch (e) {
+      throw BackendApiException(e.message);
+    }
+  }
+
+  MarketListings _marketListingsFromJson(Map<String, dynamic> data) {
+    try {
+      return MarketListings.fromJson(data);
+    } on FormatException catch (e) {
+      throw BackendApiException(e.message);
+    }
+  }
+
+  MarketPurchaseResult _marketPurchaseResultFromJson(
+      Map<String, dynamic> data) {
+    try {
+      return MarketPurchaseResult.fromJson(data);
+    } on FormatException catch (e) {
+      throw BackendApiException(e.message);
+    }
+  }
+
+  CombatMission _combatMissionFromJson(Map<String, dynamic> data) {
+    try {
+      return CombatMission.fromJson(data);
+    } on FormatException catch (e) {
+      throw BackendApiException(e.message);
+    }
+  }
+
+  MissionFightResult _missionFightResultFromJson(Map<String, dynamic> data) {
+    try {
+      return MissionFightResult.fromJson(data);
     } on FormatException catch (e) {
       throw BackendApiException(e.message);
     }

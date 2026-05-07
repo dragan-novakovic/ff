@@ -70,6 +70,27 @@ app.MapPost("/players/{playerId}/train", async (
     return Results.Ok(await players.TrainAsync(access.PlayerId!));
 }).WithName("Train");
 
+app.MapPost("/players/{playerId}/combat/result", async (
+    string playerId,
+    CombatResultRequest request,
+    HttpRequest httpRequest,
+    PlayerProgressionStore players,
+    DevTokenValidator tokens) =>
+{
+    var access = ValidatePlayerAccess(playerId, httpRequest, tokens);
+    if (access.Error is not null)
+    {
+        return access.Error;
+    }
+
+    if (request.EnergyCost < 0 || request.GoldReward < 0 || request.ExperienceReward < 0)
+    {
+        return Results.BadRequest(new ErrorResponse("Combat costs and rewards cannot be negative."));
+    }
+
+    return Results.Ok(await players.ApplyCombatResultAsync(access.PlayerId!, request));
+}).WithName("ApplyCombatResult");
+
 app.Run();
 
 static PlayerAccessResult ValidatePlayerAccess(string playerId, HttpRequest request, DevTokenValidator tokens)

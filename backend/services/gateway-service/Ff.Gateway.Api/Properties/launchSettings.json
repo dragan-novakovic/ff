@@ -17,7 +17,12 @@
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development",
         "FF_IDENTITY_BASE_URL": "http://127.0.0.1:5125",
-        "FF_PLAYER_BASE_URL": "http://127.0.0.1:5192"
+        "FF_PLAYER_BASE_URL": "http://127.0.0.1:5192",
+        "FF_ECONOMY_BASE_URL": "http://127.0.0.1:5141",
+        "FF_PRODUCTION_BASE_URL": "http://127.0.0.1:5148",
+        "FF_MARKET_BASE_URL": "http://127.0.0.1:5275",
+        "FF_COMBAT_BASE_URL": "http://127.0.0.1:8081",
+        "FF_INTERNAL_SERVICE_TOKEN": "ff-development-internal-token-change-me"
       }
     },
     "https": {
@@ -28,7 +33,12 @@
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development",
         "FF_IDENTITY_BASE_URL": "http://127.0.0.1:5125",
-        "FF_PLAYER_BASE_URL": "http://127.0.0.1:5192"
+        "FF_PLAYER_BASE_URL": "http://127.0.0.1:5192",
+        "FF_ECONOMY_BASE_URL": "http://127.0.0.1:5141",
+        "FF_PRODUCTION_BASE_URL": "http://127.0.0.1:5148",
+        "FF_MARKET_BASE_URL": "http://127.0.0.1:5275",
+        "FF_COMBAT_BASE_URL": "http://127.0.0.1:8081",
+        "FF_INTERNAL_SERVICE_TOKEN": "ff-development-internal-token-change-me"
       }
     },
     "IIS Express": {

@@ -59,8 +59,7 @@ internal sealed class PlayerProgressionStore : IDisposable
 
         await using var command = _dataSource.CreateCommand("""
             UPDATE player.progression
-            SET gold = gold + @gold_reward,
-                experience = experience + @experience_reward,
+            SET experience = experience + @experience_reward,
                 level = GREATEST(level, floor((experience + @experience_reward)::numeric / 100)::integer + 1),
                 last_work_date = CURRENT_DATE,
                 updated_at = @updated_at
@@ -72,7 +71,6 @@ internal sealed class PlayerProgressionStore : IDisposable
                       updated_at;
             """);
         command.Parameters.AddWithValue("player_id", normalizedPlayerId);
-        command.Parameters.AddWithValue("gold_reward", WorkGoldReward);
         command.Parameters.AddWithValue("experience_reward", WorkExperienceReward);
         command.Parameters.AddWithValue("updated_at", DateTimeOffset.UtcNow);
 
@@ -134,6 +132,51 @@ internal sealed class PlayerProgressionStore : IDisposable
         return new PlayerActionResponse(
             Completed: false,
             Message: "You already trained today. Come back after the daily reset.",
+            Rewards: PlayerRewardsDto.None,
+            State: currentState);
+    }
+
+    public async Task<PlayerActionResponse> ApplyCombatResultAsync(string playerId, CombatResultRequest request)
+    {
+        var normalizedPlayerId = NormalizePlayerId(playerId);
+        await EnsureExistsAsync(normalizedPlayerId);
+
+        await using var command = _dataSource.CreateCommand("""
+            UPDATE player.progression
+            SET energy = GREATEST(0, energy - @energy_cost),
+                experience = experience + @experience_reward,
+                level = GREATEST(level, floor((experience + @experience_reward)::numeric / 100)::integer + 1),
+                updated_at = @updated_at
+            WHERE player_id = @player_id
+              AND energy >= @energy_cost
+            RETURNING player_id, level, experience, energy, max_energy, strength, gold,
+                      COALESCE(last_work_date = CURRENT_DATE, false) AS has_worked_today,
+                      COALESCE(last_train_date = CURRENT_DATE, false) AS has_trained_today,
+                      updated_at;
+            """);
+        command.Parameters.AddWithValue("player_id", normalizedPlayerId);
+        command.Parameters.AddWithValue("energy_cost", request.EnergyCost);
+        command.Parameters.AddWithValue("experience_reward", request.ExperienceReward);
+        command.Parameters.AddWithValue("updated_at", DateTimeOffset.UtcNow);
+
+        await using var reader = await command.ExecuteReaderAsync();
+        if (await reader.ReadAsync())
+        {
+            var state = ReadState(reader);
+            return new PlayerActionResponse(
+                Completed: true,
+                Message: request.Message,
+                Rewards: new PlayerRewardsDto(
+                    Gold: request.GoldReward,
+                    Experience: request.ExperienceReward,
+                    Strength: 0),
+                State: state);
+        }
+
+        var currentState = await GetStateAsync(normalizedPlayerId);
+        return new PlayerActionResponse(
+            Completed: false,
+            Message: $"Not enough energy. Required {request.EnergyCost}, available {currentState.Energy}.",
             Rewards: PlayerRewardsDto.None,
             State: currentState);
     }
@@ -230,3 +273,9 @@ public sealed record PlayerRewardsDto(int Gold, int Experience, int Strength)
 {
     public static PlayerRewardsDto None { get; } = new(Gold: 0, Experience: 0, Strength: 0);
 }
+
+public sealed record CombatResultRequest(
+    int EnergyCost,
+    int GoldReward,
+    int ExperienceReward,
+    string Message);

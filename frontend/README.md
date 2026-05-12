@@ -113,3 +113,30 @@ Do not commit `upload-keystore.jks` or `key.properties`. `frontend/android/key.p
 5. Push to the repository. The workflow builds a new version and uploads it to Internal testing.
 
 Pull requests run the same build/test checks but do not publish to Play.
+
+## Android E2E smoke tests
+
+The repository uses Maestro for black-box Android click-through tests. The workflow in `.github/workflows/android-e2e.yml` starts a headless Android emulator, installs a debug APK, and runs the flows in `.maestro/`.
+
+Current smoke coverage:
+
+- launches `com.example.ff`;
+- verifies the login screen renders;
+- taps and types into the email/password fields;
+- verifies the demo-login button is visible;
+- opens and closes the password reset dialog.
+
+Run the same flow locally after installing Maestro and starting an Android emulator:
+
+```sh
+cd frontend
+flutter build apk --debug --no-pub \
+  --dart-define=FF_SHOW_DEMO_LOGIN=true \
+  --dart-define=FF_API_BASE_URL=http://10.0.2.2:5124
+
+adb install -r build/app/outputs/flutter-apk/app-debug.apk
+cd ..
+maestro test .maestro
+```
+
+Add deeper flows as backend-dependent scenarios become stable, for example demo login, dashboard navigation, battle contribution, market listing, and inbox messaging.

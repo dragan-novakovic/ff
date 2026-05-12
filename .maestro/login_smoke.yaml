@@ -1,0 +1,17 @@
+appId: com.example.ff
+---
+- launchApp:
+    clearState: true
+- assertVisible: "E - GAME"
+- assertVisible: "Email Address"
+- tapOn: "Email Address"
+- inputText: "demo@ff.local"
+- tapOn: "Password"
+- inputText: "secret"
+- hideKeyboard
+- assertVisible: "Login"
+- assertVisible: "Login as demo"
+- tapOn: "Forgot password?"
+- assertVisible: "Reset password"
+- assertVisible: "Account email"
+- tapOn: "Close"

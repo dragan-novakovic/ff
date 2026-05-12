@@ -71,6 +71,22 @@ internal sealed class PlayerProgressionStore : IDisposable
                 created_at timestamptz NOT NULL
             );
 
+            CREATE TABLE IF NOT EXISTS player.training_sessions (
+                session_id text PRIMARY KEY,
+                player_id text NOT NULL,
+                reset_date date NOT NULL,
+                strength_before integer NOT NULL,
+                strength_after integer NOT NULL,
+                experience_before integer NOT NULL,
+                experience_after integer NOT NULL,
+                level_before integer NOT NULL,
+                level_after integer NOT NULL,
+                strength_gained integer NOT NULL,
+                experience_gained integer NOT NULL,
+                trained_at timestamptz NOT NULL,
+                UNIQUE (player_id, reset_date)
+            );
+
             CREATE TABLE IF NOT EXISTS player.mission_progress (
                 player_id text NOT NULL,
                 mission_id text NOT NULL,
@@ -377,6 +393,9 @@ internal sealed class PlayerProgressionStore : IDisposable
 
             CREATE INDEX IF NOT EXISTS progression_strength_ranking_idx
             ON player.progression (strength DESC, level DESC, experience DESC, updated_at ASC, player_id ASC);
+
+            CREATE INDEX IF NOT EXISTS training_sessions_player_trained_idx
+            ON player.training_sessions (player_id, trained_at DESC);
             """;
 
         await using var command = _dataSource.CreateCommand(sql);
@@ -390,6 +409,37 @@ internal sealed class PlayerProgressionStore : IDisposable
         await ApplyEnergyRegenerationAsync(normalizedPlayerId);
         return await LoadStateAsync(normalizedPlayerId)
             ?? throw new InvalidOperationException("Player state could not be loaded after initialization.");
+    }
+
+    public async Task<TrainingGroundsResponse> GetTrainingGroundsAsync(string playerId)
+    {
+        var normalizedPlayerId = NormalizePlayerId(playerId);
+        await EnsureExistsAsync(normalizedPlayerId);
+
+        await using var connection = await _dataSource.OpenConnectionAsync();
+        await using var transaction = await connection.BeginTransactionAsync();
+        var now = DateTimeOffset.UtcNow;
+        await ApplyEnergyRegenerationAsync(connection, transaction, normalizedPlayerId, now);
+        var state = await LoadStateAsync(connection, transaction, normalizedPlayerId)
+            ?? throw new InvalidOperationException("Player state could not be loaded after initialization.");
+        var recentSessions = await ReadTrainingSessionsAsync(
+            connection,
+            transaction,
+            normalizedPlayerId,
+            10);
+        var resetDate = CurrentResetDate();
+        await transaction.CommitAsync();
+
+        return new TrainingGroundsResponse(
+            PlayerId: normalizedPlayerId,
+            State: state,
+            CanTrainToday: !state.HasTrainedToday,
+            HasTrainedToday: state.HasTrainedToday,
+            NextResetAt: ResetAt(resetDate),
+            StrengthReward: TrainStrengthReward,
+            ExperienceReward: TrainExperienceReward,
+            RecentSessions: recentSessions.ToArray(),
+            UpdatedAt: now);
     }
 
     public async Task<MissionProgressResponse> GetMissionProgressAsync(string playerId)
@@ -1175,9 +1225,15 @@ internal sealed class PlayerProgressionStore : IDisposable
     {
         var normalizedPlayerId = NormalizePlayerId(playerId);
         await EnsureExistsAsync(normalizedPlayerId);
-        await ApplyEnergyRegenerationAsync(normalizedPlayerId);
+        await using var connection = await _dataSource.OpenConnectionAsync();
+        await using var transaction = await connection.BeginTransactionAsync();
+        var now = DateTimeOffset.UtcNow;
+        await ApplyEnergyRegenerationAsync(connection, transaction, normalizedPlayerId, now);
+        var beforeState = await LoadStateAsync(connection, transaction, normalizedPlayerId)
+            ?? throw new InvalidOperationException("Player state could not be loaded after initialization.");
 
-        await using var command = _dataSource.CreateCommand("""
+        PlayerStateDto? updatedState = null;
+        await using (var command = new NpgsqlCommand("""
             UPDATE player.progression
             SET strength = strength + @strength_reward,
                 experience = experience + @experience_reward,
@@ -1190,24 +1246,42 @@ internal sealed class PlayerProgressionStore : IDisposable
                       COALESCE(last_work_date = CURRENT_DATE, false) AS has_worked_today,
                       COALESCE(last_train_date = CURRENT_DATE, false) AS has_trained_today,
                       updated_at, last_energy_regenerated_at, hospital_cooldown_until;
-            """);
-        command.Parameters.AddWithValue("player_id", normalizedPlayerId);
-        command.Parameters.AddWithValue("strength_reward", TrainStrengthReward);
-        command.Parameters.AddWithValue("experience_reward", TrainExperienceReward);
-        command.Parameters.AddWithValue("updated_at", DateTimeOffset.UtcNow);
-
-        await using var reader = await command.ExecuteReaderAsync();
-        if (await reader.ReadAsync())
+            """, connection, transaction))
         {
-            var state = ReadState(reader);
+            command.Parameters.AddWithValue("player_id", normalizedPlayerId);
+            command.Parameters.AddWithValue("strength_reward", TrainStrengthReward);
+            command.Parameters.AddWithValue("experience_reward", TrainExperienceReward);
+            command.Parameters.AddWithValue("updated_at", now);
+
+            await using var reader = await command.ExecuteReaderAsync();
+            if (await reader.ReadAsync())
+            {
+                updatedState = ReadState(reader);
+            }
+        }
+
+        if (updatedState is not null)
+        {
+            await AddTrainingSessionAsync(
+                connection,
+                transaction,
+                normalizedPlayerId,
+                CurrentResetDate(),
+                beforeState,
+                updatedState,
+                now);
+            await transaction.CommitAsync();
+
             return new PlayerActionResponse(
                 Completed: true,
                 Message: $"Training complete. You gained {TrainStrengthReward} strength and {TrainExperienceReward} XP.",
                 Rewards: new PlayerRewardsDto(Gold: 0, Experience: TrainExperienceReward, Strength: TrainStrengthReward),
-                State: state);
+                State: updatedState);
         }
 
-        var currentState = await GetStateAsync(normalizedPlayerId);
+        var currentState = await LoadStateAsync(connection, transaction, normalizedPlayerId)
+            ?? beforeState;
+        await transaction.CommitAsync();
         return new PlayerActionResponse(
             Completed: false,
             Message: "You already trained today. Come back after the daily reset.",
@@ -2822,6 +2896,83 @@ internal sealed class PlayerProgressionStore : IDisposable
         await command.ExecuteNonQueryAsync();
     }
 
+    private static async Task AddTrainingSessionAsync(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
+        string playerId,
+        DateOnly resetDate,
+        PlayerStateDto beforeState,
+        PlayerStateDto afterState,
+        DateTimeOffset trainedAt)
+    {
+        await using var command = new NpgsqlCommand("""
+            INSERT INTO player.training_sessions (
+                session_id, player_id, reset_date, strength_before, strength_after,
+                experience_before, experience_after, level_before, level_after,
+                strength_gained, experience_gained, trained_at
+            )
+            VALUES (
+                @session_id, @player_id, @reset_date, @strength_before, @strength_after,
+                @experience_before, @experience_after, @level_before, @level_after,
+                @strength_gained, @experience_gained, @trained_at
+            )
+            ON CONFLICT DO NOTHING;
+            """, connection, transaction);
+        command.Parameters.AddWithValue("session_id", $"training:{playerId}:{resetDate:yyyy-MM-dd}");
+        command.Parameters.AddWithValue("player_id", playerId);
+        command.Parameters.AddWithValue("reset_date", resetDate);
+        command.Parameters.AddWithValue("strength_before", beforeState.Strength);
+        command.Parameters.AddWithValue("strength_after", afterState.Strength);
+        command.Parameters.AddWithValue("experience_before", beforeState.Experience);
+        command.Parameters.AddWithValue("experience_after", afterState.Experience);
+        command.Parameters.AddWithValue("level_before", beforeState.Level);
+        command.Parameters.AddWithValue("level_after", afterState.Level);
+        command.Parameters.AddWithValue("strength_gained", Math.Max(0, afterState.Strength - beforeState.Strength));
+        command.Parameters.AddWithValue("experience_gained", Math.Max(0, afterState.Experience - beforeState.Experience));
+        command.Parameters.AddWithValue("trained_at", trainedAt);
+        await command.ExecuteNonQueryAsync();
+    }
+
+    private static async Task<List<TrainingSessionDto>> ReadTrainingSessionsAsync(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
+        string playerId,
+        int limit)
+    {
+        await using var command = new NpgsqlCommand("""
+            SELECT session_id, player_id, reset_date, strength_before, strength_after,
+                   experience_before, experience_after, level_before, level_after,
+                   strength_gained, experience_gained, trained_at
+            FROM player.training_sessions
+            WHERE player_id = @player_id
+            ORDER BY trained_at DESC
+            LIMIT @limit;
+            """, connection, transaction);
+        command.Parameters.AddWithValue("player_id", playerId);
+        command.Parameters.AddWithValue("limit", Math.Clamp(limit, 1, 25));
+
+        var sessions = new List<TrainingSessionDto>();
+        await using var reader = await command.ExecuteReaderAsync();
+        while (await reader.ReadAsync())
+        {
+            sessions.Add(new TrainingSessionDto(
+                SessionId: reader.GetString(0),
+                PlayerId: reader.GetString(1),
+                ResetDate: reader.GetFieldValue<DateOnly>(2),
+                StrengthBefore: reader.GetInt32(3),
+                StrengthAfter: reader.GetInt32(4),
+                ExperienceBefore: reader.GetInt32(5),
+                ExperienceAfter: reader.GetInt32(6),
+                LevelBefore: reader.GetInt32(7),
+                LevelAfter: reader.GetInt32(8),
+                StrengthGained: reader.GetInt32(9),
+                ExperienceGained: reader.GetInt32(10),
+                TrainedAt: reader.GetFieldValue<DateTimeOffset>(11)));
+        }
+
+        return sessions;
+    }
+
     private static PlayerStateDto ReadState(NpgsqlDataReader reader)
     {
         var experience = reader.GetInt32(2);
@@ -3121,6 +3272,31 @@ public sealed record PlayerStateDto(
     DateTimeOffset? HospitalCooldownUntil,
     int HospitalEnergyRestore,
     int HospitalGoldCost);
+
+public sealed record TrainingGroundsResponse(
+    string PlayerId,
+    PlayerStateDto State,
+    bool CanTrainToday,
+    bool HasTrainedToday,
+    DateTimeOffset NextResetAt,
+    int StrengthReward,
+    int ExperienceReward,
+    TrainingSessionDto[] RecentSessions,
+    DateTimeOffset UpdatedAt);
+
+public sealed record TrainingSessionDto(
+    string SessionId,
+    string PlayerId,
+    DateOnly ResetDate,
+    int StrengthBefore,
+    int StrengthAfter,
+    int ExperienceBefore,
+    int ExperienceAfter,
+    int LevelBefore,
+    int LevelAfter,
+    int StrengthGained,
+    int ExperienceGained,
+    DateTimeOffset TrainedAt);
 
 public sealed record PlayerRankingsResponse(
     string SortBy,

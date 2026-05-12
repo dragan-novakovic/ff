@@ -13,6 +13,7 @@ import 'package:ff/models/PlayerState.dart';
 import 'package:ff/models/PushNotifications.dart';
 import 'package:ff/models/RealtimeUpdates.dart';
 import 'package:ff/models/ResourceLogistics.dart';
+import 'package:ff/models/TrainingGrounds.dart';
 import 'package:ff/models/User.dart';
 import 'package:http/http.dart' as http;
 
@@ -446,6 +447,16 @@ class BackendApiClient {
   Future<PlayerActionResult> train(String playerId) async {
     final data = await _post('/players/$playerId/train', {});
     return _playerActionFromJson(data);
+  }
+
+  Future<TrainingGroundsSummary> fetchTrainingGrounds(String playerId) async {
+    final data = await _get('/players/$playerId/training-grounds');
+    if (data is! Map<String, dynamic>) {
+      throw BackendApiException(
+          'Invalid training grounds response from backend.');
+    }
+
+    return TrainingGroundsSummary.fromJson(data);
   }
 
   Future<PlayerActionResult> recoverAtHospital({

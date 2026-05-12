@@ -50,7 +50,9 @@ async fn missions() -> Json<Vec<CombatMission>> {
 }
 
 async fn mission(Path(mission_id): Path<String>) -> Result<Json<CombatMission>, MissionError> {
-    domain::find_mission(&mission_id).map(Json).ok_or(MissionError)
+    domain::find_mission(&mission_id)
+        .map(Json)
+        .ok_or(MissionError)
 }
 
 #[derive(Debug)]

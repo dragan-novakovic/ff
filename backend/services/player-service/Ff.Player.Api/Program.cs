@@ -64,6 +64,21 @@ app.MapGet("/players/{playerId}/state", async (
     return Results.Ok(await players.GetStateAsync(access.PlayerId!));
 }).WithName("GetPlayerState");
 
+app.MapGet("/players/{playerId}/training-grounds", async (
+    string playerId,
+    HttpRequest request,
+    PlayerProgressionStore players,
+    DevTokenValidator tokens) =>
+{
+    var access = ValidatePlayerAccess(playerId, request, tokens);
+    if (access.Error is not null)
+    {
+        return access.Error;
+    }
+
+    return Results.Ok(await players.GetTrainingGroundsAsync(access.PlayerId!));
+}).WithName("GetTrainingGrounds");
+
 app.MapGet("/players/{playerId}/missions/progress", async (
     string playerId,
     HttpRequest request,

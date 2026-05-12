@@ -2077,6 +2077,7 @@ class CountryBattlesBloc extends ChangeNotifier {
   CountryBattleLeaderboard? countryLeaderboard;
   PlayerBattleParticipationStatus? participationStatus;
   CombatReportList? myCombatReports;
+  CombatReportList? playerCombatReports;
   BattleContributionResult? lastContribution;
   CampaignMutationResult? lastCampaignMutation;
   CampaignRewardClaimResult? lastRewardClaim;
@@ -2104,6 +2105,7 @@ class CountryBattlesBloc extends ChangeNotifier {
     countryLeaderboard = null;
     participationStatus = null;
     myCombatReports = null;
+    playerCombatReports = null;
     lastContribution = null;
     lastCampaignMutation = null;
     lastRewardClaim = null;
@@ -2118,7 +2120,7 @@ class CountryBattlesBloc extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> load(String playerId) async {
+  Future<void> load(String playerId, {int reportLimit = 10}) async {
     isLoading = true;
     error = null;
     notifyListeners();
@@ -2128,12 +2130,16 @@ class CountryBattlesBloc extends ChangeNotifier {
         _apiClient.fetchCountryBattles(),
         _apiClient.fetchCampaigns(status: 'active', limit: 25),
         _apiClient.fetchCountryBattleLeaderboard(limit: 25),
-        _apiClient.fetchPlayerCombatReports(playerId: playerId, limit: 10),
+        _apiClient.fetchPlayerCombatReports(
+          playerId: playerId,
+          limit: reportLimit,
+        ),
       ]);
       battles = results[0] as CountryBattleList;
       campaigns = results[1] as CampaignList;
       countryLeaderboard = results[2] as CountryBattleLeaderboard;
       myCombatReports = results[3] as CombatReportList;
+      playerCombatReports = results[3] as CombatReportList;
       final selected = selectedBattle?.battle.battleId;
       if (selected != null) {
         await loadDetails(playerId: playerId, battleId: selected);
@@ -2144,6 +2150,22 @@ class CountryBattlesBloc extends ChangeNotifier {
       error = 'Could not load country battles.';
     } finally {
       isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> loadPlayerReports(String playerId, {int limit = 25}) async {
+    try {
+      playerCombatReports = await _apiClient.fetchPlayerCombatReports(
+        playerId: playerId,
+        limit: limit,
+      );
+      error = null;
+    } on BackendApiException catch (e) {
+      error = e.message;
+    } on Exception {
+      error = 'Could not load player combat reports.';
+    } finally {
       notifyListeners();
     }
   }
@@ -2253,6 +2275,7 @@ class CountryBattlesBloc extends ChangeNotifier {
       );
       _replaceBattle(result.battle);
       await loadDetails(playerId: playerId, battleId: battleId);
+      await loadPlayerReports(playerId, limit: 50);
       final campaignId = result.battle.campaignId;
       if (campaignId != null && campaignId.isNotEmpty) {
         await loadCampaign(campaignId);

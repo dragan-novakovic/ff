@@ -388,8 +388,12 @@ class DashboardState extends State<Dashboard> {
 
   Widget _dashboardScaffold({required Widget body, Widget? drawer}) {
     return Scaffold(
+      backgroundColor: const Color(0xFF08111E),
       appBar: AppBar(
         title: const Text('Home'),
+        backgroundColor: const Color(0xFF0D1B2A),
+        foregroundColor: Colors.white,
+        elevation: 0,
         actions: [
           IconButton(
             tooltip: 'Notifications',
@@ -457,321 +461,640 @@ Widget navTile(context, widget,
         required String subtitle,
         String? route,
         String? props}) =>
-    InkWell(
-      child: ListTile(
-        title: Text(
-          title,
-          style: TextStyle(color: Colors.blue, fontSize: 12.0),
-        ),
-        subtitle: Text(
-          subtitle,
-          style: TextStyle(fontSize: 18.0),
+    Opacity(
+      opacity: route == null ? 0.58 : 1,
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: 8),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(16),
+            onTap: route == null
+                ? null
+                : () {
+                    if (props != null) {
+                      Navigator.pushNamed(context, route, arguments: {
+                        'id': props,
+                      });
+                    } else {
+                      Navigator.pushNamed(context, route);
+                    }
+                  },
+            child: Ink(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF7FAFF),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: const Color(0xFFE4ECF7)),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 38,
+                    height: 38,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFEAF2FF),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Icon(
+                      _drawerDestinationIcon(subtitle, route),
+                      color: const Color(0xFF2563EB),
+                      size: 20,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          subtitle,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: Color(0xFF0F172A),
+                            fontWeight: FontWeight.w700,
+                            fontSize: 15,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          title.toUpperCase(),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: Color(0xFF64748B),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: 0.4,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (route == null)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFE2E8F0),
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: const Text(
+                        'Soon',
+                        style: TextStyle(
+                          color: Color(0xFF475569),
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    )
+                  else
+                    const Icon(
+                      Icons.chevron_right_rounded,
+                      color: Color(0xFF94A3B8),
+                    ),
+                ],
+              ),
+            ),
+          ),
         ),
       ),
-      onTap: () {
-        if (route != null) {
-          if (props != null) {
-            Navigator.pushNamed(context, route, arguments: {'id': props});
-          } else {
-            Navigator.pushNamed(context, route);
-          }
-
-          return;
-        }
-        // Navigator.push(
-        //   context,
-        //   MaterialPageRoute(
-        //       builder: (context) => FactoriesPage(userId: widget.user.id)),
-        // );
-      },
     );
 
 Widget dashboardDrawer(
-        context, User user, PlayerState? state, InventorySummary? inventory) =>
-    ListView(
-      children: <Widget>[
-        Container(
-          height: 250,
-          decoration: BoxDecoration(
-              gradient: LinearGradient(
-                  begin: Alignment.centerLeft,
-                  end: Alignment.centerRight,
-                  stops: [0.5, 0.9],
-                  colors: [Colors.blue.shade300, Colors.lightBlue])),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: <Widget>[
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: <Widget>[
-                  CircularPercentIndicator(
-                    radius: 100.0,
-                    lineWidth: 10.0,
-                    percent: 0.1,
-                    center: CircleAvatar(
-                      radius: 90,
-                      child: ClipOval(
-                        child: Image(
-                            image: AssetImage('assets/images/avatar.png')),
+    context, User user, PlayerState? state, InventorySummary? inventory) {
+  return DecoratedBox(
+    decoration: const BoxDecoration(color: Color(0xFFF4F7FB)),
+    child: SafeArea(
+      child: Column(
+        children: [
+          _drawerHeader(user, state, inventory),
+          Expanded(
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(12, 0, 12, 18),
+              children: <Widget>[
+                _drawerSection(
+                  context,
+                  title: 'Inventory',
+                  icon: Icons.inventory_2_outlined,
+                  children: [
+                    navTile(context, user,
+                        title: 'Storage',
+                        subtitle: 'Inventory',
+                        route: '/inventory'),
+                  ],
+                ),
+                _drawerSection(
+                  context,
+                  title: 'My Buildings',
+                  icon: Icons.domain_outlined,
+                  children: [
+                    navTile(context, user,
+                        title: 'Development',
+                        subtitle: 'Factories',
+                        route: '/factories'),
+                    navTile(context, user,
+                        title: 'Development',
+                        subtitle: 'Research',
+                        route: '/research'),
+                    navTile(context, user,
+                        title: 'Development',
+                        subtitle: 'Resources & Logistics',
+                        route: '/resource-logistics'),
+                    navTile(context, user,
+                        title: 'Development',
+                        subtitle: 'Training Grounds',
+                        route: '/training-grounds'),
+                    navTile(context, user,
+                        title: 'Development',
+                        subtitle: 'Buildings',
+                        route: '/factories')
+                  ],
+                ),
+                _drawerSection(
+                  context,
+                  title: 'Market',
+                  icon: Icons.storefront_outlined,
+                  children: [
+                    navTile(context, user,
+                        title: 'Market', subtitle: 'Food', route: '/market'),
+                    navTile(context, user,
+                        title: 'Market', subtitle: 'Weapon', route: '/market'),
+                    navTile(context, user,
+                        title: 'Market',
+                        subtitle: 'Factories',
+                        route: '/market'),
+                    navTile(context, user,
+                        title: 'Contracts',
+                        subtitle: 'Company Contracts',
+                        route: '/company-contracts'),
+                    navTile(context, user,
+                        title: 'Labor',
+                        subtitle: 'Exchange',
+                        route: '/workforce')
+                  ],
+                ),
+                _drawerSection(
+                  context,
+                  title: 'Missions',
+                  icon: Icons.flag_outlined,
+                  children: [
+                    navTile(context, user,
+                        title: 'Battle',
+                        subtitle: 'Chapter I',
+                        route: '/missions'),
+                    navTile(context, user,
+                        title: 'Daily',
+                        subtitle: 'Objectives',
+                        route: '/daily-campaigns'),
+                    navTile(context, user,
+                        title: 'Tutorial',
+                        subtitle: 'Advisor',
+                        route: '/advisor'),
+                    navTile(context, user,
+                        title: 'Hospital',
+                        subtitle: 'Recovery Center',
+                        route: '/recovery-center'),
+                  ],
+                ),
+                _drawerSection(
+                  context,
+                  title: 'World',
+                  icon: Icons.public_outlined,
+                  children: [
+                    navTile(context, user,
+                        title: 'Countries',
+                        subtitle: 'Citizenship',
+                        route: '/world'),
+                    navTile(context, user,
+                        title: 'Budget',
+                        subtitle: 'Treasury',
+                        route: '/treasury'),
+                    navTile(context, user,
+                        title: 'Map',
+                        subtitle: 'Territory',
+                        route: '/territory'),
+                    navTile(context, user,
+                        title: 'Power',
+                        subtitle: 'Country Rankings',
+                        route: '/country-rankings'),
+                    navTile(context, user,
+                        title: 'War Room',
+                        subtitle: 'Campaigns',
+                        route: '/country-battles'),
+                    navTile(context, user,
+                        title: 'Reports',
+                        subtitle: 'Battle Reports',
+                        route: '/battle-reports'),
+                    navTile(context, user,
+                        title: 'Military',
+                        subtitle: 'Unit HQ',
+                        route: '/military-units'),
+                    navTile(context, user,
+                        title: 'Politics',
+                        subtitle: 'Parties & Elections',
+                        route: '/politics'),
+                    navTile(context, user,
+                        title: 'Congress',
+                        subtitle: 'Laws & Votes',
+                        route: '/congress'),
+                    navTile(context, user,
+                        title: 'Diplomacy',
+                        subtitle: 'Treaties & Relations',
+                        route: '/diplomacy'),
+                  ],
+                ),
+                _drawerSection(
+                  context,
+                  title: 'Community',
+                  icon: Icons.groups_2_outlined,
+                  children: [
+                    navTile(context, user,
+                        title: 'Organizations',
+                        subtitle: 'Companies',
+                        route: '/companies'),
+                    navTile(context, user,
+                        title: 'Organizations',
+                        subtitle: 'Labor Exchange',
+                        route: '/workforce'),
+                    navTile(context, user,
+                        title: 'Hall of Fame',
+                        subtitle: 'Rankings',
+                        route: '/rankings'),
+                    navTile(context, user,
+                        title: 'Medals',
+                        subtitle: 'Achievements',
+                        route: '/achievements'),
+                    navTile(context, user,
+                        title: 'Citizen',
+                        subtitle: 'Dossier',
+                        route: '/profile'),
+                    navTile(context, user,
+                        title: 'Notifications',
+                        subtitle: 'Activity',
+                        route: '/activity'),
+                    navTile(context, user,
+                        title: 'Notifications',
+                        subtitle: 'Push',
+                        route: '/push-notifications'),
+                  ],
+                ),
+                _drawerSection(
+                  context,
+                  title: 'Media',
+                  icon: Icons.newspaper_outlined,
+                  children: [
+                    navTile(context, user,
+                        title: 'Press',
+                        subtitle: 'Newspapers',
+                        route: '/media/newspapers'),
+                  ],
+                ),
+                _drawerSection(
+                  context,
+                  title: 'Operations',
+                  icon: Icons.admin_panel_settings_outlined,
+                  children: [
+                    navTile(context, user,
+                        title: 'Account',
+                        subtitle: 'Security',
+                        route: '/account/security'),
+                    navTile(context, user,
+                        title: 'Admin',
+                        subtitle: 'Moderation',
+                        route: '/admin'),
+                  ],
+                ),
+                _drawerSection(
+                  context,
+                  title: 'Channels',
+                  icon: Icons.chat_bubble_outline_rounded,
+                  children: [
+                    navTile(context, user,
+                        title: 'Channel', subtitle: 'Global'),
+                    navTile(context, user, title: 'Channel', subtitle: 'Guild'),
+                    navTile(context, user,
+                        title: 'Chat', subtitle: 'Inbox', route: '/inbox')
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+Widget _drawerHeader(
+    User user, PlayerState? state, InventorySummary? inventory) {
+  final energyText =
+      state == null ? '--' : '${state.energy}/${state.maxEnergy}';
+  final goldText =
+      inventory == null ? '--' : Utils.number(inventory.walletGold);
+  final detailText =
+      state == null ? 'Loading citizen data' : 'Level ${state.level} citizen';
+
+  return Container(
+    margin: const EdgeInsets.all(12),
+    padding: const EdgeInsets.all(16),
+    decoration: BoxDecoration(
+      borderRadius: BorderRadius.circular(28),
+      gradient: const LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [
+          Color(0xFF0F172A),
+          Color(0xFF1D4ED8),
+          Color(0xFF38BDF8),
+        ],
+      ),
+      boxShadow: [
+        BoxShadow(
+          color: Colors.blue.shade900.withOpacity(0.22),
+          blurRadius: 24,
+          offset: const Offset(0, 12),
+        ),
+      ],
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            CircularPercentIndicator(
+              radius: 66,
+              lineWidth: 7,
+              percent: state?.energyProgress ?? 0,
+              circularStrokeCap: CircularStrokeCap.round,
+              backgroundColor: Colors.white.withOpacity(0.22),
+              progressColor: const Color(0xFFFACC15),
+              center: CircleAvatar(
+                radius: 27,
+                backgroundColor: Colors.white,
+                child: ClipOval(
+                  child: Image(
+                    image: const AssetImage('assets/images/avatar.png'),
+                    width: 48,
+                    height: 48,
+                    fit: BoxFit.cover,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    user.username,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 20,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    user.email,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: Colors.white.withOpacity(0.82),
+                      fontSize: 12,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.16),
+                      borderRadius: BorderRadius.circular(999),
+                      border: Border.all(color: Colors.white.withOpacity(0.18)),
+                    ),
+                    child: Text(
+                      detailText,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
-                    reverse: true,
-                    backgroundColor: Colors.white,
-                    progressColor: Colors.blue.shade900,
                   ),
                 ],
               ),
-              Text(
-                '${user.username}',
-                style: TextStyle(fontSize: 22.0, color: Colors.white),
-              ),
-              Text(
-                '${user.email}',
-                style: TextStyle(fontSize: 14.0, color: Colors.grey.shade900),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
-        Container(
-          // height: 50,
-          child: Row(
-            children: <Widget>[
-              Expanded(
-                child: Container(
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            Expanded(
+              child: _drawerMetric(
+                icon: Icons.bolt_rounded,
+                label: 'Energy',
+                value: energyText,
+                color: const Color(0xFFFACC15),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: _drawerMetric(
+                icon: Icons.monetization_on_outlined,
+                label: 'Gold',
+                value: goldText,
+                color: const Color(0xFFFDE68A),
+              ),
+            ),
+          ],
+        ),
+      ],
+    ),
+  );
+}
+
+Widget _drawerMetric({
+  required IconData icon,
+  required String label,
+  required String value,
+  required Color color,
+}) {
+  return Container(
+    padding: const EdgeInsets.all(12),
+    decoration: BoxDecoration(
+      color: Colors.white.withOpacity(0.14),
+      borderRadius: BorderRadius.circular(18),
+      border: Border.all(color: Colors.white.withOpacity(0.16)),
+    ),
+    child: Row(
+      children: [
+        Icon(icon, color: color, size: 20),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                value,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
                   color: Colors.white,
-                  child: ListTile(
-                    title: Text(
-                      state == null
-                          ? '--'
-                          : '${state.energy}/${state.maxEnergy}',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                          color: Colors.blue,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 24.0),
-                    ),
-                    subtitle: Text(
-                      "ENERGY",
-                      textAlign: TextAlign.center,
-                      style: TextStyle(color: Colors.grey),
-                    ),
-                  ),
+                  fontWeight: FontWeight.w800,
+                  fontSize: 15,
                 ),
               ),
-              Expanded(
-                child: Container(
-                  color: Colors.white,
-                  child: ListTile(
-                    title: Text(
-                      inventory == null
-                          ? '--'
-                          : Utils.number(inventory.walletGold),
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                          color: Colors.blue,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 24.0),
-                    ),
-                    subtitle: Text(
-                      "GOLD",
-                      textAlign: TextAlign.center,
-                      style: TextStyle(color: Colors.grey),
-                    ),
-                  ),
+              Text(
+                label,
+                style: TextStyle(
+                  color: Colors.white.withOpacity(0.76),
+                  fontSize: 11,
                 ),
               ),
-            ],
-          ),
-        ),
-        InkWell(
-          child: ExpansionTile(
-            title: Text(
-              "Inventory",
-              style: TextStyle(color: Colors.blue, fontSize: 12.0),
-            ),
-            children: <Widget>[
-              navTile(context, user,
-                  title: "Storage", subtitle: "Inventory", route: '/inventory'),
-            ],
-          ),
-        ),
-        InkWell(
-          child: ExpansionTile(
-            title: Text(
-              "My Buildings",
-              style: TextStyle(color: Colors.blue, fontSize: 12.0),
-            ),
-            children: <Widget>[
-              navTile(context, user,
-                  title: "Development",
-                  subtitle: "Factories",
-                  route: '/factories'),
-              navTile(context, user,
-                  title: "Development",
-                  subtitle: "Research",
-                  route: '/research'),
-              navTile(context, user,
-                  title: "Development",
-                  subtitle: "Resources & Logistics",
-                  route: '/resource-logistics'),
-              navTile(context, user,
-                  title: "Development", subtitle: "Training Grounds"),
-              navTile(context, user,
-                  title: "Development",
-                  subtitle: "Buildings",
-                  route: '/factories')
-            ],
-          ),
-        ),
-        InkWell(
-          child: ExpansionTile(
-            title: Text(
-              "Market",
-              style: TextStyle(color: Colors.blue, fontSize: 12.0),
-            ),
-            children: <Widget>[
-              navTile(context, user,
-                  title: "Market", subtitle: "Food", route: '/market'),
-              navTile(context, user,
-                  title: "Market", subtitle: "Weapon", route: '/market'),
-              navTile(context, user,
-                  title: "Market", subtitle: "Factories", route: '/market'),
-              navTile(context, user,
-                  title: "Labor", subtitle: "Workforce", route: '/workforce')
-            ],
-          ),
-        ),
-        InkWell(
-          child: ExpansionTile(
-            title: Text(
-              "Missions",
-              style: TextStyle(color: Colors.blue, fontSize: 12.0),
-            ),
-            children: <Widget>[
-              navTile(context, user,
-                  title: "Battle", subtitle: "Chapter I", route: '/missions'),
-              navTile(context, user,
-                  title: "Daily", subtitle: "Objectives", route: '/home'),
-            ],
-          ),
-        ),
-        InkWell(
-          child: ExpansionTile(
-            title: Text(
-              "World",
-              style: TextStyle(color: Colors.blue, fontSize: 12.0),
-            ),
-            children: <Widget>[
-              navTile(context, user,
-                  title: "Countries", subtitle: "Citizenship", route: '/world'),
-              navTile(context, user,
-                  title: "Map", subtitle: "Territory", route: '/territory'),
-              navTile(context, user,
-                  title: "Countries",
-                  subtitle: "Battles",
-                  route: '/country-battles'),
-              navTile(context, user,
-                  title: "Military",
-                  subtitle: "Units",
-                  route: '/military-units'),
-              navTile(context, user,
-                  title: "Politics",
-                  subtitle: "Parties & Elections",
-                  route: '/politics'),
-              navTile(context, user,
-                  title: "Congress",
-                  subtitle: "Laws & Votes",
-                  route: '/congress'),
-              navTile(context, user,
-                  title: "Diplomacy",
-                  subtitle: "Treaties & Relations",
-                  route: '/diplomacy'),
-            ],
-          ),
-        ),
-        InkWell(
-          child: ExpansionTile(
-            title: Text(
-              "Community",
-              style: TextStyle(color: Colors.blue, fontSize: 12.0),
-            ),
-            children: <Widget>[
-              navTile(context, user,
-                  title: "Organizations",
-                  subtitle: "Companies",
-                  route: '/companies'),
-              navTile(context, user,
-                  title: "Organizations",
-                  subtitle: "Jobs",
-                  route: '/workforce'),
-              navTile(context, user,
-                  title: "Leaderboard",
-                  subtitle: "Rankings",
-                  route: '/rankings'),
-              navTile(context, user,
-                  title: "Medals",
-                  subtitle: "Achievements",
-                  route: '/achievements'),
-              navTile(context, user,
-                  title: "Profile", subtitle: "Public", route: '/profile'),
-              navTile(context, user,
-                  title: "Notifications",
-                  subtitle: "Activity",
-                  route: '/activity'),
-              navTile(context, user,
-                  title: "Notifications",
-                  subtitle: "Push",
-                  route: '/push-notifications'),
-            ],
-          ),
-        ),
-        InkWell(
-          child: ExpansionTile(
-            title: Text(
-              "Media",
-              style: TextStyle(color: Colors.blue, fontSize: 12.0),
-            ),
-            children: <Widget>[
-              navTile(context, user,
-                  title: "Press",
-                  subtitle: "Newspapers",
-                  route: '/media/newspapers'),
-            ],
-          ),
-        ),
-        InkWell(
-          child: ExpansionTile(
-            title: Text(
-              "Operations",
-              style: TextStyle(color: Colors.blue, fontSize: 12.0),
-            ),
-            children: <Widget>[
-              navTile(context, user,
-                  title: "Account",
-                  subtitle: "Security",
-                  route: '/account/security'),
-              navTile(context, user,
-                  title: "Admin", subtitle: "Moderation", route: '/admin'),
-            ],
-          ),
-        ),
-        InkWell(
-          child: ExpansionTile(
-            title: Text(
-              "Channels",
-              style: TextStyle(color: Colors.blue, fontSize: 12.0),
-            ),
-            children: <Widget>[
-              navTile(context, user, title: "Channel", subtitle: "Global"),
-              navTile(context, user, title: "Channel", subtitle: "Guild"),
-              navTile(context, user,
-                  title: 'Chat', subtitle: "Inbox", route: '/inbox')
             ],
           ),
         ),
       ],
-    );
+    ),
+  );
+}
+
+Widget _drawerSection(
+  BuildContext context, {
+  required String title,
+  required IconData icon,
+  required List<Widget> children,
+}) {
+  return Padding(
+    padding: const EdgeInsets.only(bottom: 10),
+    child: Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(20),
+      child: Theme(
+        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+        child: ExpansionTile(
+          tilePadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+          childrenPadding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          collapsedShape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          leading: Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: const Color(0xFFE0F2FE),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Icon(icon, color: const Color(0xFF0369A1), size: 20),
+          ),
+          title: Text(
+            title,
+            style: const TextStyle(
+              color: Color(0xFF0F172A),
+              fontWeight: FontWeight.w800,
+              fontSize: 15,
+            ),
+          ),
+          iconColor: const Color(0xFF2563EB),
+          collapsedIconColor: const Color(0xFF64748B),
+          children: children,
+        ),
+      ),
+    ),
+  );
+}
+
+IconData _drawerDestinationIcon(String subtitle, String? route) {
+  switch (route) {
+    case '/inventory':
+      return Icons.inventory_2_outlined;
+    case '/advisor':
+      return Icons.assistant_outlined;
+    case '/factories':
+      return Icons.factory_outlined;
+    case '/research':
+      return Icons.science_outlined;
+    case '/resource-logistics':
+      return Icons.local_shipping_outlined;
+    case '/market':
+      return Icons.storefront_outlined;
+    case '/company-contracts':
+      return Icons.handshake_outlined;
+    case '/workforce':
+      return Icons.engineering_outlined;
+    case '/missions':
+      return Icons.flag_outlined;
+    case '/daily-campaigns':
+      return Icons.checklist_rtl_outlined;
+    case '/training-grounds':
+      return Icons.fitness_center_outlined;
+    case '/recovery-center':
+      return Icons.local_hospital_outlined;
+    case '/home':
+      return Icons.checklist_rtl_outlined;
+    case '/world':
+      return Icons.public_outlined;
+    case '/treasury':
+      return Icons.account_balance_outlined;
+    case '/territory':
+      return Icons.map_outlined;
+    case '/country-rankings':
+      return Icons.leaderboard_outlined;
+    case '/country-battles':
+      return Icons.shield_outlined;
+    case '/battle-reports':
+      return Icons.receipt_long_outlined;
+    case '/military-units':
+      return Icons.groups_3_outlined;
+    case '/politics':
+      return Icons.how_to_vote_outlined;
+    case '/congress':
+      return Icons.gavel_outlined;
+    case '/diplomacy':
+      return Icons.handshake_outlined;
+    case '/companies':
+      return Icons.business_center_outlined;
+    case '/rankings':
+      return Icons.leaderboard_outlined;
+    case '/achievements':
+      return Icons.emoji_events_outlined;
+    case '/profile':
+      return Icons.person_outline;
+    case '/activity':
+      return Icons.notifications_none_outlined;
+    case '/push-notifications':
+      return Icons.notification_add_outlined;
+    case '/media/newspapers':
+      return Icons.newspaper_outlined;
+    case '/account/security':
+      return Icons.security_outlined;
+    case '/admin':
+      return Icons.admin_panel_settings_outlined;
+    case '/inbox':
+      return Icons.chat_bubble_outline_rounded;
+  }
+
+  switch (subtitle.toLowerCase()) {
+    case 'global':
+      return Icons.public_outlined;
+    case 'guild':
+      return Icons.groups_outlined;
+    case 'training grounds':
+      return Icons.fitness_center_outlined;
+    default:
+      return Icons.grid_view_rounded;
+  }
+}
 
 // Widget endDashboardDrawer(context, widget) => ListView(children: <Widget>[]);
 
@@ -803,37 +1126,27 @@ Widget dashboardBody(
   }
 
   return SingleChildScrollView(
+    padding: const EdgeInsets.fromLTRB(16, 16, 16, 28),
     child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
-        Card(
-          margin: EdgeInsets.all(12.0),
-          child: ListTile(
-            leading: Icon(Icons.check_circle, color: Colors.green),
-            title: Text('Welcome, ${user.username}'),
-            subtitle: Text('You are logged in. Your game state is synced.'),
-          ),
-        ),
+        _homeHero(user, state, inventoryBloc.inventory),
+        const SizedBox(height: 16),
         if (playerBloc.error != null)
-          Card(
-            margin: EdgeInsets.symmetric(horizontal: 12.0, vertical: 4.0),
-            color: Colors.red.shade50,
-            child: ListTile(
-              leading: Icon(Icons.warning_amber, color: Colors.redAccent),
-              title: Text(playerBloc.error!),
-              trailing: TextButton(
-                onPressed: playerBloc.isLoading ? null : onRetry,
-                child: Text('Retry'),
-              ),
+          _dashboardMessageCard(
+            message: playerBloc.error!,
+            icon: Icons.warning_amber_rounded,
+            color: Colors.redAccent,
+            action: TextButton(
+              onPressed: playerBloc.isLoading ? null : onRetry,
+              child: const Text('Retry'),
             ),
           ),
         if (onboardingBloc.error != null)
-          Card(
-            margin: EdgeInsets.symmetric(horizontal: 12.0, vertical: 4.0),
-            color: Colors.orange.shade50,
-            child: ListTile(
-              leading: Icon(Icons.tour, color: Colors.orange.shade700),
-              title: Text(onboardingBloc.error!),
-            ),
+          _dashboardMessageCard(
+            message: onboardingBloc.error!,
+            icon: Icons.tour,
+            color: const Color(0xFFF97316),
           ),
         OnboardingGuidanceCard(
           questline: onboardingBloc.questline,
@@ -846,13 +1159,25 @@ Widget dashboardBody(
                     onboardingBloc.currentQuest!.route!,
                   ),
         ),
+        const SizedBox(height: 12),
+        _advisorPulseCard(
+          context,
+          state: state,
+          inventory: inventoryBloc.inventory,
+          dailyObjectives: playerBloc.dailyObjectives,
+          questline: onboardingBloc.questline,
+          achievements: achievementsBloc.summary,
+        ),
+        const SizedBox(height: 16),
         _progressionCard(context, state, inventoryBloc.inventory),
+        const SizedBox(height: 16),
         _achievementsSummaryCard(
           context,
           achievementsBloc.summary,
           isLoading: achievementsBloc.isLoading,
           error: achievementsBloc.error,
         ),
+        const SizedBox(height: 16),
         _dailyActionsCard(
           state,
           isWorking: playerBloc.isWorking,
@@ -862,6 +1187,7 @@ Widget dashboardBody(
           onTrain: onTrain,
           onRecoverAtHospital: onRecoverAtHospital,
         ),
+        const SizedBox(height: 16),
         _dailyObjectivesCard(
           playerBloc.dailyObjectives,
           isLoading: playerBloc.isLoadingObjectives,
@@ -869,7 +1195,8 @@ Widget dashboardBody(
           onRefresh: onRefreshDailyObjectives,
           onClaim: onClaimDailyObjective,
         ),
-        InfoBox(),
+        const SizedBox(height: 16),
+        const InfoBox(),
       ],
     ),
   );
@@ -884,31 +1211,346 @@ Widget _dashboardStatePlaceholder(
   return Center(
     child: Padding(
       padding: const EdgeInsets.all(24),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (isLoading) ...[
-            const CircularProgressIndicator(),
-            const SizedBox(height: 16),
-            const Text('Loading your player state...'),
-          ] else ...[
-            Icon(
-              error == null ? Icons.info_outline : Icons.error_outline,
-              size: 48,
-              color: error == null ? Colors.blueGrey : Colors.redAccent,
-            ),
-            const SizedBox(height: 16),
-            Text(
-              error ?? 'Player state is not loaded yet.',
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 16),
-            ElevatedButton.icon(
-              onPressed: onRetry,
-              icon: const Icon(Icons.refresh),
-              label: const Text('Load player state'),
-            ),
+      child: Card(
+        color: const Color(0xFF0F2136),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (isLoading) ...[
+                const CircularProgressIndicator(),
+                const SizedBox(height: 16),
+                const Text(
+                  'Loading your command center...',
+                  style: TextStyle(color: Colors.white),
+                ),
+              ] else ...[
+                Icon(
+                  error == null ? Icons.info_outline : Icons.error_outline,
+                  size: 48,
+                  color: error == null
+                      ? const Color(0xFF67E8F9)
+                      : Colors.redAccent,
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  error ?? 'Player state is not loaded yet.',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: Colors.white),
+                ),
+                const SizedBox(height: 16),
+                ElevatedButton.icon(
+                  onPressed: onRetry,
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('Load player state'),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
+Widget _homeHero(User user, PlayerState state, InventorySummary? inventory) {
+  return Card(
+    elevation: 0,
+    clipBehavior: Clip.antiAlias,
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+    child: Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Color(0xFF0B1020),
+            Color(0xFF1E3A8A),
+            Color(0xFF7C2D12),
           ],
+        ),
+      ),
+      child: Stack(
+        children: [
+          Positioned(
+            right: -36,
+            top: -32,
+            child: Icon(
+              Icons.public,
+              size: 178,
+              color: Colors.white.withOpacity(0.08),
+            ),
+          ),
+          Positioned(
+            left: -20,
+            bottom: -22,
+            child: Icon(
+              Icons.military_tech,
+              size: 124,
+              color: Colors.white.withOpacity(0.08),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(22),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 58,
+                      height: 58,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.14),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: Colors.white.withOpacity(0.22),
+                        ),
+                      ),
+                      child: const Icon(
+                        Icons.shield,
+                        color: Colors.white,
+                        size: 34,
+                      ),
+                    ),
+                    const Spacer(),
+                    const _DashboardPill(
+                      label: 'Synced',
+                      color: Color(0xFF86EFAC),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 28),
+                Text(
+                  'Command Center',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 30,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: -0.6,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Welcome, ${user.username}. Your citizen is ready for today\'s economy, training, missions, and national objectives.',
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.82),
+                    height: 1.35,
+                  ),
+                ),
+                const SizedBox(height: 22),
+                Wrap(
+                  spacing: 10,
+                  runSpacing: 10,
+                  children: [
+                    _DashboardHeroStat(
+                      icon: Icons.bolt,
+                      label: 'Energy',
+                      value: '${state.energy}/${state.maxEnergy}',
+                    ),
+                    _DashboardHeroStat(
+                      icon: Icons.military_tech,
+                      label: 'Level',
+                      value: state.level.toString(),
+                    ),
+                    _DashboardHeroStat(
+                      icon: Icons.fitness_center,
+                      label: 'Strength',
+                      value: state.strength.toString(),
+                    ),
+                    _DashboardHeroStat(
+                      icon: Icons.monetization_on,
+                      label: 'Gold',
+                      value: inventory == null
+                          ? '--'
+                          : Utils.number(inventory.walletGold),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 18),
+                _DashboardProgressLine(
+                  label: 'Experience toward next level',
+                  valueLabel: '${state.experienceToNextLevel} XP needed',
+                  value: state.experienceProgress,
+                  color: const Color(0xFFFBBF24),
+                  bright: true,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+Widget _advisorPulseCard(
+  BuildContext context, {
+  required PlayerState state,
+  required InventorySummary? inventory,
+  required DailyObjectivesSummary? dailyObjectives,
+  required OnboardingQuestline? questline,
+  required AchievementsSummary? achievements,
+}) {
+  final signals = _advisorSignalCount(
+    state: state,
+    inventory: inventory,
+    dailyObjectives: dailyObjectives,
+    questline: questline,
+    achievements: achievements,
+  );
+  final currentQuest = questline?.currentQuest;
+  final headline = currentQuest == null
+      ? 'Advisor is watching your next best move'
+      : currentQuest.claimable
+          ? 'Tutorial reward is ready to claim'
+          : 'Tutorial focus: ${currentQuest.title}';
+  final detail = currentQuest == null
+      ? 'Open the advisor for adaptive priorities from player, economy, daily objective, achievement, battle, and notification state.'
+      : currentQuest.claimable
+          ? currentQuest.description
+          : currentQuest.guidance;
+
+  return Card(
+    color: const Color(0xFF0F2136),
+    elevation: 0,
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+    child: Padding(
+      padding: const EdgeInsets.all(18),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: const Color(0xFF38BDF8).withOpacity(0.14),
+              borderRadius: BorderRadius.circular(17),
+              border: Border.all(
+                color: const Color(0xFF38BDF8).withOpacity(0.32),
+              ),
+            ),
+            child: const Icon(Icons.assistant, color: Color(0xFF38BDF8)),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        headline,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 17,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFBBF24).withOpacity(0.14),
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Text(
+                        '$signals signals',
+                        style: const TextStyle(
+                          color: Color(0xFFFBBF24),
+                          fontSize: 12,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  detail,
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.66),
+                    height: 1.35,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                OutlinedButton.icon(
+                  onPressed: () => Navigator.pushNamed(context, '/advisor'),
+                  icon: const Icon(Icons.auto_awesome),
+                  label: const Text('Open advisor'),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+int _advisorSignalCount({
+  required PlayerState state,
+  required InventorySummary? inventory,
+  required DailyObjectivesSummary? dailyObjectives,
+  required OnboardingQuestline? questline,
+  required AchievementsSummary? achievements,
+}) {
+  var count = 0;
+  if (questline?.currentQuest != null) {
+    count++;
+  }
+  if (dailyObjectives != null && dailyObjectives.claimableCount > 0) {
+    count++;
+  }
+  if (achievements != null && achievements.unclaimedCount > 0) {
+    count++;
+  }
+  if (!state.hasWorkedToday) {
+    count++;
+  }
+  if (!state.hasTrainedToday) {
+    count++;
+  }
+  if (state.canRecoverAtHospital || state.energyProgress < 0.35) {
+    count++;
+  }
+  if (inventory != null &&
+      inventory.storageLimit > 0 &&
+      inventory.storageUsed / inventory.storageLimit >= 0.8) {
+    count++;
+  }
+  return count;
+}
+
+Widget _dashboardMessageCard({
+  required String message,
+  required IconData icon,
+  required Color color,
+  Widget? action,
+}) {
+  return Card(
+    margin: const EdgeInsets.only(bottom: 16),
+    color: color.withOpacity(0.12),
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+    child: Padding(
+      padding: const EdgeInsets.all(14),
+      child: Row(
+        children: [
+          Icon(icon, color: color),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              message,
+              style: const TextStyle(color: Colors.white),
+            ),
+          ),
+          if (action != null) action,
         ],
       ),
     ),
@@ -918,15 +1560,18 @@ Widget _dashboardStatePlaceholder(
 Widget _progressionCard(
     BuildContext context, PlayerState state, InventorySummary? inventory) {
   return Card(
-    margin: EdgeInsets.all(12.0),
+    color: const Color(0xFF0F2136),
+    elevation: 0,
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
     child: Padding(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(18),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Player progression',
-            style: Theme.of(context).textTheme.titleLarge,
+          const _DashboardSectionHeader(
+            icon: Icons.trending_up,
+            title: 'Citizen progression',
+            subtitle: 'Core stats, regeneration, and economy readiness.',
           ),
           const SizedBox(height: 16),
           Wrap(
@@ -939,6 +1584,7 @@ Widget _progressionCard(
                 value: '${state.energy}/${state.maxEnergy}',
                 subtitle: _energyRegenSubtitle(state),
                 progress: state.energyProgress,
+                color: const Color(0xFF22C55E),
               ),
               _statTile(
                 icon: Icons.military_tech,
@@ -946,11 +1592,16 @@ Widget _progressionCard(
                 value: '${state.level}',
                 subtitle: '${state.experienceToNextLevel} XP to next level',
                 progress: state.experienceProgress,
+                color: const Color(0xFFFBBF24),
               ),
               _statTile(
                 icon: Icons.fitness_center,
                 label: 'Strength',
                 value: '${state.strength}',
+                subtitle: state.hasTrainedToday
+                    ? 'Daily training complete.'
+                    : 'Training available today.',
+                color: const Color(0xFFA78BFA),
               ),
               _statTile(
                 icon: Icons.paid,
@@ -958,6 +1609,10 @@ Widget _progressionCard(
                 value: inventory == null
                     ? '--'
                     : Utils.number(inventory.walletGold),
+                subtitle: inventory == null
+                    ? 'Vault still loading.'
+                    : '${inventory.storageUsed}/${inventory.storageLimit} storage slots used.',
+                color: const Color(0xFF38BDF8),
               ),
             ],
           ),
@@ -974,22 +1629,24 @@ Widget _achievementsSummaryCard(
   required String? error,
 }) {
   return Card(
-    margin: EdgeInsets.all(12.0),
+    color: const Color(0xFF0F2136),
+    elevation: 0,
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
     child: InkWell(
+      borderRadius: BorderRadius.circular(28),
       onTap: () => Navigator.pushNamed(context, '/achievements'),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(18),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
-                const Icon(Icons.emoji_events, color: Colors.amber),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'Achievements & medals',
-                    style: Theme.of(context).textTheme.titleLarge,
+                const Expanded(
+                  child: _DashboardSectionHeader(
+                    icon: Icons.emoji_events,
+                    title: 'Medal cabinet',
+                    subtitle: 'Persistent achievements and claimable rewards.',
                   ),
                 ),
                 if (isLoading)
@@ -999,23 +1656,29 @@ Widget _achievementsSummaryCard(
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
                 else
-                  const Icon(Icons.chevron_right),
+                  const Icon(Icons.chevron_right, color: Colors.white),
               ],
             ),
             const SizedBox(height: 12),
             if (error != null && summary == null)
               Text(error, style: const TextStyle(color: Colors.redAccent))
             else if (summary == null)
-              const Text(
+              Text(
                 'Open the medal cabinet to load persisted achievements.',
-                style: TextStyle(color: Colors.grey),
+                style: TextStyle(color: Colors.white.withOpacity(0.64)),
               )
             else ...[
-              LinearProgressIndicator(value: summary.progress, minHeight: 8),
+              _DashboardProgressLine(
+                label: 'Achievement mastery',
+                valueLabel:
+                    '${summary.totalUnlocked}/${summary.totalAvailable} medals',
+                value: summary.progress,
+                color: const Color(0xFFFBBF24),
+              ),
               const SizedBox(height: 8),
               Text(
-                '${summary.totalUnlocked}/${summary.totalAvailable} unlocked • ${summary.totalPoints} points • ${summary.unclaimedCount} claimable',
-                style: const TextStyle(color: Colors.grey),
+                '${summary.totalPoints} points - ${summary.unclaimedCount} claimable reward(s)',
+                style: TextStyle(color: Colors.white.withOpacity(0.64)),
               ),
               if (summary.recentUnlocks.isNotEmpty) ...[
                 const SizedBox(height: 12),
@@ -1030,6 +1693,8 @@ Widget _achievementsSummaryCard(
                         size: 18,
                       ),
                       label: Text(unlock.title),
+                      backgroundColor: Colors.white.withOpacity(0.10),
+                      labelStyle: const TextStyle(color: Colors.white),
                     );
                   }).toList(),
                 ),
@@ -1046,35 +1711,78 @@ Widget _statTile({
   required IconData icon,
   required String label,
   required String value,
+  required Color color,
   String? subtitle,
   double? progress,
 }) {
   return Container(
-    width: 250,
-    padding: const EdgeInsets.all(12),
+    width: 260,
+    padding: const EdgeInsets.all(14),
     decoration: BoxDecoration(
-      border: Border.all(color: Colors.blue.shade100),
-      borderRadius: BorderRadius.circular(12),
+      color: const Color(0xFF0B1728),
+      border: Border.all(color: color.withOpacity(0.36)),
+      borderRadius: BorderRadius.circular(22),
+      boxShadow: [
+        BoxShadow(
+          color: color.withOpacity(0.08),
+          blurRadius: 18,
+          offset: const Offset(0, 10),
+        ),
+      ],
     ),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           children: [
-            Icon(icon, color: Colors.blue),
+            Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.14),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Icon(icon, color: color, size: 21),
+            ),
             const SizedBox(width: 8),
-            Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
+            Expanded(
+              child: Text(
+                label,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
           ],
         ),
         const SizedBox(height: 8),
-        Text(value, style: const TextStyle(fontSize: 24)),
+        Text(
+          value,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 24,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
         if (subtitle != null) ...[
           const SizedBox(height: 4),
-          Text(subtitle, style: const TextStyle(color: Colors.grey)),
+          Text(
+            subtitle,
+            style: TextStyle(color: Colors.white.withOpacity(0.62)),
+          ),
         ],
         if (progress != null) ...[
           const SizedBox(height: 8),
-          LinearProgressIndicator(value: progress),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(999),
+            child: LinearProgressIndicator(
+              value: progress,
+              minHeight: 8,
+              backgroundColor: Colors.white.withOpacity(0.10),
+              valueColor: AlwaysStoppedAnimation<Color>(color),
+            ),
+          ),
         ],
       ],
     ),
@@ -1091,17 +1799,20 @@ Widget _dailyActionsCard(
   required Future<void> Function() onRecoverAtHospital,
 }) {
   return Card(
-    margin: EdgeInsets.all(12.0),
+    color: const Color(0xFF0F2136),
+    elevation: 0,
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
     child: Padding(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(18),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Player actions',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          const _DashboardSectionHeader(
+            icon: Icons.flash_on,
+            title: 'Daily command queue',
+            subtitle: 'Spend today\'s action windows before the daily reset.',
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 16),
           _dailyActionTile(
             icon: Icons.work,
             title: 'Work',
@@ -1112,8 +1823,9 @@ Widget _dailyActionsCard(
             isLoading: isWorking,
             actionLabel: 'Work',
             onPressed: state.hasWorkedToday ? null : onWork,
+            color: const Color(0xFF38BDF8),
           ),
-          const Divider(),
+          const SizedBox(height: 12),
           _dailyActionTile(
             icon: Icons.fitness_center,
             title: 'Train',
@@ -1124,8 +1836,9 @@ Widget _dailyActionsCard(
             isLoading: isTraining,
             actionLabel: 'Train',
             onPressed: state.hasTrainedToday ? null : onTrain,
+            color: const Color(0xFFA78BFA),
           ),
-          const Divider(),
+          const SizedBox(height: 12),
           _hospitalActionTile(
             state,
             isLoading: isRecovering,
@@ -1146,20 +1859,21 @@ Widget _dailyObjectivesCard(
 }) {
   final objectives = summary?.objectives ?? const <DailyObjective>[];
   return Card(
-    margin: EdgeInsets.all(12.0),
+    color: const Color(0xFF0F2136),
+    elevation: 0,
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
     child: Padding(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(18),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              const Icon(Icons.flag_circle, color: Colors.blue),
-              const SizedBox(width: 8),
               const Expanded(
-                child: Text(
-                  'Daily objectives',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                child: _DashboardSectionHeader(
+                  icon: Icons.flag_circle,
+                  title: 'Daily objectives',
+                  subtitle: 'Complete real gameplay tasks and claim rewards.',
                 ),
               ),
               IconButton(
@@ -1171,16 +1885,16 @@ Widget _dailyObjectivesCard(
                         height: 18,
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
-                    : const Icon(Icons.refresh),
+                    : const Icon(Icons.refresh, color: Colors.white),
               ),
             ],
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 12),
           Text(
             summary == null
                 ? 'Load today\'s objectives to track real gameplay progress.'
                 : 'Resets ${_formatReset(summary.resetAt)}. ${summary.claimableCount} reward(s) ready.',
-            style: const TextStyle(color: Colors.grey),
+            style: TextStyle(color: Colors.white.withOpacity(0.64)),
           ),
           const SizedBox(height: 12),
           if (summary == null && !isLoading)
@@ -1193,16 +1907,14 @@ Widget _dailyObjectivesCard(
             ...objectives.map((objective) {
               final isClaiming =
                   claimingObjectiveIds.contains(objective.objectiveId);
-              return Column(
-                children: [
-                  _dailyObjectiveTile(
-                    objective,
-                    isClaiming: isClaiming,
-                    onClaim:
-                        objective.claimable ? () => onClaim(objective) : null,
-                  ),
-                  if (objective != objectives.last) const Divider(),
-                ],
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: _dailyObjectiveTile(
+                  objective,
+                  isClaiming: isClaiming,
+                  onClaim:
+                      objective.claimable ? () => onClaim(objective) : null,
+                ),
               );
             }),
         ],
@@ -1231,33 +1943,72 @@ Widget _dailyObjectiveTile(
       : objective.completed
           ? 'Claim'
           : '${objective.currentCount}/${objective.targetCount}';
-  return ListTile(
-    contentPadding: EdgeInsets.zero,
-    leading: Icon(statusIcon, color: statusColor),
-    title: Text(objective.title),
-    subtitle: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+  return Container(
+    padding: const EdgeInsets.all(14),
+    decoration: BoxDecoration(
+      color: const Color(0xFF0B1728),
+      borderRadius: BorderRadius.circular(20),
+      border: Border.all(color: statusColor.withOpacity(0.28)),
+    ),
+    child: Row(
       children: [
-        Text(objective.description),
-        const SizedBox(height: 6),
-        LinearProgressIndicator(value: objective.progress),
-        const SizedBox(height: 4),
-        Text(
-          '${objective.currentCount}/${objective.targetCount} • ${_rewardsText(objective.rewards)}',
-          style: const TextStyle(color: Colors.grey),
+        Container(
+          width: 42,
+          height: 42,
+          decoration: BoxDecoration(
+            color: statusColor.withOpacity(0.14),
+            borderRadius: BorderRadius.circular(15),
+          ),
+          child: Icon(statusIcon, color: statusColor),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                objective.title,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                objective.description,
+                style: TextStyle(color: Colors.white.withOpacity(0.66)),
+              ),
+              const SizedBox(height: 8),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(999),
+                child: LinearProgressIndicator(
+                  value: objective.progress,
+                  minHeight: 8,
+                  backgroundColor: Colors.white.withOpacity(0.10),
+                  valueColor: AlwaysStoppedAnimation<Color>(statusColor),
+                ),
+              ),
+              const SizedBox(height: 5),
+              Text(
+                '${objective.currentCount}/${objective.targetCount} - ${_rewardsText(objective.rewards)}',
+                style: TextStyle(color: Colors.white.withOpacity(0.56)),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(width: 8),
+        ElevatedButton.icon(
+          onPressed: isClaiming ? null : onClaim,
+          icon: isClaiming
+              ? const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : Icon(objective.claimed ? Icons.check : Icons.redeem),
+          label: Text(buttonLabel),
         ),
       ],
-    ),
-    trailing: ElevatedButton.icon(
-      onPressed: isClaiming ? null : onClaim,
-      icon: isClaiming
-          ? const SizedBox(
-              width: 16,
-              height: 16,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            )
-          : Icon(objective.claimed ? Icons.check : Icons.redeem),
-      label: Text(buttonLabel),
     ),
   );
 }
@@ -1274,24 +2025,82 @@ Widget _hospitalActionTile(
       : isCoolingDown
           ? 'Cooldown'
           : 'Recover';
-  return ListTile(
-    contentPadding: EdgeInsets.zero,
-    leading: Icon(
-      isFull ? Icons.check_circle : Icons.local_hospital,
-      color: isFull ? Colors.green : Colors.redAccent,
+  final color = isFull ? const Color(0xFF22C55E) : Colors.redAccent;
+  return _dashboardActionPanel(
+    icon: isFull ? Icons.check_circle : Icons.local_hospital,
+    title: 'Hospital recovery',
+    subtitle: _hospitalSubtitle(state),
+    completed: isFull,
+    isLoading: isLoading,
+    actionLabel: buttonLabel,
+    onPressed: onPressed,
+    color: color,
+    loadingIcon: Icons.healing,
+  );
+}
+
+Widget _dashboardActionPanel({
+  required IconData icon,
+  required String title,
+  required String subtitle,
+  required bool completed,
+  required bool isLoading,
+  required String actionLabel,
+  required Future<void> Function()? onPressed,
+  required Color color,
+  required IconData loadingIcon,
+}) {
+  return Container(
+    padding: const EdgeInsets.all(14),
+    decoration: BoxDecoration(
+      color: const Color(0xFF0B1728),
+      borderRadius: BorderRadius.circular(20),
+      border: Border.all(color: color.withOpacity(0.28)),
     ),
-    title: const Text('Hospital recovery'),
-    subtitle: Text(_hospitalSubtitle(state)),
-    trailing: ElevatedButton.icon(
-      onPressed: isLoading ? null : onPressed,
-      icon: isLoading
-          ? const SizedBox(
-              width: 16,
-              height: 16,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            )
-          : Icon(isFull ? Icons.check : Icons.healing),
-      label: Text(buttonLabel),
+    child: Row(
+      children: [
+        Container(
+          width: 44,
+          height: 44,
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.14),
+            borderRadius: BorderRadius.circular(15),
+          ),
+          child: Icon(completed ? Icons.check_circle : icon, color: color),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                subtitle,
+                style: TextStyle(color: Colors.white.withOpacity(0.64)),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(width: 8),
+        ElevatedButton.icon(
+          onPressed: isLoading ? null : onPressed,
+          icon: isLoading
+              ? const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : Icon(completed ? Icons.check : loadingIcon),
+          label: Text(completed ? 'Done' : actionLabel),
+        ),
+      ],
     ),
   );
 }
@@ -1304,25 +2113,207 @@ Widget _dailyActionTile({
   required bool isLoading,
   required String actionLabel,
   required Future<void> Function()? onPressed,
+  required Color color,
 }) {
-  return ListTile(
-    contentPadding: EdgeInsets.zero,
-    leading: Icon(completed ? Icons.check_circle : icon,
-        color: completed ? Colors.green : Colors.blue),
-    title: Text(title),
-    subtitle: Text(subtitle),
-    trailing: ElevatedButton.icon(
-      onPressed: isLoading ? null : onPressed,
-      icon: isLoading
-          ? const SizedBox(
-              width: 16,
-              height: 16,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            )
-          : Icon(completed ? Icons.check : Icons.play_arrow),
-      label: Text(completed ? 'Done' : actionLabel),
-    ),
+  return _dashboardActionPanel(
+    icon: icon,
+    title: title,
+    subtitle: subtitle,
+    completed: completed,
+    isLoading: isLoading,
+    actionLabel: actionLabel,
+    onPressed: onPressed,
+    color: completed ? const Color(0xFF22C55E) : color,
+    loadingIcon: Icons.play_arrow,
   );
+}
+
+class _DashboardSectionHeader extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+
+  const _DashboardSectionHeader({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 46,
+          height: 46,
+          decoration: BoxDecoration(
+            color: const Color(0xFF1D4ED8),
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Icon(icon, color: Colors.white),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 20,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                subtitle,
+                style: TextStyle(color: Colors.white.withOpacity(0.66)),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _DashboardHeroStat extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+
+  const _DashboardHeroStat({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 112,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.12),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Colors.white.withOpacity(0.14)),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: const Color(0xFFFBBF24), size: 20),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  value,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.70),
+                    fontSize: 11,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DashboardPill extends StatelessWidget {
+  final String label;
+  final Color color;
+
+  const _DashboardPill({required this.label, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
+      decoration: BoxDecoration(
+        color: Colors.black.withOpacity(0.24),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: color.withOpacity(0.72)),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: color,
+          fontSize: 12,
+          fontWeight: FontWeight.w900,
+        ),
+      ),
+    );
+  }
+}
+
+class _DashboardProgressLine extends StatelessWidget {
+  final String label;
+  final String valueLabel;
+  final double value;
+  final Color color;
+  final bool bright;
+
+  const _DashboardProgressLine({
+    required this.label,
+    required this.valueLabel,
+    required this.value,
+    required this.color,
+    this.bright = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final textColor = bright ? Colors.white : Colors.white.withOpacity(0.82);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                label,
+                style: TextStyle(
+                  color: textColor,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+            Text(
+              valueLabel,
+              style: TextStyle(color: Colors.white.withOpacity(0.66)),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(999),
+          child: LinearProgressIndicator(
+            value: value,
+            minHeight: 9,
+            backgroundColor: Colors.white.withOpacity(0.10),
+            valueColor: AlwaysStoppedAnimation<Color>(color),
+          ),
+        ),
+      ],
+    );
+  }
 }
 
 String _formatReset(DateTime resetAt) {

@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:ff/blocs/GameAreaBlocs.dart';
 import 'package:ff/blocs/LoginBloc.dart';
 import 'package:ff/blocs/OnboardingQuestlineBloc.dart';
+import 'package:ff/components/GameScaffold.dart';
 import 'package:ff/components/OnboardingGuidanceCard.dart';
 import 'package:ff/models/GameAreas.dart';
 import 'package:ff/models/User.dart';
@@ -285,8 +286,10 @@ class _MilitaryUnitsPageState extends State<MilitaryUnitsPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Military Units')),
+    return GameScaffold(
+      title: 'Unit HQ',
+      subtitle: 'Crews, orders, divisions, deployments, and damage totals',
+      icon: Icons.groups_2,
       body: Consumer<MilitaryUnitsBloc>(
         builder: (context, bloc, _) {
           final unitList = bloc.units;
@@ -307,7 +310,12 @@ class _MilitaryUnitsPageState extends State<MilitaryUnitsPage> {
                   questline: context.watch<OnboardingQuestlineBloc>().questline,
                   route: '/military-units',
                 ),
-                _IntroCard(error: bloc.error),
+                _UnitHero(
+                  error: bloc.error,
+                  myUnits: unitList?.myUnits.length ?? 0,
+                  totalUnits: unitList?.units.length ?? 0,
+                  leaderboardRows: bloc.leaderboard?.entries.length ?? 0,
+                ),
                 _CreateUnitCard(
                   nameController: _nameController,
                   descriptionController: _descriptionController,
@@ -461,25 +469,48 @@ class _MilitaryUnitsPageState extends State<MilitaryUnitsPage> {
   }
 }
 
-class _IntroCard extends StatelessWidget {
+class _UnitHero extends StatelessWidget {
   final String? error;
-  const _IntroCard({required this.error});
+  final int myUnits;
+  final int totalUnits;
+  final int leaderboardRows;
+
+  const _UnitHero({
+    required this.error,
+    required this.myUnits,
+    required this.totalUnits,
+    required this.leaderboardRows,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      color: error == null ? Colors.indigo.shade50 : Colors.orange.shade50,
-      child: ListTile(
-        leading: Icon(
-          error == null ? Icons.military_tech : Icons.warning_amber,
-          color: error == null ? Colors.indigo : Colors.orange,
+    return GameHero(
+      eyebrow: error == null ? 'Crew Command' : 'Unit Alert',
+      title: 'Military units and crews',
+      subtitle: error ??
+          'Create or join persisted units, publish officer orders, form campaign divisions, issue deployments, and feed unit battle leaderboards.',
+      icon: error == null ? Icons.military_tech : Icons.warning_amber,
+      accent: error == null ? GameColors.violet : GameColors.amber,
+      stats: [
+        GameStat(
+          label: 'my units',
+          value: myUnits.toString(),
+          icon: Icons.verified_user,
+          color: GameColors.emerald,
         ),
-        title: const Text('Military unit command'),
-        subtitle: Text(
-          error ??
-              'Create or join persisted military units. Officers can publish orders, and member battle contributions feed the unit leaderboard.',
+        GameStat(
+          label: 'open crews',
+          value: totalUnits.toString(),
+          icon: Icons.groups_2,
+          color: GameColors.violet,
         ),
-      ),
+        GameStat(
+          label: 'damage rows',
+          value: leaderboardRows.toString(),
+          icon: Icons.leaderboard,
+          color: GameColors.cyan,
+        ),
+      ],
     );
   }
 }
@@ -724,7 +755,7 @@ class _UnitDetailsCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final unit = details.unit;
     return Card(
-      color: Colors.grey.shade50,
+      color: GameColors.panelAlt.withOpacity(0.84),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -1374,7 +1405,9 @@ class _MutationCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
-      color: completed ? Colors.green.shade50 : Colors.orange.shade50,
+      color: completed
+          ? GameColors.emerald.withOpacity(0.12)
+          : GameColors.amber.withOpacity(0.12),
       child: ListTile(
         leading: Icon(
           completed ? Icons.check_circle : Icons.info_outline,
@@ -1395,14 +1428,7 @@ class _SectionHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.only(top: 16, bottom: 8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(title, style: Theme.of(context).textTheme.titleLarge),
-          const SizedBox(height: 4),
-          Text(subtitle),
-        ],
-      ),
+      child: GameSectionTitle(title: title, subtitle: subtitle),
     );
   }
 }
@@ -1414,11 +1440,9 @@ class _EmptyCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: ListTile(
-        leading: Icon(icon),
-        title: Text(message),
-      ),
+    return GameEmptyState(
+      icon: icon,
+      message: message,
     );
   }
 }

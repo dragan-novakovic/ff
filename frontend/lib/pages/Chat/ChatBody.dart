@@ -1,11 +1,19 @@
-import 'package:ff/blocs/MessageBloc.dart';
 import 'package:ff/blocs/LoginBloc.dart';
+import 'package:ff/blocs/MessageBloc.dart';
 import 'package:ff/blocs/RealtimeUpdatesBloc.dart';
 import 'package:ff/components/MessageInput.dart';
 import 'package:ff/components/TextBoxBody.dart';
 import 'package:ff/models/MessageModel.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
+const _bbmBackground = Color(0xFF07100D);
+const _bbmPanel = Color(0xFF101A16);
+const _bbmPanelAlt = Color(0xFF14241E);
+const _bbmGreen = Color(0xFF24D366);
+const _bbmLime = Color(0xFFA3E635);
+const _bbmBlue = Color(0xFF38BDF8);
+const _bbmMuted = Color(0xFF9AA8A1);
 
 class ChatBody extends StatefulWidget {
   final String? userId;
@@ -106,6 +114,12 @@ class _ChatBodyState extends State<ChatBody> {
     final reason = await showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
+        backgroundColor: _bbmPanel,
+        titleTextStyle: Theme.of(context).textTheme.titleLarge?.copyWith(
+              color: Colors.white,
+              fontWeight: FontWeight.w900,
+            ),
+        contentTextStyle: const TextStyle(color: _bbmMuted),
         title: const Text('Report message'),
         content: TextField(
           controller: controller,
@@ -113,9 +127,20 @@ class _ChatBodyState extends State<ChatBody> {
           maxLength: 500,
           minLines: 2,
           maxLines: 4,
-          decoration: const InputDecoration(
+          style: const TextStyle(color: Colors.white),
+          decoration: InputDecoration(
             labelText: 'Reason',
-            border: OutlineInputBorder(),
+            labelStyle: const TextStyle(color: _bbmMuted),
+            filled: true,
+            fillColor: _bbmPanelAlt,
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(16),
+              borderSide: BorderSide(color: Colors.white.withOpacity(0.10)),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(16),
+              borderSide: const BorderSide(color: _bbmGreen),
+            ),
           ),
         ),
         actions: [
@@ -124,6 +149,10 @@ class _ChatBodyState extends State<ChatBody> {
             child: const Text('Cancel'),
           ),
           ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _bbmGreen,
+              foregroundColor: _bbmBackground,
+            ),
             onPressed: () => Navigator.of(context).pop(controller.text.trim()),
             child: const Text('Submit report'),
           ),
@@ -157,82 +186,169 @@ class _ChatBodyState extends State<ChatBody> {
 
   @override
   Widget build(BuildContext context) {
-    return Column(children: [
-      Expanded(flex: 1, child: infoBox(_toId)),
-      Expanded(
-        flex: 8,
-        child: TextBoxBody(
-          currentUserId: widget.userId,
-          onRetry: _loadMessages,
-          onReport: _reportMessage,
-        ),
+    return ColoredBox(
+      color: _bbmBackground,
+      child: Column(
+        children: [
+          _BbmConversationHeader(
+              contactId: _toId, currentUserId: widget.userId),
+          Expanded(
+            child: TextBoxBody(
+              currentUserId: widget.userId,
+              onRetry: _loadMessages,
+              onReport: _reportMessage,
+            ),
+          ),
+          MessageInput(
+            key: ValueKey('${widget.userId}:$_toId'),
+            fromId: widget.userId,
+            toId: _toId,
+          ),
+        ],
       ),
-      Expanded(
-        flex: 1,
-        child: MessageInput(
-          key: ValueKey('${widget.userId}:$_toId'),
-          fromId: widget.userId,
-          toId: _toId,
-        ),
-      )
-    ]);
+    );
   }
 }
 
-// info widget
-Widget infoBox(String contactId) {
-  final title = contactId == 'global' ? 'Global chat' : contactId;
-  final subtitle = contactId == 'global'
-      ? 'Messages sent here are visible to everyone.'
-      : 'Direct conversation';
+class _BbmConversationHeader extends StatelessWidget {
+  final String contactId;
+  final String? currentUserId;
 
-  return Container(
-    decoration: BoxDecoration(
-        gradient: LinearGradient(
-      begin: Alignment.topRight,
-      end: Alignment.bottomLeft,
-      colors: [
-        Color.fromARGB(255, 51, 133, 200),
-        Color.fromARGB(255, 7, 82, 143),
-      ],
-    )),
-    child: Row(
-      children: [
-        Container(
-          child: ClipRRect(
-              borderRadius: BorderRadius.all(
-                  Radius.circular(2.0)), //add border radius here
-              child: Image(image: AssetImage('assets/images/avatar.png'))),
-        ),
-        Column(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-                child: Padding(
-              padding: const EdgeInsets.fromLTRB(8.0, 0, 0, 0),
-              child: Text(
-                title,
-                textAlign: TextAlign.left,
-                style: TextStyle(
-                    color: Color.fromARGB(255, 233, 231, 231),
-                    fontSize: 18.0,
-                    fontWeight: FontWeight.w500),
+  const _BbmConversationHeader({
+    required this.contactId,
+    required this.currentUserId,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isGlobal = contactId == 'global';
+    final color = isGlobal ? _bbmBlue : _bbmGreen;
+    final title = isGlobal ? 'Global Chat' : contactId;
+    final subtitle = isGlobal
+        ? 'World broadcast - every citizen can read this channel'
+        : 'Direct conversation - PIN ${_bbmPin(contactId)}';
+
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: _bbmPanel,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: color.withOpacity(0.35)),
+        boxShadow: [
+          BoxShadow(
+            color: color.withOpacity(0.08),
+            blurRadius: 24,
+            offset: const Offset(0, 12),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Stack(
+            children: [
+              Container(
+                width: 52,
+                height: 52,
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(color: color.withOpacity(0.48)),
+                ),
+                child:
+                    Icon(isGlobal ? Icons.public : Icons.person, color: color),
               ),
-            )),
-            Container(
-                child: Padding(
-              padding: const EdgeInsets.fromLTRB(8.0, 0, 0, 0),
-              child: Text(
-                subtitle,
-                style: TextStyle(
-                    color: Color.fromARGB(255, 233, 231, 231),
-                    fontWeight: FontWeight.w300),
+              Positioned(
+                right: 1,
+                bottom: 1,
+                child: Container(
+                  width: 13,
+                  height: 13,
+                  decoration: BoxDecoration(
+                    color: _bbmGreen,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: _bbmPanel, width: 2),
+                  ),
+                ),
               ),
-            ))
-          ],
-        )
-      ],
-    ),
-  );
+            ],
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  subtitle,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(color: _bbmMuted, fontSize: 12),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          _BbmStatusPill(
+            label: currentUserId == null ? 'Offline' : 'Live',
+            color: currentUserId == null ? Colors.orangeAccent : _bbmGreen,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _BbmStatusPill extends StatelessWidget {
+  final String label;
+  final Color color;
+
+  const _BbmStatusPill({required this.label, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.black.withOpacity(0.25),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: color.withOpacity(0.64)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 7,
+            height: 7,
+            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+          ),
+          const SizedBox(width: 5),
+          Text(
+            label,
+            style: TextStyle(
+              color: color,
+              fontSize: 11,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+String _bbmPin(String value) {
+  final hash = value.hashCode.abs().toRadixString(16).toUpperCase();
+  return hash.padLeft(8, '0').substring(0, 8);
 }

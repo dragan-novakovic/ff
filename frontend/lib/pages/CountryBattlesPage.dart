@@ -4,6 +4,7 @@ import 'package:ff/blocs/GameAreaBlocs.dart';
 import 'package:ff/blocs/LoginBloc.dart';
 import 'package:ff/blocs/PlayerBloc.dart';
 import 'package:ff/blocs/RealtimeUpdatesBloc.dart';
+import 'package:ff/components/GameScaffold.dart';
 import 'package:ff/models/GameAreas.dart';
 import 'package:ff/models/User.dart';
 import 'package:ff/utils/Utils.dart';
@@ -157,8 +158,10 @@ class _CountryBattlesPageState extends State<CountryBattlesPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Country Battles')),
+    return GameScaffold(
+      title: 'War Room',
+      subtitle: 'Live battles, campaigns, reports, and rewards',
+      icon: Icons.local_fire_department,
       body: Consumer<CountryBattlesBloc>(
         builder: (context, bloc, _) {
           final battleList = bloc.battles;
@@ -184,7 +187,12 @@ class _CountryBattlesPageState extends State<CountryBattlesPage> {
             child: ListView(
               padding: const EdgeInsets.all(16),
               children: [
-                _IntroCard(error: bloc.error),
+                _WarRoomHero(
+                  error: bloc.error,
+                  activeBattles: active.length,
+                  campaigns: bloc.campaigns?.campaigns.length ?? 0,
+                  reports: bloc.myCombatReports?.reports.length ?? 0,
+                ),
                 if (bloc.lastContribution != null)
                   _ContributionResultCard(result: bloc.lastContribution!),
                 if (bloc.lastRewardClaim != null)
@@ -304,25 +312,48 @@ class _CountryBattlesPageState extends State<CountryBattlesPage> {
   }
 }
 
-class _IntroCard extends StatelessWidget {
+class _WarRoomHero extends StatelessWidget {
   final String? error;
-  const _IntroCard({required this.error});
+  final int activeBattles;
+  final int campaigns;
+  final int reports;
+
+  const _WarRoomHero({
+    required this.error,
+    required this.activeBattles,
+    required this.campaigns,
+    required this.reports,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      color: error == null ? Colors.blue.shade50 : Colors.orange.shade50,
-      child: ListTile(
-        leading: Icon(
-          error == null ? Icons.shield : Icons.warning_amber,
-          color: error == null ? Colors.blue : Colors.orange,
+    return GameHero(
+      eyebrow: error == null ? 'War Room Online' : 'War Room Alert',
+      title: 'Battle campaigns command',
+      subtitle: error ??
+          'Coordinate active fronts, push campaign phases, spend energy for country damage, and review persisted combat reports.',
+      icon: error == null ? Icons.shield : Icons.warning_amber,
+      accent: error == null ? GameColors.crimson : GameColors.amber,
+      stats: [
+        GameStat(
+          label: 'active fronts',
+          value: activeBattles.toString(),
+          icon: Icons.local_fire_department,
+          color: GameColors.crimson,
         ),
-        title: const Text('Persisted war front'),
-        subtitle: Text(
-          error ??
-              'Battles are stored by the world service. Contributions consume energy, use combat simulation, and can reward gold/XP.',
+        GameStat(
+          label: 'campaigns',
+          value: campaigns.toString(),
+          icon: Icons.account_tree_outlined,
+          color: GameColors.violet,
         ),
-      ),
+        GameStat(
+          label: 'my reports',
+          value: reports.toString(),
+          icon: Icons.receipt_long,
+          color: GameColors.cyan,
+        ),
+      ],
     );
   }
 }
@@ -428,7 +459,7 @@ class _CampaignDetailsCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final campaign = details.campaign;
     return Card(
-      color: Colors.deepPurple.shade50,
+      color: GameColors.violet.withOpacity(0.10),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -622,7 +653,9 @@ class _CampaignRewardClaimCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final claim = result.claim;
     return Card(
-      color: result.completed ? Colors.green.shade50 : Colors.orange.shade50,
+      color: result.completed
+          ? GameColors.emerald.withOpacity(0.12)
+          : GameColors.amber.withOpacity(0.12),
       child: ListTile(
         leading: Icon(
           result.completed ? Icons.redeem : Icons.info_outline,
@@ -650,14 +683,7 @@ class _SectionHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.only(top: 16, bottom: 8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(title, style: Theme.of(context).textTheme.titleLarge),
-          const SizedBox(height: 4),
-          Text(subtitle),
-        ],
-      ),
+      child: GameSectionTitle(title: title, subtitle: subtitle),
     );
   }
 }
@@ -796,7 +822,7 @@ class _BattleDetailsCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final myParticipation = participation;
     return Card(
-      color: Colors.grey.shade50,
+      color: GameColors.panelAlt.withOpacity(0.84),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -921,7 +947,9 @@ class _ContributionResultCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final report = result.report;
     return Card(
-      color: result.completed ? Colors.green.shade50 : Colors.orange.shade50,
+      color: result.completed
+          ? GameColors.emerald.withOpacity(0.12)
+          : GameColors.amber.withOpacity(0.12),
       child: ListTile(
         leading: Icon(
           result.completed ? Icons.check_circle : Icons.info_outline,
@@ -955,7 +983,7 @@ class _CombatReportListCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
-      color: Colors.indigo.shade50,
+      color: GameColors.cyan.withOpacity(0.08),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -1031,13 +1059,11 @@ class _ScoreBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text('$label: ${Utils.number(score)} / ${Utils.number(target)}'),
-        const SizedBox(height: 4),
-        LinearProgressIndicator(value: value, color: color),
-      ],
+    return GameProgressBar(
+      label: label,
+      valueLabel: '${Utils.number(score)} / ${Utils.number(target)}',
+      value: value,
+      color: color,
     );
   }
 }
@@ -1049,11 +1075,9 @@ class _EmptyCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: ListTile(
-        leading: Icon(icon),
-        title: Text(message),
-      ),
+    return GameEmptyState(
+      icon: icon,
+      message: message,
     );
   }
 }

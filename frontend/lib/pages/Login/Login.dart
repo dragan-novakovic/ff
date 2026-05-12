@@ -1,8 +1,22 @@
 import 'package:ff/blocs/LoginBloc.dart';
 import 'package:ff/components/signin_button.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'Register.dart';
+
+const _demoLoginEmail = String.fromEnvironment(
+  'FF_DEMO_LOGIN_EMAIL',
+  defaultValue: 'demo@ff.local',
+);
+const _demoLoginPassword = String.fromEnvironment(
+  'FF_DEMO_LOGIN_PASSWORD',
+  defaultValue: 'secret',
+);
+const _showDemoLoginButton = bool.fromEnvironment(
+  'FF_SHOW_DEMO_LOGIN',
+  defaultValue: kDebugMode,
+);
 
 class MyCustomClipper extends CustomClipper<Path> {
   @override
@@ -168,6 +182,15 @@ Widget submitButton(LoginBloc bloc) {
                 ),
               ),
             ),
+            if (_showDemoLoginButton)
+              Padding(
+                padding: const EdgeInsets.only(top: 12),
+                child: OutlinedButton.icon(
+                  onPressed: () async => _handleDemoLoginSubmit(context, bloc),
+                  icon: const Icon(Icons.login),
+                  label: const Text('Login as demo'),
+                ),
+              ),
             Padding(
               padding: const EdgeInsets.all(6.0),
               child: Row(
@@ -198,6 +221,29 @@ Widget submitButton(LoginBloc bloc) {
           ],
         );
       });
+}
+
+Future<void> _handleDemoLoginSubmit(
+    BuildContext context, LoginBloc bloc) async {
+  final message = await bloc.submitWithCredentials(
+    email: _demoLoginEmail,
+    password: _demoLoginPassword,
+  );
+  if (!context.mounted) {
+    return;
+  }
+
+  if (message == null) {
+    Navigator.of(context).pushNamedAndRemoveUntil(
+      '/home',
+      (route) => false,
+    );
+    return;
+  }
+
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(content: Text(message)),
+  );
 }
 
 Future<void> _handleLoginSubmit(BuildContext context, LoginBloc bloc) async {

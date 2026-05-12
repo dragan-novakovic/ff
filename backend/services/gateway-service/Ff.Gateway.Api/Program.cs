@@ -1053,6 +1053,23 @@ app.MapPost("/players/{playerId}/train", async (
     return Results.Ok(action with { DailyObjectives = dailyObjectives });
 }).WithName("Train");
 
+app.MapGet("/players/{playerId}/training-grounds", async (
+    string playerId,
+    HttpRequest request,
+    PlayerServiceClient players,
+    DevTokenValidator tokens) =>
+{
+    var access = ValidatePlayerAccess(playerId, request, tokens);
+    if (access.Error is not null)
+    {
+        return access.Error;
+    }
+
+    return await players.GetAsync(
+        $"players/{Uri.EscapeDataString(access.PlayerId!)}/training-grounds",
+        request.Headers.Authorization.ToString());
+}).WithName("GetGatewayTrainingGrounds");
+
 app.MapPost("/players/{playerId}/hospital/recover", async (
     string playerId,
     HttpRequest request,

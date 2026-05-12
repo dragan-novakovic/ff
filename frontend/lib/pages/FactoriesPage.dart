@@ -138,7 +138,20 @@ class _FactoriesPageState extends State<FactoriesPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Factories')),
+      backgroundColor: const Color(0xFF08111E),
+      appBar: AppBar(
+        title: const Text('Factories'),
+        backgroundColor: const Color(0xFF0D1B2A),
+        foregroundColor: Colors.white,
+        elevation: 0,
+        actions: [
+          IconButton(
+            tooltip: 'Refresh factories',
+            icon: const Icon(Icons.refresh),
+            onPressed: _load,
+          ),
+        ],
+      ),
       body: Consumer<FactoriesBloc>(
         builder: (context, bloc, _) {
           final portfolio = bloc.portfolio;
@@ -157,43 +170,215 @@ class _FactoriesPageState extends State<FactoriesPage> {
             );
           }
 
+          final visibleJobs = bloc.productionJobs?.jobs
+                  .where((job) => job.isVisibleOnFactory)
+                  .toList() ??
+              const <ProductionJob>[];
+
           return RefreshIndicator(
             onRefresh: _load,
             child: ListView(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 28),
               children: [
                 OnboardingGuidanceCard(
                   questline: context.watch<OnboardingQuestlineBloc>().questline,
                   route: '/factories',
                 ),
+                if (context
+                            .watch<OnboardingQuestlineBloc>()
+                            .questline
+                            ?.currentQuest
+                            ?.route ==
+                        '/factories' &&
+                    context
+                            .watch<OnboardingQuestlineBloc>()
+                            .questline
+                            ?.currentQuest !=
+                        null)
+                  const SizedBox(height: 16),
+                if (bloc.error != null)
+                  _FactoriesMessageCard(
+                    message: bloc.error!,
+                    icon: Icons.warning_amber_rounded,
+                    color: Colors.redAccent,
+                  ),
                 if (bloc.lastProduction != null)
                   _ProductionNotice(result: bloc.lastProduction!),
                 if (bloc.lastClaim != null)
                   _ProductionClaimNotice(result: bloc.lastClaim!),
                 if (bloc.lastUpgrade != null)
                   _FactoryUpgradeNotice(result: bloc.lastUpgrade!),
-                ...portfolio.factories.map(
-                  (factory) => _FactoryCard(
-                    factory: factory,
-                    jobs: (bloc.productionJobs?.forFactory(factory.factoryId) ??
-                            const <ProductionJob>[])
-                        .where((job) => job.isVisibleOnFactory)
-                        .toList(),
-                    quote: bloc.upgradeQuotes[factory.factoryId],
-                    isProducing:
-                        bloc.producingFactoryIds.contains(factory.factoryId),
-                    claimingJobIds: bloc.claimingJobIds,
-                    isUpgrading:
-                        bloc.upgradingFactoryIds.contains(factory.factoryId),
-                    onProduce: () => _produce(factory),
-                    onClaim: _claim,
-                    onUpgrade: () => _upgrade(factory),
+                _FactoriesHero(portfolio: portfolio, jobs: visibleJobs),
+                const SizedBox(height: 16),
+                if (portfolio.factories.isEmpty)
+                  const _EmptyFactoriesPanel()
+                else
+                  ...portfolio.factories.map(
+                    (factory) => Padding(
+                      padding: const EdgeInsets.only(bottom: 16),
+                      child: _FactoryCard(
+                        factory: factory,
+                        jobs: (bloc.productionJobs
+                                    ?.forFactory(factory.factoryId) ??
+                                const <ProductionJob>[])
+                            .where((job) => job.isVisibleOnFactory)
+                            .toList(),
+                        quote: bloc.upgradeQuotes[factory.factoryId],
+                        isProducing: bloc.producingFactoryIds
+                            .contains(factory.factoryId),
+                        claimingJobIds: bloc.claimingJobIds,
+                        isUpgrading: bloc.upgradingFactoryIds
+                            .contains(factory.factoryId),
+                        onProduce: () => _produce(factory),
+                        onClaim: _claim,
+                        onUpgrade: () => _upgrade(factory),
+                      ),
+                    ),
                   ),
-                ),
               ],
             ),
           );
         },
+      ),
+    );
+  }
+}
+
+class _FactoriesHero extends StatelessWidget {
+  final FactoryPortfolio portfolio;
+  final List<ProductionJob> jobs;
+
+  const _FactoriesHero({required this.portfolio, required this.jobs});
+
+  @override
+  Widget build(BuildContext context) {
+    final totalLevels =
+        portfolio.factories.fold<int>(0, (sum, factory) => sum + factory.level);
+    final completedRuns = portfolio.factories
+        .fold<int>(0, (sum, factory) => sum + factory.productionCount);
+    final readyJobs = jobs.where((job) => job.isReady).length;
+
+    return Card(
+      elevation: 0,
+      clipBehavior: Clip.antiAlias,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+      child: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              Color(0xFF0B1020),
+              Color(0xFF1E3A8A),
+              Color(0xFF7C2D12),
+            ],
+          ),
+        ),
+        child: Stack(
+          children: [
+            Positioned(
+              right: -34,
+              top: -28,
+              child: Icon(
+                Icons.factory,
+                size: 178,
+                color: Colors.white.withOpacity(0.08),
+              ),
+            ),
+            Positioned(
+              left: -18,
+              bottom: -22,
+              child: Icon(
+                Icons.precision_manufacturing,
+                size: 126,
+                color: Colors.white.withOpacity(0.08),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(22),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        width: 58,
+                        height: 58,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.14),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: Colors.white.withOpacity(0.22),
+                          ),
+                        ),
+                        child: const Icon(
+                          Icons.precision_manufacturing,
+                          color: Colors.white,
+                          size: 34,
+                        ),
+                      ),
+                      const Spacer(),
+                      _NeonPill(
+                        label: readyJobs > 0
+                            ? '$readyJobs ready'
+                            : jobs.isEmpty
+                                ? 'Idle'
+                                : 'Producing',
+                        color: readyJobs > 0
+                            ? const Color(0xFF86EFAC)
+                            : const Color(0xFF67E8F9),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 28),
+                  Text(
+                    'Industrial District',
+                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: -0.6,
+                        ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Run factories, monitor production queues, claim finished goods, and invest in upgrades.',
+                    style: TextStyle(
+                      color: Colors.white.withOpacity(0.82),
+                      height: 1.35,
+                    ),
+                  ),
+                  const SizedBox(height: 22),
+                  Wrap(
+                    spacing: 10,
+                    runSpacing: 10,
+                    children: [
+                      _HeroStat(
+                        icon: Icons.factory,
+                        label: 'Factories',
+                        value: portfolio.factories.length.toString(),
+                      ),
+                      _HeroStat(
+                        icon: Icons.trending_up,
+                        label: 'Levels',
+                        value: totalLevels.toString(),
+                      ),
+                      _HeroStat(
+                        icon: Icons.pending_actions,
+                        label: 'Jobs',
+                        value: jobs.length.toString(),
+                      ),
+                      _HeroStat(
+                        icon: Icons.inventory_2,
+                        label: 'Runs',
+                        value: Utils.number(completedRuns),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -205,18 +390,12 @@ class _FactoryUpgradeNotice extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      color: result.completed ? Colors.green.shade50 : Colors.orange.shade50,
-      child: ListTile(
-        leading: Icon(
-          result.completed ? Icons.upgrade : Icons.info_outline,
-          color: result.completed ? Colors.green : Colors.orange,
-        ),
-        title: Text(result.message),
-        subtitle: Text(
-          '${result.upgrade.factory.name} is now level ${result.upgrade.factory.level}. Wallet: ${Utils.number(result.inventory.walletGold)} gold.',
-        ),
-      ),
+    return _FactoriesMessageCard(
+      message:
+          '${result.message} ${result.upgrade.factory.name} is now level ${result.upgrade.factory.level}. Wallet: ${Utils.number(result.inventory.walletGold)} gold.',
+      icon: result.completed ? Icons.upgrade : Icons.info_outline,
+      color:
+          result.completed ? const Color(0xFF22C55E) : const Color(0xFFF97316),
     );
   }
 }
@@ -229,21 +408,15 @@ class _ProductionNotice extends StatelessWidget {
   Widget build(BuildContext context) {
     final job = result.job;
     final bonus = result.appliedBonus ?? job?.appliedBonus;
-    return Card(
-      color: result.completed ? Colors.green.shade50 : Colors.blue.shade50,
-      child: ListTile(
-        leading: Icon(
-          result.completed ? Icons.check_circle : Icons.pending_actions,
-          color: result.completed ? Colors.green : Colors.blue,
-        ),
-        title: Text(result.message),
-        subtitle: Text(
-          job == null
-              ? 'Produced ${result.producedQuantity} ${result.producedItemId}. ${result.note}'
-              : 'Job ${job.jobId}: ${job.inputQuantity} ${job.inputItemName} → ${job.outputQuantity} ${job.outputItemName}. ${result.note}',
-        ),
-        trailing: bonus == null ? null : _ProductionBonusChip(bonus: bonus),
-      ),
+    final detail = job == null
+        ? 'Produced ${result.producedQuantity} ${result.producedItemId}. ${result.note}'
+        : 'Job ${job.jobId}: ${job.inputQuantity} ${job.inputItemName} -> ${job.outputQuantity} ${job.outputItemName}. ${result.note}';
+    return _FactoriesMessageCard(
+      message: '${result.message} $detail',
+      icon: result.completed ? Icons.check_circle : Icons.pending_actions,
+      color:
+          result.completed ? const Color(0xFF22C55E) : const Color(0xFF38BDF8),
+      trailing: bonus == null ? null : _ProductionBonusChip(bonus: bonus),
     );
   }
 }
@@ -254,15 +427,11 @@ class _ProductionClaimNotice extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      color: Colors.green.shade50,
-      child: ListTile(
-        leading: const Icon(Icons.inventory_2, color: Colors.green),
-        title: Text(result.message),
-        subtitle: Text(
-          'Claimed ${result.claim.job.outputQuantity} ${result.claim.job.outputItemName}. Completed runs: ${result.claim.productionCount}.',
-        ),
-      ),
+    return _FactoriesMessageCard(
+      message:
+          '${result.message} Claimed ${result.claim.job.outputQuantity} ${result.claim.job.outputItemName}. Completed runs: ${result.claim.productionCount}.',
+      icon: Icons.inventory_2,
+      color: const Color(0xFF22C55E),
     );
   }
 }
@@ -277,6 +446,7 @@ class _FactoryCard extends StatelessWidget {
   final VoidCallback onProduce;
   final ValueChanged<ProductionJob> onClaim;
   final VoidCallback onUpgrade;
+
   const _FactoryCard({
     required this.factory,
     required this.jobs,
@@ -291,53 +461,139 @@ class _FactoryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final color = _factoryColor(factory);
+    final maxQueue = factory.maxQueueDepth == 0 ? 3 : factory.maxQueueDepth;
+    final queueProgress = maxQueue <= 0
+        ? 0.0
+        : (factory.queueDepth / maxQueue).clamp(0, 1).toDouble();
+    final activeJobs = jobs.where((job) => job.isPending).length;
+    final readyJobs = jobs.where((job) => job.isReady).length;
+
     return Card(
+      color: const Color(0xFF0F2136),
+      elevation: 0,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(18),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Icon(Icons.factory, color: Colors.blue),
-                const SizedBox(width: 8),
+                Container(
+                  width: 58,
+                  height: 58,
+                  decoration: BoxDecoration(
+                    color: color.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: color.withOpacity(0.42)),
+                  ),
+                  child: Icon(_factoryIcon(factory), color: color, size: 32),
+                ),
+                const SizedBox(width: 14),
                 Expanded(
-                  child: Text(
-                    '${factory.name} L${factory.level}',
-                    style: Theme.of(context).textTheme.titleLarge,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              factory.name,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 20,
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                          ),
+                          _NeonPill(
+                            label: 'L${factory.level}',
+                            color: color,
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 5),
+                      Text(
+                        factory.category,
+                        style: TextStyle(color: Colors.white.withOpacity(0.64)),
+                      ),
+                    ],
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 8),
-            Text(factory.category),
-            const SizedBox(height: 12),
-            Text(
-              'Input: ${factory.inputQuantity} ${factory.inputItemId} → Output: ${factory.outputQuantity} ${factory.outputItemId}',
+            const SizedBox(height: 16),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: const Color(0xFF0B1728),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: color.withOpacity(0.22)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      _MiniStat(
+                        icon: Icons.input,
+                        label:
+                            '${factory.inputQuantity} ${factory.inputItemId}',
+                      ),
+                      _MiniStat(
+                        icon: Icons.output,
+                        label:
+                            '${factory.outputQuantity} ${factory.outputItemId}',
+                      ),
+                      _MiniStat(
+                        icon: Icons.timer,
+                        label: _formatDuration(
+                          Duration(seconds: factory.productionDurationSeconds),
+                        ),
+                      ),
+                      _MiniStat(
+                        icon: Icons.done_all,
+                        label: '${factory.productionCount} runs',
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+                  _FactoryProgressLine(
+                    label: 'Queue',
+                    valueLabel: '${factory.queueDepth}/$maxQueue',
+                    value: queueProgress,
+                    color: color,
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    _factoryStatusText(factory, activeJobs, readyJobs),
+                    style: TextStyle(color: Colors.white.withOpacity(0.66)),
+                  ),
+                ],
+              ),
             ),
             if (factory.resourceEffect != null) ...[
-              const SizedBox(height: 8),
+              const SizedBox(height: 12),
               _ProductionBonusBanner(bonus: factory.resourceEffect!),
             ],
-            const SizedBox(height: 8),
-            Text('Completed runs: ${factory.productionCount}'),
-            Text(
-              'Queue: ${factory.queueDepth}/${factory.maxQueueDepth == 0 ? 3 : factory.maxQueueDepth}',
-            ),
-            if (factory.cooldownUntil != null)
-              Text(
-                  'Cooldown: ready ${_formatDateTime(factory.cooldownUntil!)}'),
-            const SizedBox(height: 12),
             if (jobs.isNotEmpty) ...[
+              const SizedBox(height: 14),
               _ProductionJobsList(
                 jobs: jobs,
                 claimingJobIds: claimingJobIds,
                 onClaim: onClaim,
               ),
-              const SizedBox(height: 12),
             ],
-            if (quote != null) _UpgradeCost(quote: quote!),
-            const SizedBox(height: 12),
+            if (quote != null) ...[
+              const SizedBox(height: 14),
+              _UpgradeCost(quote: quote!),
+            ],
+            const SizedBox(height: 14),
             Wrap(
               spacing: 12,
               runSpacing: 8,
@@ -380,6 +636,7 @@ class _ProductionJobsList extends StatelessWidget {
   final List<ProductionJob> jobs;
   final Set<String> claimingJobIds;
   final ValueChanged<ProductionJob> onClaim;
+
   const _ProductionJobsList({
     required this.jobs,
     required this.claimingJobIds,
@@ -388,22 +645,41 @@ class _ProductionJobsList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Production jobs',
-          style: Theme.of(context).textTheme.titleMedium,
-        ),
-        const SizedBox(height: 8),
-        ...jobs.map(
-          (job) => _ProductionJobTile(
-            job: job,
-            isClaiming: claimingJobIds.contains(job.jobId),
-            onClaim: () => onClaim(job),
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0B1728),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: Colors.white.withOpacity(0.08)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.pending_actions, color: Color(0xFF67E8F9)),
+              SizedBox(width: 8),
+              Text(
+                'Production queue',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 17,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ],
           ),
-        ),
-      ],
+          const SizedBox(height: 12),
+          ...jobs.map(
+            (job) => _ProductionJobTile(
+              job: job,
+              isClaiming: claimingJobIds.contains(job.jobId),
+              onClaim: () => onClaim(job),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -412,6 +688,7 @@ class _ProductionJobTile extends StatelessWidget {
   final ProductionJob job;
   final bool isClaiming;
   final VoidCallback onClaim;
+
   const _ProductionJobTile({
     required this.job,
     required this.isClaiming,
@@ -421,30 +698,43 @@ class _ProductionJobTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ready = job.isReady;
-    final statusColor = ready ? Colors.green : Colors.blueGrey;
+    final statusColor =
+        ready ? const Color(0xFF22C55E) : const Color(0xFF38BDF8);
     return Container(
       width: double.infinity,
-      margin: const EdgeInsets.only(bottom: 8),
+      margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: ready ? Colors.green.shade50 : Colors.blueGrey.shade50,
-        borderRadius: BorderRadius.circular(8),
+        color: statusColor.withOpacity(0.10),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: statusColor.withOpacity(0.26)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(
-                ready ? Icons.check_circle : Icons.hourglass_bottom,
-                color: statusColor,
-                size: 18,
+              Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: statusColor.withOpacity(0.14),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Icon(
+                  ready ? Icons.check_circle : Icons.hourglass_bottom,
+                  color: statusColor,
+                  size: 20,
+                ),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 10),
               Expanded(
                 child: Text(
-                  '${job.outputQuantity} ${job.outputItemName} • ${job.status}',
-                  style: Theme.of(context).textTheme.bodyLarge,
+                  '${job.outputQuantity} ${job.outputItemName} - ${job.status}',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w900,
+                  ),
                 ),
               ),
               if (ready)
@@ -461,25 +751,42 @@ class _ProductionJobTile extends StatelessWidget {
                 ),
             ],
           ),
-          const SizedBox(height: 8),
-          Text(
-            '${job.inputQuantity} ${job.inputItemName} → ${job.outputQuantity} ${job.outputItemName}',
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _MiniStat(
+                icon: Icons.input,
+                label: '${job.inputQuantity} ${job.inputItemName}',
+              ),
+              _MiniStat(
+                icon: Icons.output,
+                label: '${job.outputQuantity} ${job.outputItemName}',
+              ),
+              if (job.researchDurationReductionPercent > 0)
+                _MiniStat(
+                  icon: Icons.science,
+                  label: '-${job.researchDurationReductionPercent}% research',
+                ),
+            ],
           ),
           if (job.appliedBonus != null) ...[
-            const SizedBox(height: 8),
+            const SizedBox(height: 10),
             _ProductionBonusBanner(bonus: job.appliedBonus!),
           ],
-          if (job.researchDurationReductionPercent > 0) ...[
-            const SizedBox(height: 8),
-            Text(
-              'Research speed bonus: -${job.researchDurationReductionPercent}% duration',
-              style: TextStyle(color: Colors.blueGrey.shade700),
-            ),
-          ],
-          const SizedBox(height: 8),
-          LinearProgressIndicator(value: job.progress),
+          const SizedBox(height: 10),
+          _FactoryProgressLine(
+            label: ready ? 'Output ready' : 'Manufacturing progress',
+            valueLabel: '${(job.progress * 100).round()}%',
+            value: job.progress,
+            color: statusColor,
+          ),
           const SizedBox(height: 6),
-          Text(_jobTimingText(job)),
+          Text(
+            _jobTimingText(job),
+            style: TextStyle(color: Colors.white.withOpacity(0.62)),
+          ),
         ],
       ),
     );
@@ -492,17 +799,30 @@ class _UpgradeCost extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final color =
+        quote.canUpgrade ? const Color(0xFF22C55E) : const Color(0xFFF97316);
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.blueGrey.shade50,
-        borderRadius: BorderRadius.circular(8),
+        color: color.withOpacity(0.10),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color.withOpacity(0.26)),
       ),
-      child: Text(
-        'Upgrade to L${quote.nextLevel}: ${Utils.number(quote.goldCost)} gold + '
-        '${quote.requiredItemQuantity} ${quote.requiredItemName}. '
-        'Output becomes ${quote.outputQuantityAfterUpgrade}.',
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.upgrade, color: color),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'Upgrade to L${quote.nextLevel}: ${Utils.number(quote.goldCost)} gold + '
+              '${quote.requiredItemQuantity} ${quote.requiredItemName}. '
+              'Output becomes ${quote.outputQuantityAfterUpgrade}.',
+              style: TextStyle(color: Colors.white.withOpacity(0.74)),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -517,6 +837,11 @@ class _ProductionBonusChip extends StatelessWidget {
     return Chip(
       avatar: const Icon(Icons.public, size: 16),
       label: Text('+${bonus.productionBonusPercent}%'),
+      backgroundColor: const Color(0xFF22C55E).withOpacity(0.16),
+      labelStyle: const TextStyle(
+        color: Colors.white,
+        fontWeight: FontWeight.w800,
+      ),
     );
   }
 }
@@ -529,25 +854,315 @@ class _ProductionBonusBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(10),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.green.shade50,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.green.shade100),
+        color: const Color(0xFF22C55E).withOpacity(0.10),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFF22C55E).withOpacity(0.24)),
       ),
       child: Row(
         children: [
-          const Icon(Icons.public, color: Colors.green, size: 18),
+          const Icon(Icons.public, color: Color(0xFF86EFAC), size: 20),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
               '${bonus.resourceName} in ${bonus.sourceRegionName}: +${bonus.productionBonusPercent}% output for ${bonus.itemId}.',
+              style: TextStyle(color: Colors.white.withOpacity(0.74)),
             ),
           ),
         ],
       ),
     );
   }
+}
+
+class _FactoriesMessageCard extends StatelessWidget {
+  final String message;
+  final IconData icon;
+  final Color color;
+  final Widget? trailing;
+
+  const _FactoriesMessageCard({
+    required this.message,
+    required this.icon,
+    required this.color,
+    this.trailing,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 16),
+      color: color.withOpacity(0.12),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Row(
+          children: [
+            Icon(icon, color: color),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                message,
+                style: const TextStyle(color: Colors.white),
+              ),
+            ),
+            if (trailing != null) ...[
+              const SizedBox(width: 8),
+              trailing!,
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _EmptyFactoriesPanel extends StatelessWidget {
+  const _EmptyFactoriesPanel();
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      color: const Color(0xFF0F2136),
+      elevation: 0,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          children: [
+            const Icon(Icons.factory, color: Color(0xFF67E8F9), size: 54),
+            const SizedBox(height: 14),
+            const Text(
+              'No factories online',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 20,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Acquire or build factories to start production chains.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.white.withOpacity(0.66)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _HeroStat extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+
+  const _HeroStat({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 112,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.12),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Colors.white.withOpacity(0.14)),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: const Color(0xFFFBBF24), size: 20),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  value,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.70),
+                    fontSize: 11,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MiniStat extends StatelessWidget {
+  final IconData icon;
+  final String label;
+
+  const _MiniStat({required this.icon, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: Colors.white.withOpacity(0.68), size: 16),
+          const SizedBox(width: 5),
+          Text(
+            label,
+            style: TextStyle(color: Colors.white.withOpacity(0.74)),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _NeonPill extends StatelessWidget {
+  final String label;
+  final Color color;
+
+  const _NeonPill({required this.label, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
+      decoration: BoxDecoration(
+        color: Colors.black.withOpacity(0.24),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: color.withOpacity(0.72)),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: color,
+          fontSize: 12,
+          fontWeight: FontWeight.w900,
+        ),
+      ),
+    );
+  }
+}
+
+class _FactoryProgressLine extends StatelessWidget {
+  final String label;
+  final String valueLabel;
+  final double value;
+  final Color color;
+
+  const _FactoryProgressLine({
+    required this.label,
+    required this.valueLabel,
+    required this.value,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                label,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+            Text(
+              valueLabel,
+              style: TextStyle(color: Colors.white.withOpacity(0.66)),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(999),
+          child: LinearProgressIndicator(
+            value: value,
+            minHeight: 9,
+            backgroundColor: Colors.white.withOpacity(0.10),
+            valueColor: AlwaysStoppedAnimation<Color>(color),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+String _factoryStatusText(
+  PlayerFactory factory,
+  int activeJobs,
+  int readyJobs,
+) {
+  if (readyJobs > 0) {
+    return '$readyJobs job(s) ready to claim.';
+  }
+  if (activeJobs > 0) {
+    return '$activeJobs job(s) currently manufacturing.';
+  }
+  if (!factory.canProduce && factory.cooldownUntil != null) {
+    return 'Cooldown: ready ${_formatDateTime(factory.cooldownUntil!)}.';
+  }
+  if (!factory.canProduce) {
+    return 'Production is currently unavailable.';
+  }
+  return 'Production line is ready.';
+}
+
+IconData _factoryIcon(PlayerFactory factory) {
+  final category = factory.category.toLowerCase();
+  if (category.contains('food') || factory.outputItemId.contains('food')) {
+    return Icons.restaurant;
+  }
+  if (category.contains('weapon') || factory.outputItemId.contains('weapon')) {
+    return Icons.gpp_good;
+  }
+  if (category.contains('raw') || category.contains('resource')) {
+    return Icons.grass;
+  }
+  return Icons.factory;
+}
+
+Color _factoryColor(PlayerFactory factory) {
+  final category = factory.category.toLowerCase();
+  if (category.contains('food') || factory.outputItemId.contains('food')) {
+    return const Color(0xFF22C55E);
+  }
+  if (category.contains('weapon') || factory.outputItemId.contains('weapon')) {
+    return const Color(0xFFF97316);
+  }
+  if (category.contains('raw') || category.contains('resource')) {
+    return const Color(0xFFA3E635);
+  }
+  return const Color(0xFF38BDF8);
 }
 
 String _jobTimingText(ProductionJob job) {
@@ -582,6 +1197,7 @@ String _formatDateTime(DateTime value) {
 class _ErrorState extends StatelessWidget {
   final String message;
   final Future<void> Function() onRetry;
+
   const _ErrorState({required this.message, required this.onRetry});
 
   @override
@@ -589,19 +1205,35 @@ class _ErrorState extends StatelessWidget {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.error_outline, size: 48, color: Colors.redAccent),
-            const SizedBox(height: 16),
-            Text(message, textAlign: TextAlign.center),
-            const SizedBox(height: 16),
-            ElevatedButton.icon(
-              onPressed: onRetry,
-              icon: const Icon(Icons.refresh),
-              label: const Text('Retry'),
+        child: Card(
+          color: const Color(0xFF0F2136),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(
+                  Icons.error_outline,
+                  size: 48,
+                  color: Colors.redAccent,
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  message,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: Colors.white),
+                ),
+                const SizedBox(height: 16),
+                ElevatedButton.icon(
+                  onPressed: onRetry,
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('Retry'),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );

@@ -1,7 +1,9 @@
 import 'package:ff/blocs/AchievementsBloc.dart';
 import 'package:ff/blocs/LoginBloc.dart';
+import 'package:ff/components/GameScaffold.dart';
 import 'package:ff/models/Achievements.dart';
 import 'package:ff/models/User.dart';
+import 'package:ff/utils/Utils.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
@@ -53,17 +55,17 @@ class _AchievementsPageState extends State<AchievementsPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Achievements & Medals'),
-        actions: [
-          IconButton(
-            tooltip: 'Refresh achievements',
-            onPressed: _load,
-            icon: const Icon(Icons.refresh),
-          ),
-        ],
-      ),
+    return GameScaffold(
+      title: 'Medal Cabinet',
+      subtitle: 'Achievement medals, categories, and claimable honors',
+      icon: Icons.emoji_events,
+      actions: [
+        IconButton(
+          tooltip: 'Refresh achievements',
+          onPressed: _load,
+          icon: const Icon(Icons.refresh),
+        ),
+      ],
       body: Consumer<AchievementsBloc>(
         builder: (context, bloc, _) {
           if (bloc.isLoading && bloc.summary == null) {
@@ -71,42 +73,495 @@ class _AchievementsPageState extends State<AchievementsPage> {
           }
 
           if (bloc.error != null && bloc.summary == null) {
-            return _errorState(bloc.error!);
+            return _ErrorState(message: bloc.error!, onRetry: _load);
           }
 
           final summary = bloc.summary;
           if (summary == null) {
             return Center(
-              child: OutlinedButton.icon(
+              child: ElevatedButton.icon(
                 onPressed: _load,
                 icon: const Icon(Icons.military_tech),
-                label: const Text('Load achievements'),
+                label: const Text('Load medal cabinet'),
               ),
             );
           }
 
           return RefreshIndicator(
             onRefresh: _load,
-            child: _achievementList(context, summary, bloc),
+            child: _MedalCabinet(
+              summary: summary,
+              selectedCategory: _selectedCategory,
+              claimingAchievementIds: bloc.claimingAchievementIds,
+              lastClaim: bloc.lastClaim,
+              onCategorySelected: (category) {
+                setState(() {
+                  _selectedCategory = category;
+                });
+              },
+              onClaim: _claim,
+            ),
           );
         },
       ),
     );
   }
+}
 
-  Widget _errorState(String message) {
+class _MedalCabinet extends StatelessWidget {
+  final AchievementsSummary summary;
+  final String selectedCategory;
+  final Set<String> claimingAchievementIds;
+  final AchievementClaimResult? lastClaim;
+  final ValueChanged<String> onCategorySelected;
+  final Future<void> Function(AchievementProgress achievement) onClaim;
+
+  const _MedalCabinet({
+    required this.summary,
+    required this.selectedCategory,
+    required this.claimingAchievementIds,
+    required this.lastClaim,
+    required this.onCategorySelected,
+    required this.onClaim,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final categories = ['All', ...summary.categories];
+    final medals = (selectedCategory == 'All'
+        ? [...summary.achievements]
+        : summary.achievements
+            .where((achievement) => achievement.category == selectedCategory)
+            .toList())
+      ..sort((a, b) {
+        if (a.claimable != b.claimable) {
+          return a.claimable ? -1 : 1;
+        }
+        if (a.unlocked != b.unlocked) {
+          return a.unlocked ? -1 : 1;
+        }
+        return a.displayOrder.compareTo(b.displayOrder);
+      });
+    final claimedCount =
+        summary.achievements.where((achievement) => achievement.claimed).length;
+
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        GameHero(
+          eyebrow: 'Citizen honors',
+          title: 'Achievement medal cabinet',
+          subtitle:
+              'Earn medals by working, training, fighting, trading, and producing for your country.',
+          icon: Icons.workspace_premium,
+          accent: GameColors.amber,
+          stats: [
+            GameStat(
+              label: 'unlocked',
+              value: '${summary.totalUnlocked}/${summary.totalAvailable}',
+              icon: Icons.lock_open,
+              color: GameColors.emerald,
+            ),
+            GameStat(
+              label: 'points',
+              value: Utils.number(summary.totalPoints),
+              icon: Icons.stars,
+              color: GameColors.amber,
+            ),
+            GameStat(
+              label: 'ready',
+              value: summary.unclaimedCount.toString(),
+              icon: Icons.redeem,
+              color: GameColors.cyan,
+            ),
+          ],
+        ),
+        GamePanel(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.military_tech, color: GameColors.amber),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Cabinet progress',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w900,
+                          ),
+                    ),
+                  ),
+                  Text(
+                    '$claimedCount claimed',
+                    style: const TextStyle(
+                      color: GameColors.textMuted,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              GameProgressBar(
+                label: 'Unlocked medals',
+                valueLabel:
+                    '${summary.totalUnlocked}/${summary.totalAvailable}',
+                value: summary.progress,
+                color: GameColors.amber,
+              ),
+              const SizedBox(height: 10),
+              Text(
+                'Updated ${DateFormat.yMMMd().add_Hm().format(summary.updatedAt.toLocal())}',
+                style: const TextStyle(color: GameColors.textMuted),
+              ),
+            ],
+          ),
+        ),
+        if (lastClaim != null)
+          GameNotice(
+            icon: lastClaim!.completed ? Icons.check_circle : Icons.info,
+            message: lastClaim!.message,
+            color: lastClaim!.completed ? GameColors.emerald : GameColors.amber,
+          ),
+        _RecentUnlocksPanel(recentUnlocks: summary.recentUnlocks),
+        GameSectionTitle(
+          title: 'Medal filters',
+          subtitle: 'Browse achievements by gameplay category.',
+        ),
+        GamePanel(
+          child: Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: categories
+                .map(
+                  (category) => ChoiceChip(
+                    label: Text(category),
+                    selected: selectedCategory == category,
+                    onSelected: (_) => onCategorySelected(category),
+                    selectedColor: GameColors.amber.withOpacity(0.22),
+                    backgroundColor: GameColors.panelAlt,
+                    side: BorderSide(
+                      color: selectedCategory == category
+                          ? GameColors.amber
+                          : GameColors.border,
+                    ),
+                    labelStyle: TextStyle(
+                      color: selectedCategory == category
+                          ? Colors.white
+                          : GameColors.textMuted,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                )
+                .toList(),
+          ),
+        ),
+        GameSectionTitle(
+          title: selectedCategory == 'All'
+              ? 'All medals'
+              : '$selectedCategory medals',
+          subtitle: '${medals.length} medal(s) in this view.',
+        ),
+        if (medals.isEmpty)
+          const GameEmptyState(
+            icon: Icons.emoji_events_outlined,
+            message: 'No medals match this category yet.',
+          )
+        else
+          ...medals.map(
+            (achievement) => _MedalCard(
+              achievement: achievement,
+              isClaiming:
+                  claimingAchievementIds.contains(achievement.achievementId),
+              onClaim:
+                  achievement.claimable ? () => onClaim(achievement) : null,
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class _RecentUnlocksPanel extends StatelessWidget {
+  final List<AchievementUnlock> recentUnlocks;
+
+  const _RecentUnlocksPanel({required this.recentUnlocks});
+
+  @override
+  Widget build(BuildContext context) {
+    if (recentUnlocks.isEmpty) {
+      return const GameEmptyState(
+        icon: Icons.military_tech,
+        message: 'No medals unlocked yet. Complete core actions to earn one.',
+      );
+    }
+
+    return GamePanel(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.auto_awesome, color: GameColors.cyan),
+              const SizedBox(width: 10),
+              Text(
+                'Recent unlocks',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w900,
+                    ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          ...recentUnlocks.take(5).map((unlock) {
+            final color = _rarityColor(unlock.medalRarity);
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    radius: 20,
+                    backgroundColor: color.withOpacity(0.16),
+                    child: Icon(Icons.workspace_premium, color: color),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          unlock.title,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          '${unlock.medalName} - ${DateFormat.yMMMd().add_Hm().format(unlock.awardedAt.toLocal())}',
+                          style: const TextStyle(color: GameColors.textMuted),
+                        ),
+                      ],
+                    ),
+                  ),
+                  _MedalStatusPill(
+                    label: '${unlock.points} pts',
+                    color: color,
+                  ),
+                ],
+              ),
+            );
+          }),
+        ],
+      ),
+    );
+  }
+}
+
+class _MedalCard extends StatelessWidget {
+  final AchievementProgress achievement;
+  final bool isClaiming;
+  final VoidCallback? onClaim;
+
+  const _MedalCard({
+    required this.achievement,
+    required this.isClaiming,
+    required this.onClaim,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final color = _rarityColor(achievement.medalRarity);
+    return GamePanel(
+      borderColor: achievement.claimable
+          ? GameColors.amber.withOpacity(0.55)
+          : GameColors.border,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 58,
+                height: 58,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: RadialGradient(
+                    colors: [
+                      color.withOpacity(0.35),
+                      color.withOpacity(0.08),
+                    ],
+                  ),
+                  border: Border.all(color: color.withOpacity(0.55), width: 2),
+                ),
+                child: Icon(
+                  achievement.unlocked
+                      ? Icons.workspace_premium
+                      : Icons.lock_outline,
+                  color: color,
+                  size: 30,
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            achievement.title,
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleMedium
+                                ?.copyWith(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w900,
+                                ),
+                          ),
+                        ),
+                        _MedalStatusPill(
+                          label: achievement.claimed
+                              ? 'claimed'
+                              : achievement.unlocked
+                                  ? 'unlocked'
+                                  : 'locked',
+                          color: achievement.claimed
+                              ? GameColors.emerald
+                              : achievement.unlocked
+                                  ? GameColors.amber
+                                  : GameColors.textMuted,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 5),
+                    Text(
+                      achievement.description,
+                      style: const TextStyle(
+                        color: GameColors.textMuted,
+                        height: 1.35,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        _MedalStatusPill(
+                          label: achievement.category,
+                          color: GameColors.cyan,
+                        ),
+                        _MedalStatusPill(
+                          label: achievement.medalName,
+                          color: color,
+                        ),
+                        _MedalStatusPill(
+                          label: '${achievement.points} pts',
+                          color: GameColors.violet,
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          GameProgressBar(
+            label: 'Medal progress',
+            valueLabel: achievement.progressLabel,
+            value: achievement.progress,
+            color: color,
+          ),
+          const SizedBox(height: 14),
+          Align(
+            alignment: Alignment.centerRight,
+            child: ElevatedButton.icon(
+              onPressed: isClaiming ? null : onClaim,
+              icon: isClaiming
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : Icon(achievement.claimed ? Icons.check : Icons.redeem),
+              label: Text(
+                isClaiming
+                    ? 'Claiming...'
+                    : achievement.claimed
+                        ? 'Claimed'
+                        : achievement.unlocked
+                            ? 'Claim medal'
+                            : 'Locked',
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MedalStatusPill extends StatelessWidget {
+  final String label;
+  final Color color;
+
+  const _MedalStatusPill({required this.label, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.14),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: color.withOpacity(0.40)),
+      ),
+      child: Text(
+        label.toUpperCase(),
+        style: TextStyle(
+          color: color == GameColors.textMuted ? Colors.white70 : color,
+          fontSize: 11,
+          fontWeight: FontWeight.w900,
+          letterSpacing: 0.7,
+        ),
+      ),
+    );
+  }
+}
+
+class _ErrorState extends StatelessWidget {
+  final String message;
+  final Future<void> Function() onRetry;
+
+  const _ErrorState({required this.message, required this.onRetry});
+
+  @override
+  Widget build(BuildContext context) {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.error_outline, size: 48, color: Colors.redAccent),
-            const SizedBox(height: 12),
-            Text(message, textAlign: TextAlign.center),
+            const Icon(
+              Icons.error_outline,
+              size: 48,
+              color: GameColors.crimson,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: Colors.white),
+            ),
             const SizedBox(height: 16),
             ElevatedButton.icon(
-              onPressed: _load,
+              onPressed: onRetry,
               icon: const Icon(Icons.refresh),
               label: const Text('Retry'),
             ),
@@ -115,240 +570,19 @@ class _AchievementsPageState extends State<AchievementsPage> {
       ),
     );
   }
+}
 
-  Widget _achievementList(
-    BuildContext context,
-    AchievementsSummary summary,
-    AchievementsBloc bloc,
-  ) {
-    final categories = ['All', ...summary.categories];
-    final achievements = _selectedCategory == 'All'
-        ? summary.achievements
-        : summary.achievements
-            .where((achievement) => achievement.category == _selectedCategory)
-            .toList();
-
-    return ListView(
-      padding: const EdgeInsets.all(12),
-      children: [
-        _summaryCard(context, summary),
-        _recentUnlocksCard(context, summary.recentUnlocks),
-        Card(
-          margin: const EdgeInsets.symmetric(vertical: 8),
-          child: Padding(
-            padding: const EdgeInsets.all(12),
-            child: Wrap(
-              spacing: 8,
-              runSpacing: 4,
-              children: categories
-                  .map(
-                    (category) => ChoiceChip(
-                      label: Text(category),
-                      selected: _selectedCategory == category,
-                      onSelected: (_) {
-                        setState(() {
-                          _selectedCategory = category;
-                        });
-                      },
-                    ),
-                  )
-                  .toList(),
-            ),
-          ),
-        ),
-        ...achievements.map((achievement) {
-          final isClaiming =
-              bloc.claimingAchievementIds.contains(achievement.achievementId);
-          return _achievementCard(
-            context,
-            achievement,
-            isClaiming: isClaiming,
-            onClaim: achievement.claimable ? () => _claim(achievement) : null,
-          );
-        }),
-      ],
-    );
-  }
-
-  Widget _summaryCard(BuildContext context, AchievementsSummary summary) {
-    return Card(
-      margin: const EdgeInsets.symmetric(vertical: 8),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                const Icon(Icons.emoji_events, color: Colors.amber),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'Medal cabinet',
-                    style: Theme.of(context).textTheme.titleLarge,
-                  ),
-                ),
-                Text(
-                  '${summary.totalUnlocked}/${summary.totalAvailable}',
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            LinearProgressIndicator(value: summary.progress, minHeight: 8),
-            const SizedBox(height: 8),
-            Text(
-              '${summary.totalPoints} achievement points • ${summary.unclaimedCount} medal(s) ready to claim',
-              style: const TextStyle(color: Colors.grey),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _recentUnlocksCard(
-      BuildContext context, List<AchievementUnlock> recentUnlocks) {
-    if (recentUnlocks.isEmpty) {
-      return const Card(
-        margin: EdgeInsets.symmetric(vertical: 8),
-        child: ListTile(
-          leading: Icon(Icons.military_tech),
-          title: Text('No medals unlocked yet'),
-          subtitle: Text('Work, train, fight, trade, and produce to earn one.'),
-        ),
-      );
-    }
-
-    return Card(
-      margin: const EdgeInsets.symmetric(vertical: 8),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Recent unlocks',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-            const SizedBox(height: 8),
-            ...recentUnlocks.take(5).map(
-                  (unlock) => ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    leading: Icon(
-                      Icons.military_tech,
-                      color: _rarityColor(unlock.medalRarity),
-                    ),
-                    title: Text(unlock.title),
-                    subtitle: Text(
-                      '${unlock.medalName} • ${DateFormat.yMMMd().add_Hm().format(unlock.awardedAt.toLocal())}',
-                    ),
-                    trailing: Text('${unlock.points} pts'),
-                  ),
-                ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _achievementCard(
-    BuildContext context,
-    AchievementProgress achievement, {
-    required bool isClaiming,
-    required VoidCallback? onClaim,
-  }) {
-    final color = _rarityColor(achievement.medalRarity);
-    return Card(
-      margin: const EdgeInsets.symmetric(vertical: 8),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                CircleAvatar(
-                  backgroundColor: color.withOpacity(0.15),
-                  child: Icon(
-                    achievement.unlocked
-                        ? Icons.emoji_events
-                        : Icons.lock_outline,
-                    color: color,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        achievement.title,
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
-                      const SizedBox(height: 4),
-                      Text(achievement.description),
-                      const SizedBox(height: 6),
-                      Text(
-                        '${achievement.category} • ${achievement.medalName} • ${achievement.points} pts',
-                        style: TextStyle(color: color),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            LinearProgressIndicator(
-              value: achievement.progress,
-              color: color,
-              minHeight: 8,
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    achievement.progressLabel,
-                    style: const TextStyle(color: Colors.grey),
-                  ),
-                ),
-                ElevatedButton.icon(
-                  onPressed: isClaiming ? null : onClaim,
-                  icon: isClaiming
-                      ? const SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : Icon(achievement.claimed ? Icons.check : Icons.redeem),
-                  label: Text(
-                    achievement.claimed
-                        ? 'Claimed'
-                        : achievement.unlocked
-                            ? 'Claim'
-                            : 'Locked',
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Color _rarityColor(String rarity) {
-    switch (rarity.toLowerCase()) {
-      case 'gold':
-        return Colors.amber.shade700;
-      case 'silver':
-        return Colors.blueGrey;
-      case 'platinum':
-        return Colors.lightBlue.shade700;
-      default:
-        return Colors.brown;
-    }
+Color _rarityColor(String rarity) {
+  switch (rarity.toLowerCase()) {
+    case 'gold':
+      return GameColors.amber;
+    case 'silver':
+      return const Color(0xFFC0CAD5);
+    case 'platinum':
+      return GameColors.cyan;
+    case 'diamond':
+      return GameColors.violet;
+    default:
+      return const Color(0xFFB7791F);
   }
 }

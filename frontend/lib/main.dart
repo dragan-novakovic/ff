@@ -4,9 +4,15 @@ import 'package:ff/pages/ActivityFeedPage.dart';
 import 'package:ff/pages/AchievementsPage.dart';
 import 'package:ff/pages/AdminConsolePage.dart';
 import 'package:ff/pages/AccountSecurityPage.dart';
+import 'package:ff/pages/AdvisorPage.dart';
+import 'package:ff/pages/BattleReportsPage.dart';
 import 'package:ff/pages/CompaniesPage.dart';
+import 'package:ff/pages/CompanyContractsPage.dart';
 import 'package:ff/pages/CongressPage.dart';
 import 'package:ff/pages/CountryBattlesPage.dart';
+import 'package:ff/pages/CountryPowerRankingsPage.dart';
+import 'package:ff/pages/CountryTreasuryPage.dart';
+import 'package:ff/pages/DailyCampaignBoardPage.dart';
 import 'package:ff/pages/Dashboard.dart';
 import 'package:ff/pages/diplomacy_page.dart';
 import 'package:ff/pages/FactoriesPage.dart';
@@ -20,9 +26,11 @@ import 'package:ff/pages/PoliticsPage.dart';
 import 'package:ff/pages/PublicProfilePage.dart';
 import 'package:ff/pages/PushNotificationsPage.dart';
 import 'package:ff/pages/RankingsPage.dart';
+import 'package:ff/pages/RecoveryCenterPage.dart';
 import 'package:ff/pages/ResearchPage.dart';
 import 'package:ff/pages/ResourceLogisticsPage.dart';
 import 'package:ff/pages/TerritoryPage.dart';
+import 'package:ff/pages/TrainingGroundsPage.dart';
 import 'package:ff/pages/WorldPage.dart';
 import 'package:ff/pages/WorkforcePage.dart';
 import 'package:flutter/material.dart';
@@ -37,6 +45,7 @@ import 'blocs/PlayerBloc.dart';
 import 'blocs/PushNotificationsBloc.dart';
 import 'blocs/RankingsBloc.dart';
 import 'blocs/ResourceLogisticsBloc.dart';
+import 'blocs/TrainingGroundsBloc.dart';
 import 'models/User.dart';
 
 void main() {
@@ -51,6 +60,7 @@ void main() {
       ChangeNotifierProvider(create: (_) => MarketBloc()),
       ChangeNotifierProvider(create: (_) => WorkforceBloc()),
       ChangeNotifierProvider(create: (_) => MissionsBloc()),
+      ChangeNotifierProvider(create: (_) => TrainingGroundsBloc()),
       ChangeNotifierProvider(create: (_) => CountryBattlesBloc()),
       ChangeNotifierProvider(create: (_) => MilitaryUnitsBloc()),
       ChangeNotifierProvider(create: (_) => CompaniesBloc()),
@@ -90,6 +100,9 @@ class _MyAppState extends State<MyApp> {
       home: LoginGate(),
       routes: {
         '/home': (context) => AuthenticatedHome(),
+        '/advisor': (context) => AuthenticatedGamePage(
+              builder: (user) => AdvisorPage(user: user),
+            ),
         '/inventory': (context) => AuthenticatedGamePage(
               builder: (user) => InventoryPage(user: user),
             ),
@@ -108,11 +121,23 @@ class _MyAppState extends State<MyApp> {
         '/market': (context) => AuthenticatedGamePage(
               builder: (user) => MarketPage(user: user),
             ),
+        '/company-contracts': (context) => AuthenticatedGamePage(
+              builder: (user) => CompanyContractsPage(user: user),
+            ),
         '/workforce': (context) => AuthenticatedGamePage(
               builder: (user) => WorkforcePage(user: user),
             ),
         '/missions': (context) => AuthenticatedGamePage(
               builder: (user) => MissionsPage(user: user),
+            ),
+        '/daily-campaigns': (context) => AuthenticatedGamePage(
+              builder: (user) => DailyCampaignBoardPage(user: user),
+            ),
+        '/training-grounds': (context) => AuthenticatedGamePage(
+              builder: (user) => TrainingGroundsPage(user: user),
+            ),
+        '/recovery-center': (context) => AuthenticatedGamePage(
+              builder: (user) => RecoveryCenterPage(user: user),
             ),
         '/activity': (context) => AuthenticatedGamePage(
               builder: (user) => ActivityFeedPage(user: user),
@@ -132,11 +157,20 @@ class _MyAppState extends State<MyApp> {
         '/world': (context) => AuthenticatedGamePage(
               builder: (user) => WorldPage(user: user),
             ),
+        '/treasury': (context) => AuthenticatedGamePage(
+              builder: (user) => CountryTreasuryPage(user: user),
+            ),
         '/territory': (context) => AuthenticatedGamePage(
               builder: (user) => TerritoryPage(user: user),
             ),
+        '/country-rankings': (context) => AuthenticatedGamePage(
+              builder: (user) => CountryPowerRankingsPage(user: user),
+            ),
         '/country-battles': (context) => AuthenticatedGamePage(
               builder: (user) => CountryBattlesPage(user: user),
+            ),
+        '/battle-reports': (context) => AuthenticatedGamePage(
+              builder: (user) => BattleReportsPage(user: user),
             ),
         '/military-units': (context) => AuthenticatedGamePage(
               builder: (user) => MilitaryUnitsPage(user: user),

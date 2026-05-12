@@ -45,41 +45,84 @@ class OnboardingGuidanceCard extends StatelessWidget {
         .skippingQuestIds
         .contains(quest.questId);
 
+    final accent =
+        quest.claimable ? const Color(0xFF22C55E) : const Color(0xFF38BDF8);
     return Card(
-      margin: const EdgeInsets.all(12),
-      color: quest.claimable ? Colors.green.shade50 : Colors.blue.shade50,
+      margin: EdgeInsets.zero,
+      color: const Color(0xFF0F2136),
+      elevation: 0,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(18),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
-                Icon(
-                  quest.claimable ? Icons.card_giftcard : Icons.tour,
-                  color: quest.claimable ? Colors.green : Colors.blue,
+                Container(
+                  width: 46,
+                  height: 46,
+                  decoration: BoxDecoration(
+                    color: accent.withOpacity(0.14),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: accent.withOpacity(0.34)),
+                  ),
+                  child: Icon(
+                    quest.claimable ? Icons.card_giftcard : Icons.tour,
+                    color: accent,
+                  ),
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: 12),
                 Expanded(
                   child: Text(
                     'Tutorial: ${quest.title}',
-                    style: Theme.of(context).textTheme.titleMedium,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w900,
+                    ),
                   ),
                 ),
-                Text('${line.completionPercent}%'),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: accent.withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(color: accent.withOpacity(0.28)),
+                  ),
+                  child: Text(
+                    '${line.completionPercent}%',
+                    style: TextStyle(
+                      color: accent,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
               ],
             ),
+            const SizedBox(height: 12),
+            Text(
+              quest.claimable
+                  ? 'Step complete. Claim your reward.'
+                  : quest.guidance,
+              style: TextStyle(color: Colors.white.withOpacity(0.72)),
+            ),
             const SizedBox(height: 8),
-            Text(quest.claimable
-                ? 'Step complete. Claim your reward.'
-                : quest.guidance),
-            const SizedBox(height: 8),
-            LinearProgressIndicator(value: quest.progress),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(999),
+              child: LinearProgressIndicator(
+                value: quest.progress,
+                minHeight: 8,
+                backgroundColor: Colors.white.withOpacity(0.10),
+                valueColor: AlwaysStoppedAnimation<Color>(accent),
+              ),
+            ),
             const SizedBox(height: 8),
             Text(
               'Progress ${quest.currentCount}/${quest.targetCount}'
               '${rewards.isEmpty ? '' : ' • Reward: $rewards'}',
-              style: Theme.of(context).textTheme.bodySmall,
+              style: TextStyle(color: Colors.white.withOpacity(0.58)),
             ),
             const SizedBox(height: 12),
             Wrap(

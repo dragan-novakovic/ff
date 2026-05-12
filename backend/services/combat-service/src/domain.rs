@@ -138,6 +138,84 @@ pub fn missions() -> Vec<CombatMission> {
             reward_experience: 35,
             reward_gold: 12,
         },
+        CombatMission {
+            mission_id: "dockside-sweep",
+            name: "Dockside Sweep",
+            description: "Clear smugglers from a contested harbor warehouse.",
+            defender: Fighter {
+                strength: 11,
+                energy: 90,
+                weapon_power: 1,
+            },
+            rounds: 4,
+            reward_experience: 24,
+            reward_gold: 8,
+        },
+        CombatMission {
+            mission_id: "safehouse-raid",
+            name: "Safehouse Raid",
+            description: "Storm a hidden cell before its operatives scatter.",
+            defender: Fighter {
+                strength: 16,
+                energy: 100,
+                weapon_power: 2,
+            },
+            rounds: 5,
+            reward_experience: 45,
+            reward_gold: 16,
+        },
+        CombatMission {
+            mission_id: "black-market-bust",
+            name: "Black Market Bust",
+            description: "Break up an illegal arms exchange in the industrial quarter.",
+            defender: Fighter {
+                strength: 19,
+                energy: 100,
+                weapon_power: 3,
+            },
+            rounds: 6,
+            reward_experience: 62,
+            reward_gold: 24,
+        },
+        CombatMission {
+            mission_id: "convoy-ambush",
+            name: "Convoy Ambush",
+            description: "Hit a protected supply convoy before it reaches the front.",
+            defender: Fighter {
+                strength: 23,
+                energy: 100,
+                weapon_power: 3,
+            },
+            rounds: 7,
+            reward_experience: 84,
+            reward_gold: 34,
+        },
+        CombatMission {
+            mission_id: "fortress-breach",
+            name: "Fortress Breach",
+            description: "Push through a fortified checkpoint guarded by veterans.",
+            defender: Fighter {
+                strength: 28,
+                energy: 100,
+                weapon_power: 4,
+            },
+            rounds: 8,
+            reward_experience: 110,
+            reward_gold: 48,
+        },
+        CombatMission {
+            mission_id: "warlord-showdown",
+            name: "Warlord Showdown",
+            description: "Challenge a regional commander in a high-risk boss fight.",
+            defender: Fighter {
+                strength: 36,
+                energy: 100,
+                weapon_power: 5,
+            },
+            rounds: 10,
+            reward_experience: 160,
+            reward_gold: 75,
+        },
     ]
 }
 
@@ -294,5 +372,36 @@ mod tests {
                 weapon_power: 0
             }
         );
+    }
+
+    #[test]
+    fn mission_catalog_contains_progression_jobs() {
+        let missions = missions();
+
+        assert!(
+            missions.len() >= 8,
+            "expected a full job-board catalog, got {} missions",
+            missions.len()
+        );
+
+        let mut ids = std::collections::HashSet::new();
+        for mission in missions {
+            assert!(ids.insert(mission.mission_id), "duplicate mission id");
+            assert!(!mission.name.trim().is_empty());
+            assert!(!mission.description.trim().is_empty());
+            assert!((1..=MAX_ROUNDS).contains(&mission.rounds));
+            validate_fighter(CombatSide::Defender, mission.defender)
+                .expect("catalog defender should be valid");
+            assert!(mission.reward_experience > 0);
+            assert!(mission.reward_gold > 0);
+        }
+    }
+
+    #[test]
+    fn finds_new_missions_case_insensitively() {
+        let mission = find_mission("WARLORD-SHOWDOWN").expect("mission should exist");
+
+        assert_eq!(mission.mission_id, "warlord-showdown");
+        assert_eq!(mission.defender.weapon_power, 5);
     }
 }

@@ -114,12 +114,18 @@ class LoginBloc extends Validators with ChangeNotifier {
 
     final validEmail = _emailController.value;
     final validPassword = _passwordController.value;
+    return submitWithCredentials(email: validEmail, password: validPassword);
+  }
 
+  Future<String?> submitWithCredentials({
+    required String email,
+    required String password,
+  }) async {
     try {
       _authErrorController.add(null);
       final session = await _apiClient.login(
-        email: validEmail,
-        password: validPassword,
+        email: email,
+        password: password,
       );
       await _setSession(session);
       _pendingSuccessMessage = 'Login successful.';

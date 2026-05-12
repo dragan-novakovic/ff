@@ -7,6 +7,39 @@ import 'package:ff/utils/Utils.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+const Color _marketBackground = Color(0xFF07111F);
+const Color _marketSurface = Color(0xFF0D1B2A);
+const Color _marketPanel = Color(0xFF102033);
+const Color _marketInset = Color(0xFF132A42);
+const Color _marketBorder = Color(0xFF25415F);
+const Color _marketAccent = Color(0xFFF59E0B);
+const Color _marketAccentBlue = Color(0xFF38BDF8);
+const Color _marketAccentGreen = Color(0xFF34D399);
+const Color _marketText = Color(0xFFF8FAFC);
+const Color _marketMuted = Color(0xFF94A3B8);
+
+InputDecoration _marketInputDecoration(String label, {IconData? icon}) {
+  return InputDecoration(
+    labelText: label,
+    labelStyle: const TextStyle(color: _marketMuted),
+    prefixIcon: icon == null ? null : Icon(icon, color: _marketAccent),
+    filled: true,
+    fillColor: const Color(0xFF091827),
+    enabledBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(18),
+      borderSide: const BorderSide(color: _marketBorder),
+    ),
+    focusedBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(18),
+      borderSide: const BorderSide(color: _marketAccent, width: 1.4),
+    ),
+    disabledBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(18),
+      borderSide: BorderSide(color: _marketBorder.withOpacity(0.5)),
+    ),
+  );
+}
+
 class MarketPage extends StatefulWidget {
   final User user;
   const MarketPage({super.key, required this.user});
@@ -285,7 +318,20 @@ class _MarketPageState extends State<MarketPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Market')),
+      backgroundColor: _marketBackground,
+      appBar: AppBar(
+        title: const Text('Market Exchange'),
+        backgroundColor: _marketSurface,
+        foregroundColor: _marketText,
+        elevation: 0,
+        actions: [
+          IconButton(
+            tooltip: 'Refresh market',
+            icon: const Icon(Icons.refresh),
+            onPressed: _load,
+          ),
+        ],
+      ),
       body: Consumer2<MarketBloc, InventoryBloc>(
         builder: (context, bloc, inventoryBloc, _) {
           final market = bloc.market;
@@ -307,14 +353,56 @@ class _MarketPageState extends State<MarketPage> {
           return RefreshIndicator(
             onRefresh: _load,
             child: ListView(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 28),
               children: [
+                if (bloc.error != null)
+                  _MarketMessageCard(
+                    message: bloc.error!,
+                    icon: Icons.warning_amber_rounded,
+                    color: Colors.redAccent,
+                  ),
                 if (bloc.lastPurchase != null)
                   _MarketPurchaseNotice(result: bloc.lastPurchase!),
                 if (bloc.lastSale != null)
                   _MarketSaleNotice(result: bloc.lastSale!),
                 if (bloc.lastCancellation != null)
                   _MarketCancellationNotice(result: bloc.lastCancellation!),
+                if (bloc.lastTradeOffer != null)
+                  _TradeOfferNotice(result: bloc.lastTradeOffer!),
+                _MarketHero(
+                  market: market,
+                  playerListings: bloc.playerListings,
+                  inventory: inventoryBloc.inventory,
+                  orderBook: bloc.orderBook,
+                  priceHistory: bloc.priceHistory,
+                  tradeOffers: bloc.tradeOffers,
+                ),
+                const SizedBox(height: 16),
+                _OpenMarketSection(
+                  listings: market.listings,
+                  currentPlayerId: widget.user.uid,
+                  buyingListingIds: bloc.buyingListingIds,
+                  onBuy: _buy,
+                ),
+                const SizedBox(height: 16),
+                _MarketSellCard(
+                  inventory: inventoryBloc.inventory,
+                  selectedItemId: _selectedSellItemId,
+                  quantityController: _sellQuantityController,
+                  priceController: _sellPriceController,
+                  isSelling: bloc.isSelling,
+                  onItemChanged: (value) =>
+                      setState(() => _selectedSellItemId = value),
+                  onSell: _sell,
+                ),
+                const SizedBox(height: 16),
+                _MyListingsSection(
+                  listings: bloc.playerListings,
+                  isLoading: bloc.isPlayerListingsLoading,
+                  cancelingListingIds: bloc.cancelingListingIds,
+                  onCancel: _cancel,
+                ),
+                const SizedBox(height: 16),
                 _AdvancedMarketSection(
                   priceHistory: bloc.priceHistory,
                   orderBook: bloc.orderBook,
@@ -347,39 +435,617 @@ class _MarketPageState extends State<MarketPage> {
                   onAccept: _acceptTradeOffer,
                   onCancel: _cancelTradeOffer,
                 ),
-                const SizedBox(height: 8),
-                _MarketSellCard(
-                  inventory: inventoryBloc.inventory,
-                  selectedItemId: _selectedSellItemId,
-                  quantityController: _sellQuantityController,
-                  priceController: _sellPriceController,
-                  isSelling: bloc.isSelling,
-                  onItemChanged: (value) =>
-                      setState(() => _selectedSellItemId = value),
-                  onSell: _sell,
-                ),
-                const SizedBox(height: 8),
-                _MyListingsSection(
-                  listings: bloc.playerListings,
-                  isLoading: bloc.isPlayerListingsLoading,
-                  cancelingListingIds: bloc.cancelingListingIds,
-                  onCancel: _cancel,
-                ),
-                const SizedBox(height: 8),
-                ...market.listings.map(
-                  (listing) => _MarketListingCard(
-                    listing: listing,
-                    canBuy: listing.sellerId != widget.user.uid,
-                    isBuying: bloc.buyingListingIds.contains(listing.listingId),
-                    onBuy: () => _buy(listing),
-                  ),
-                ),
               ],
             ),
           );
         },
       ),
     );
+  }
+}
+
+class _MarketHero extends StatelessWidget {
+  final MarketListings market;
+  final PlayerMarketListings? playerListings;
+  final InventorySummary? inventory;
+  final MarketOrderBook? orderBook;
+  final MarketPriceHistory? priceHistory;
+  final TradeOfferList? tradeOffers;
+
+  const _MarketHero({
+    required this.market,
+    required this.playerListings,
+    required this.inventory,
+    required this.orderBook,
+    required this.priceHistory,
+    required this.tradeOffers,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final openListings =
+        market.listings.where((listing) => listing.status == 'open').toList();
+    final listedUnits =
+        openListings.fold<int>(0, (sum, listing) => sum + listing.quantity);
+    final marketValue = openListings.fold<int>(
+      0,
+      (sum, listing) => sum + listing.quantity * listing.pricePerUnit,
+    );
+    final myOrders = playerListings?.listings
+            .where((listing) => listing.status == 'open')
+            .length ??
+        0;
+    final openOffers =
+        tradeOffers?.offers.where((offer) => offer.status == 'open').length ??
+            0;
+
+    return Card(
+      elevation: 0,
+      clipBehavior: Clip.antiAlias,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+      child: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              Color(0xFF07111F),
+              Color(0xFF12345A),
+              Color(0xFF7C2D12),
+            ],
+          ),
+        ),
+        padding: const EdgeInsets.all(22),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(22),
+                    border: Border.all(color: Colors.white.withOpacity(0.12)),
+                  ),
+                  child: const Icon(
+                    Icons.storefront,
+                    color: _marketAccent,
+                    size: 34,
+                  ),
+                ),
+                const SizedBox(width: 14),
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'National Trade Exchange',
+                        style: TextStyle(
+                          color: _marketText,
+                          fontSize: 24,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      SizedBox(height: 6),
+                      Text(
+                        'Buy supplies, list surplus inventory, and negotiate reserved player or company contracts.',
+                        style: TextStyle(color: _marketMuted, height: 1.35),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final columns = constraints.maxWidth > 720
+                    ? 4
+                    : constraints.maxWidth > 460
+                        ? 2
+                        : 1;
+                final spacing = 10.0;
+                final width =
+                    (constraints.maxWidth - spacing * (columns - 1)) / columns;
+                return Wrap(
+                  spacing: spacing,
+                  runSpacing: spacing,
+                  children: [
+                    _MarketStatCard(
+                      width: width,
+                      label: 'Open orders',
+                      value: '${openListings.length}',
+                      detail: '$listedUnits units listed',
+                      icon: Icons.receipt_long,
+                      color: _marketAccentBlue,
+                    ),
+                    _MarketStatCard(
+                      width: width,
+                      label: 'Board value',
+                      value: Utils.number(marketValue),
+                      detail: 'gold in public asks',
+                      icon: Icons.monetization_on,
+                      color: _marketAccent,
+                    ),
+                    _MarketStatCard(
+                      width: width,
+                      label: 'My orders',
+                      value: '$myOrders',
+                      detail:
+                          '${Utils.number(inventory?.walletGold ?? 0)} gold',
+                      icon: Icons.account_balance_wallet,
+                      color: _marketAccentGreen,
+                    ),
+                    _MarketStatCard(
+                      width: width,
+                      label: 'Contracts',
+                      value: '$openOffers',
+                      detail:
+                          '${orderBook?.entries.length ?? 0} depth / ${priceHistory?.entries.length ?? 0} trades',
+                      icon: Icons.handshake,
+                      color: Colors.purpleAccent,
+                    ),
+                  ],
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _MarketStatCard extends StatelessWidget {
+  final double width;
+  final String label;
+  final String value;
+  final String detail;
+  final IconData icon;
+  final Color color;
+
+  const _MarketStatCard({
+    required this.width,
+    required this.label,
+    required this.value,
+    required this.detail,
+    required this.icon,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: width,
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Colors.black.withOpacity(0.24),
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(color: Colors.white.withOpacity(0.1)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(icon, color: color, size: 18),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    label.toUpperCase(),
+                    style: const TextStyle(
+                      color: _marketMuted,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.8,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Text(
+              value,
+              style: const TextStyle(
+                color: _marketText,
+                fontSize: 22,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(detail, style: const TextStyle(color: _marketMuted)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _OpenMarketSection extends StatelessWidget {
+  final List<MarketListing> listings;
+  final String currentPlayerId;
+  final Set<String> buyingListingIds;
+  final Future<void> Function(MarketListing listing) onBuy;
+
+  const _OpenMarketSection({
+    required this.listings,
+    required this.currentPlayerId,
+    required this.buyingListingIds,
+    required this.onBuy,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return _MarketSectionCard(
+      title: 'Exchange board',
+      subtitle: 'Live public sell orders from citizens and companies.',
+      icon: Icons.travel_explore,
+      trailing: _MarketBadge(
+        label: '${listings.length} orders',
+        color: _marketAccentBlue,
+      ),
+      child: listings.isEmpty
+          ? const _MarketEmptyState(
+              icon: Icons.store_mall_directory_outlined,
+              title: 'No public listings',
+              message: 'The market board is quiet. Create a sell order below.',
+            )
+          : Column(
+              children: listings
+                  .map(
+                    (listing) => Padding(
+                      padding: const EdgeInsets.only(top: 12),
+                      child: _MarketListingCard(
+                        listing: listing,
+                        canBuy: listing.sellerId != currentPlayerId,
+                        isBuying: buyingListingIds.contains(listing.listingId),
+                        onBuy: () => onBuy(listing),
+                      ),
+                    ),
+                  )
+                  .toList(),
+            ),
+    );
+  }
+}
+
+class _MarketSectionCard extends StatelessWidget {
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final Widget child;
+  final Widget? trailing;
+  final bool isLoading;
+
+  const _MarketSectionCard({
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    required this.child,
+    this.trailing,
+    this.isLoading = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      elevation: 0,
+      color: _marketSurface,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(26)),
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(26),
+          border: Border.all(color: _marketBorder.withOpacity(0.7)),
+        ),
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: _marketAccent.withOpacity(0.14),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Icon(icon, color: _marketAccent),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: const TextStyle(
+                          color: _marketText,
+                          fontSize: 19,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        subtitle,
+                        style:
+                            const TextStyle(color: _marketMuted, height: 1.3),
+                      ),
+                    ],
+                  ),
+                ),
+                if (isLoading)
+                  const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                else if (trailing != null)
+                  trailing!,
+              ],
+            ),
+            const SizedBox(height: 16),
+            child,
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _MarketSubCard extends StatelessWidget {
+  final String title;
+  final String? subtitle;
+  final IconData icon;
+  final Widget child;
+  final Widget? trailing;
+
+  const _MarketSubCard({
+    required this.title,
+    this.subtitle,
+    required this.icon,
+    required this.child,
+    this.trailing,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: _marketPanel,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: _marketBorder.withOpacity(0.75)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(icon, color: _marketAccentBlue),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        color: _marketText,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    if (subtitle != null) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        subtitle!,
+                        style: const TextStyle(color: _marketMuted),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              if (trailing != null) trailing!,
+            ],
+          ),
+          const SizedBox(height: 12),
+          child,
+        ],
+      ),
+    );
+  }
+}
+
+class _MarketBadge extends StatelessWidget {
+  final String label;
+  final Color color;
+  final IconData? icon;
+
+  const _MarketBadge({
+    required this.label,
+    required this.color,
+    this.icon,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.14),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: color.withOpacity(0.45)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (icon != null) ...[
+            Icon(icon, color: color, size: 14),
+            const SizedBox(width: 5),
+          ],
+          Text(
+            label,
+            style: TextStyle(
+              color: color,
+              fontWeight: FontWeight.w800,
+              fontSize: 12,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MarketEmptyState extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String message;
+
+  const _MarketEmptyState({
+    required this.icon,
+    required this.title,
+    required this.message,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: _marketPanel,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: _marketBorder.withOpacity(0.7)),
+      ),
+      child: Column(
+        children: [
+          Icon(icon, color: _marketMuted, size: 34),
+          const SizedBox(height: 10),
+          Text(
+            title,
+            style: const TextStyle(
+              color: _marketText,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: _marketMuted),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MarketFieldWrap extends StatelessWidget {
+  final int columns;
+  final List<Widget> children;
+
+  const _MarketFieldWrap({
+    required this.columns,
+    required this.children,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final actualColumns = constraints.maxWidth < 520 ? 1 : columns;
+        const spacing = 12.0;
+        final width = (constraints.maxWidth - spacing * (actualColumns - 1)) /
+            actualColumns;
+        return Wrap(
+          spacing: spacing,
+          runSpacing: spacing,
+          children: children
+              .map((child) => SizedBox(width: width, child: child))
+              .toList(),
+        );
+      },
+    );
+  }
+}
+
+class _MarketMessageCard extends StatelessWidget {
+  final String message;
+  final IconData icon;
+  final Color color;
+
+  const _MarketMessageCard({
+    required this.message,
+    required this.icon,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.12),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color.withOpacity(0.45)),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: color),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              message,
+              style: const TextStyle(
+                color: _marketText,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TradeOfferNotice extends StatelessWidget {
+  final TradeOfferResult result;
+  const _TradeOfferNotice({required this.result});
+
+  @override
+  Widget build(BuildContext context) {
+    final color = result.completed ? _marketAccentGreen : _marketAccent;
+    final detail = result.contract != null
+        ? 'Contract ${result.contract!.status} for ${Utils.number(result.totalPrice)} gold.'
+        : result.offer != null
+            ? '${result.offer!.quantity} ${result.offer!.itemName} reserved at ${Utils.number(result.offer!.pricePerUnit)} gold each.'
+            : '${Utils.number(result.totalPrice)} gold total.';
+    return _MarketMessageCard(
+      message: '${result.message} $detail',
+      icon: result.completed ? Icons.verified : Icons.handshake,
+      color: color,
+    );
+  }
+}
+
+Color _marketStatusColor(String status) {
+  switch (status.toLowerCase()) {
+    case 'open':
+      return _marketAccentGreen;
+    case 'completed':
+    case 'fulfilled':
+      return _marketAccentBlue;
+    case 'cancelled':
+    case 'canceled':
+      return Colors.redAccent;
+    default:
+      return _marketAccent;
   }
 }
 
@@ -444,61 +1110,91 @@ class _AdvancedMarketSection extends StatelessWidget {
         ? selectedSellerCompanyId
         : null;
 
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Text('Advanced market economy',
-                    style: Theme.of(context).textTheme.titleLarge),
-                const Spacer(),
-                if (isLoading)
-                  const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'Persisted price history, order book, and trade contracts for player/company trades.',
-            ),
-            const SizedBox(height: 16),
-            _TradeOfferForm(
-              managedCompanies: managedCompanies,
-              sellerType: sellerType,
-              buyerType: buyerType,
-              selectedSellerCompanyId: sellerCompanyValue,
-              itemController: itemController,
-              buyerController: buyerController,
-              quantityController: quantityController,
-              priceController: priceController,
-              isCreating: isCreating,
-              onSellerTypeChanged: onSellerTypeChanged,
-              onBuyerTypeChanged: onBuyerTypeChanged,
-              onSellerCompanyChanged: onSellerCompanyChanged,
-              onCreate: onCreate,
-            ),
-            const Divider(height: 32),
-            _TradeOfferList(
-              offers: tradeOffers?.offers ?? [],
-              currentPlayerId: currentPlayerId,
-              managedCompanyIds: managedCompanyIds,
-              acceptingOfferIds: acceptingOfferIds,
-              cancelingOfferIds: cancelingOfferIds,
-              onAccept: onAccept,
-              onCancel: onCancel,
-            ),
-            const Divider(height: 32),
-            _OrderBookPreview(orderBook: orderBook),
-            const Divider(height: 32),
-            _PriceHistoryPreview(priceHistory: priceHistory),
-          ],
-        ),
+    return _MarketSectionCard(
+      title: 'Contract terminal',
+      subtitle:
+          'Reserved trade offers, order-book depth, and persisted price history.',
+      icon: Icons.insights,
+      isLoading: isLoading,
+      child: Column(
+        children: [
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final wide = constraints.maxWidth >= 760;
+              final form = _TradeOfferForm(
+                managedCompanies: managedCompanies,
+                sellerType: sellerType,
+                buyerType: buyerType,
+                selectedSellerCompanyId: sellerCompanyValue,
+                itemController: itemController,
+                buyerController: buyerController,
+                quantityController: quantityController,
+                priceController: priceController,
+                isCreating: isCreating,
+                onSellerTypeChanged: onSellerTypeChanged,
+                onBuyerTypeChanged: onBuyerTypeChanged,
+                onSellerCompanyChanged: onSellerCompanyChanged,
+                onCreate: onCreate,
+              );
+              final offers = _TradeOfferList(
+                offers: tradeOffers?.offers ?? [],
+                currentPlayerId: currentPlayerId,
+                managedCompanyIds: managedCompanyIds,
+                acceptingOfferIds: acceptingOfferIds,
+                cancelingOfferIds: cancelingOfferIds,
+                onAccept: onAccept,
+                onCancel: onCancel,
+              );
+
+              if (!wide) {
+                return Column(
+                  children: [
+                    form,
+                    const SizedBox(height: 12),
+                    offers,
+                  ],
+                );
+              }
+
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(child: form),
+                  const SizedBox(width: 12),
+                  Expanded(child: offers),
+                ],
+              );
+            },
+          ),
+          const SizedBox(height: 12),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final wide = constraints.maxWidth >= 720;
+              final orderBookPreview = _OrderBookPreview(orderBook: orderBook);
+              final historyPreview =
+                  _PriceHistoryPreview(priceHistory: priceHistory);
+
+              if (!wide) {
+                return Column(
+                  children: [
+                    orderBookPreview,
+                    const SizedBox(height: 12),
+                    historyPreview,
+                  ],
+                );
+              }
+
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(child: orderBookPreview),
+                  const SizedBox(width: 12),
+                  Expanded(child: historyPreview),
+                ],
+              );
+            },
+          ),
+        ],
       ),
     );
   }
@@ -537,107 +1233,161 @@ class _TradeOfferForm extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text('Create reserved trade offer',
-            style: Theme.of(context).textTheme.titleMedium),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(
-              child: DropdownButtonFormField<String>(
+    const menuTextStyle = TextStyle(color: _marketText);
+    return _MarketSubCard(
+      title: 'Create reserved trade',
+      subtitle: 'Lock an offer to a specific citizen or company.',
+      icon: Icons.handshake,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _MarketFieldWrap(
+            columns: 2,
+            children: [
+              DropdownButtonFormField<String>(
                 value: sellerType,
-                decoration: const InputDecoration(labelText: 'Seller'),
+                dropdownColor: _marketPanel,
+                style: menuTextStyle,
+                decoration: _marketInputDecoration(
+                  'Seller',
+                  icon: Icons.outbound,
+                ),
                 items: const [
-                  DropdownMenuItem(value: 'player', child: Text('My player')),
-                  DropdownMenuItem(value: 'company', child: Text('My company')),
+                  DropdownMenuItem(
+                    value: 'player',
+                    child: Text('My player', style: menuTextStyle),
+                  ),
+                  DropdownMenuItem(
+                    value: 'company',
+                    child: Text('My company', style: menuTextStyle),
+                  ),
                 ],
                 onChanged: isCreating ? null : onSellerTypeChanged,
               ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: DropdownButtonFormField<String>(
+              DropdownButtonFormField<String>(
                 value: buyerType,
-                decoration: const InputDecoration(labelText: 'Buyer type'),
+                dropdownColor: _marketPanel,
+                style: menuTextStyle,
+                decoration: _marketInputDecoration(
+                  'Buyer type',
+                  icon: Icons.login,
+                ),
                 items: const [
-                  DropdownMenuItem(value: 'player', child: Text('Player')),
-                  DropdownMenuItem(value: 'company', child: Text('Company')),
+                  DropdownMenuItem(
+                    value: 'player',
+                    child: Text('Player', style: menuTextStyle),
+                  ),
+                  DropdownMenuItem(
+                    value: 'company',
+                    child: Text('Company', style: menuTextStyle),
+                  ),
                 ],
                 onChanged: isCreating ? null : onBuyerTypeChanged,
               ),
+            ],
+          ),
+          if (sellerType == 'company') ...[
+            const SizedBox(height: 12),
+            DropdownButtonFormField<String>(
+              value: selectedSellerCompanyId,
+              dropdownColor: _marketPanel,
+              style: menuTextStyle,
+              decoration: _marketInputDecoration(
+                'Seller company',
+                icon: Icons.business_center,
+              ),
+              items: managedCompanies
+                  .map(
+                    (company) => DropdownMenuItem(
+                      value: company.companyId,
+                      child: Text(
+                        '${company.name} (${Utils.number(company.walletGold)} gold)',
+                        style: menuTextStyle,
+                      ),
+                    ),
+                  )
+                  .toList(),
+              onChanged: isCreating ? null : onSellerCompanyChanged,
             ),
           ],
-        ),
-        if (sellerType == 'company') ...[
           const SizedBox(height: 12),
-          DropdownButtonFormField<String>(
-            value: selectedSellerCompanyId,
-            decoration: const InputDecoration(labelText: 'Seller company'),
-            items: managedCompanies
-                .map(
-                  (company) => DropdownMenuItem(
-                    value: company.companyId,
-                    child: Text('${company.name} (${company.walletGold} gold)'),
-                  ),
-                )
-                .toList(),
-            onChanged: isCreating ? null : onSellerCompanyChanged,
-          ),
-        ],
-        const SizedBox(height: 12),
-        TextField(
-          controller: buyerController,
-          enabled: !isCreating,
-          decoration: InputDecoration(
-            labelText:
-                buyerType == 'company' ? 'Buyer company id' : 'Buyer player id',
-          ),
-        ),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(
-              child: TextField(
+          _MarketFieldWrap(
+            columns: 2,
+            children: [
+              TextField(
+                controller: buyerController,
+                enabled: !isCreating,
+                style: menuTextStyle,
+                cursorColor: _marketAccent,
+                decoration: _marketInputDecoration(
+                  buyerType == 'company'
+                      ? 'Buyer company id'
+                      : 'Buyer player id',
+                  icon: Icons.badge,
+                ),
+              ),
+              TextField(
                 controller: itemController,
                 enabled: !isCreating,
-                decoration: const InputDecoration(labelText: 'Item id'),
+                style: menuTextStyle,
+                cursorColor: _marketAccent,
+                decoration: _marketInputDecoration(
+                  'Item id',
+                  icon: Icons.inventory_2,
+                ),
               ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: TextField(
+            ],
+          ),
+          const SizedBox(height: 12),
+          _MarketFieldWrap(
+            columns: 2,
+            children: [
+              TextField(
                 controller: quantityController,
                 enabled: !isCreating,
-                decoration: const InputDecoration(labelText: 'Quantity'),
+                style: menuTextStyle,
+                cursorColor: _marketAccent,
+                decoration: _marketInputDecoration(
+                  'Quantity',
+                  icon: Icons.numbers,
+                ),
                 keyboardType: TextInputType.number,
               ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: TextField(
+              TextField(
                 controller: priceController,
                 enabled: !isCreating,
-                decoration: const InputDecoration(labelText: 'Gold each'),
+                style: menuTextStyle,
+                cursorColor: _marketAccent,
+                decoration: _marketInputDecoration(
+                  'Gold each',
+                  icon: Icons.monetization_on,
+                ),
                 keyboardType: TextInputType.number,
               ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _marketAccent,
+              foregroundColor: const Color(0xFF111827),
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(18),
+              ),
             ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        ElevatedButton.icon(
-          onPressed: isCreating ? null : onCreate,
-          icon: isCreating
-              ? const SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              : const Icon(Icons.handshake),
-          label: Text(isCreating ? 'Creating...' : 'Create trade offer'),
-        ),
-      ],
+            onPressed: isCreating ? null : onCreate,
+            icon: isCreating
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.handshake),
+            label: Text(isCreating ? 'Creating...' : 'Create trade offer'),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -663,62 +1413,113 @@ class _TradeOfferList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text('Trade offers & contracts',
-            style: Theme.of(context).textTheme.titleMedium),
-        const SizedBox(height: 8),
-        if (offers.isEmpty)
-          const Text('No open trade offers are available.')
-        else
-          ...offers.map((offer) {
-            final canAccept = offer.status == 'open' &&
-                ((offer.buyerType == 'player' &&
-                        offer.buyerId == currentPlayerId) ||
-                    (offer.buyerType == 'company' &&
-                        managedCompanyIds.contains(offer.buyerId)));
-            final canCancel = offer.status == 'open' &&
-                (offer.creatorPlayerId == currentPlayerId ||
-                    (offer.sellerType == 'player' &&
-                        offer.sellerId == currentPlayerId) ||
-                    (offer.sellerType == 'company' &&
-                        managedCompanyIds.contains(offer.sellerId)));
-            return ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: const Icon(Icons.assignment, color: Colors.deepPurple),
-              title: Text(
-                '${offer.quantity} ${offer.itemName} for ${Utils.number(offer.totalPrice)} gold',
-              ),
-              subtitle: Text(
-                '${offer.sellerType}:${offer.sellerId} → ${offer.buyerType}:${offer.buyerId} • ${offer.status}',
-              ),
-              trailing: Wrap(
-                spacing: 8,
-                children: [
-                  ElevatedButton(
-                    onPressed:
-                        canAccept && !acceptingOfferIds.contains(offer.offerId)
-                            ? () => onAccept(offer)
-                            : null,
-                    child: Text(acceptingOfferIds.contains(offer.offerId)
-                        ? 'Accepting...'
-                        : 'Accept'),
+    return _MarketSubCard(
+      title: 'Open contracts',
+      subtitle: 'Accept or cancel reserved trades you control.',
+      icon: Icons.assignment,
+      trailing: _MarketBadge(label: '${offers.length}', color: _marketAccent),
+      child: offers.isEmpty
+          ? const _MarketEmptyState(
+              icon: Icons.assignment_outlined,
+              title: 'No open trade offers',
+              message:
+                  'Reserved player and company contracts will appear here.',
+            )
+          : Column(
+              children: offers.map((offer) {
+                final canAccept = offer.status == 'open' &&
+                    ((offer.buyerType == 'player' &&
+                            offer.buyerId == currentPlayerId) ||
+                        (offer.buyerType == 'company' &&
+                            managedCompanyIds.contains(offer.buyerId)));
+                final canCancel = offer.status == 'open' &&
+                    (offer.creatorPlayerId == currentPlayerId ||
+                        (offer.sellerType == 'player' &&
+                            offer.sellerId == currentPlayerId) ||
+                        (offer.sellerType == 'company' &&
+                            managedCompanyIds.contains(offer.sellerId)));
+                final statusColor = _marketStatusColor(offer.status);
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 10),
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: _marketInset,
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(color: _marketBorder.withOpacity(0.7)),
                   ),
-                  OutlinedButton(
-                    onPressed:
-                        canCancel && !cancelingOfferIds.contains(offer.offerId)
-                            ? () => onCancel(offer)
-                            : null,
-                    child: Text(cancelingOfferIds.contains(offer.offerId)
-                        ? 'Canceling...'
-                        : 'Cancel'),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: Text(
+                              '${offer.quantity} ${offer.itemName}',
+                              style: const TextStyle(
+                                color: _marketText,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ),
+                          _MarketBadge(
+                            label: offer.status,
+                            color: statusColor,
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        '${Utils.number(offer.pricePerUnit)} gold each / ${Utils.number(offer.totalPrice)} total',
+                        style: const TextStyle(color: _marketAccent),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        '${offer.sellerType}:${offer.sellerId} -> ${offer.buyerType}:${offer.buyerId}',
+                        style: const TextStyle(color: _marketMuted),
+                      ),
+                      const SizedBox(height: 10),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: _marketAccentGreen,
+                              foregroundColor: const Color(0xFF052E2B),
+                            ),
+                            onPressed: canAccept &&
+                                    !acceptingOfferIds.contains(offer.offerId)
+                                ? () => onAccept(offer)
+                                : null,
+                            child: Text(
+                              acceptingOfferIds.contains(offer.offerId)
+                                  ? 'Accepting...'
+                                  : 'Accept',
+                            ),
+                          ),
+                          OutlinedButton(
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: Colors.redAccent,
+                              side: const BorderSide(color: Colors.redAccent),
+                            ),
+                            onPressed: canCancel &&
+                                    !cancelingOfferIds.contains(offer.offerId)
+                                ? () => onCancel(offer)
+                                : null,
+                            child: Text(
+                              cancelingOfferIds.contains(offer.offerId)
+                                  ? 'Canceling...'
+                                  : 'Cancel',
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
-                ],
-              ),
-            );
-          }),
-      ],
+                );
+              }).toList(),
+            ),
     );
   }
 }
@@ -730,26 +1531,30 @@ class _OrderBookPreview extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final entries = orderBook?.entries.take(5).toList() ?? [];
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text('Order book', style: Theme.of(context).textTheme.titleMedium),
-        const SizedBox(height: 8),
-        if (entries.isEmpty)
-          const Text('No order book depth yet.')
-        else
-          ...entries.map(
-            (entry) => ListTile(
-              dense: true,
-              contentPadding: EdgeInsets.zero,
-              title: Text('${entry.itemName} Q${entry.qualityTier}'),
-              subtitle: Text(
-                '${entry.quantity} units across ${entry.orderCount} orders',
-              ),
-              trailing: Text('${Utils.number(entry.pricePerUnit)}g'),
+    return _MarketSubCard(
+      title: 'Order book',
+      subtitle: 'Best visible supply levels.',
+      icon: Icons.stacked_bar_chart,
+      child: entries.isEmpty
+          ? const _MarketEmptyState(
+              icon: Icons.bar_chart,
+              title: 'No depth yet',
+              message: 'Open listings will build market depth here.',
+            )
+          : Column(
+              children: entries
+                  .map(
+                    (entry) => _MarketDataRow(
+                      title: '${entry.itemName} Q${entry.qualityTier}',
+                      subtitle:
+                          '${entry.quantity} units across ${entry.orderCount} orders',
+                      value: '${Utils.number(entry.pricePerUnit)}g',
+                      icon: Icons.layers,
+                      color: _marketAccentBlue,
+                    ),
+                  )
+                  .toList(),
             ),
-          ),
-      ],
     );
   }
 }
@@ -761,27 +1566,93 @@ class _PriceHistoryPreview extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final entries = priceHistory?.entries.take(5).toList() ?? [];
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text('Recent price history',
-            style: Theme.of(context).textTheme.titleMedium),
-        const SizedBox(height: 8),
-        if (entries.isEmpty)
-          const Text('Completed trades will appear here.')
-        else
-          ...entries.map(
-            (entry) => ListTile(
-              dense: true,
-              contentPadding: EdgeInsets.zero,
-              title: Text('${entry.itemName} Q${entry.qualityTier}'),
-              subtitle: Text(
-                '${entry.quantity} units • ${entry.sellerType}:${entry.sellerId} → ${entry.buyerType}:${entry.buyerId}',
-              ),
-              trailing: Text('${Utils.number(entry.pricePerUnit)}g each'),
+    return _MarketSubCard(
+      title: 'Price history',
+      subtitle: 'Recent completed trades.',
+      icon: Icons.show_chart,
+      child: entries.isEmpty
+          ? const _MarketEmptyState(
+              icon: Icons.history,
+              title: 'No trades recorded',
+              message: 'Completed trades will chart price history here.',
+            )
+          : Column(
+              children: entries
+                  .map(
+                    (entry) => _MarketDataRow(
+                      title: '${entry.itemName} Q${entry.qualityTier}',
+                      subtitle:
+                          '${entry.quantity} units / ${entry.sellerType}:${entry.sellerId} -> ${entry.buyerType}:${entry.buyerId}',
+                      value: '${Utils.number(entry.pricePerUnit)}g each',
+                      icon: Icons.timeline,
+                      color: _marketAccentGreen,
+                    ),
+                  )
+                  .toList(),
+            ),
+    );
+  }
+}
+
+class _MarketDataRow extends StatelessWidget {
+  final String title;
+  final String subtitle;
+  final String value;
+  final IconData icon;
+  final Color color;
+
+  const _MarketDataRow({
+    required this.title,
+    required this.subtitle,
+    required this.value,
+    required this.icon,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: _marketInset,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: _marketBorder.withOpacity(0.65)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.12),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Icon(icon, color: color, size: 18),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    color: _marketText,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(subtitle, style: const TextStyle(color: _marketMuted)),
+              ],
             ),
           ),
-      ],
+          const SizedBox(width: 8),
+          Text(
+            value,
+            style: TextStyle(color: color, fontWeight: FontWeight.w800),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -792,20 +1663,13 @@ class _MarketCancellationNotice extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      color: result.completed ? Colors.green.shade50 : Colors.orange.shade50,
-      child: ListTile(
-        leading: Icon(
-          result.completed ? Icons.undo : Icons.info_outline,
-          color: result.completed ? Colors.green : Colors.orange,
-        ),
-        title: Text(result.message),
-        subtitle: Text(
-          result.inventory == null
-              ? 'No inventory refund was needed.'
-              : 'Wallet: ${Utils.number(result.inventory!.walletGold)} gold.',
-        ),
-      ),
+    final detail = result.inventory == null
+        ? 'No inventory refund was needed.'
+        : 'Wallet: ${Utils.number(result.inventory!.walletGold)} gold.';
+    return _MarketMessageCard(
+      message: '${result.message} $detail',
+      icon: result.completed ? Icons.undo : Icons.info_outline,
+      color: result.completed ? _marketAccentGreen : _marketAccent,
     );
   }
 }
@@ -816,13 +1680,11 @@ class _MarketPurchaseNotice extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      color: Colors.green.shade50,
-      child: ListTile(
-        leading: const Icon(Icons.check_circle, color: Colors.green),
-        title: Text(result.message),
-        subtitle: Text('Wallet now has ${result.inventory.walletGold} gold.'),
-      ),
+    return _MarketMessageCard(
+      message:
+          '${result.message} Wallet now has ${Utils.number(result.inventory.walletGold)} gold.',
+      icon: Icons.check_circle,
+      color: _marketAccentGreen,
     );
   }
 }
@@ -833,15 +1695,11 @@ class _MarketSaleNotice extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      color: Colors.blue.shade50,
-      child: ListTile(
-        leading: const Icon(Icons.sell, color: Colors.blue),
-        title: Text(result.message),
-        subtitle: Text(
-          'Listing ${result.listing.listingId} is open with ${result.listing.quantity} items.',
-        ),
-      ),
+    return _MarketMessageCard(
+      message:
+          '${result.message} Listing is open with ${result.listing.quantity} items.',
+      icon: Icons.sell,
+      color: _marketAccentBlue,
     );
   }
 }
@@ -862,39 +1720,36 @@ class _MyListingsSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final sellerListings = listings?.listings ?? [];
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Text('My sell orders',
-                    style: Theme.of(context).textTheme.titleLarge),
-                const Spacer(),
-                if (isLoading)
-                  const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            if (sellerListings.isEmpty)
-              const Text('You do not have any market listings yet.')
-            else
-              ...sellerListings.map(
-                (listing) => _MyListingCard(
-                  listing: listing,
-                  isCanceling: cancelingListingIds.contains(listing.listingId),
-                  onCancel: () => onCancel(listing),
-                ),
-              ),
-          ],
-        ),
+    return _MarketSectionCard(
+      title: 'My sell orders',
+      subtitle: 'Manage listings backed by your current inventory.',
+      icon: Icons.receipt_long,
+      isLoading: isLoading,
+      trailing: _MarketBadge(
+        label: '${sellerListings.length} listed',
+        color: _marketAccentGreen,
       ),
+      child: sellerListings.isEmpty
+          ? const _MarketEmptyState(
+              icon: Icons.inventory_2_outlined,
+              title: 'No active sell orders',
+              message: 'List surplus supplies to start earning gold.',
+            )
+          : Column(
+              children: sellerListings
+                  .map(
+                    (listing) => Padding(
+                      padding: const EdgeInsets.only(top: 12),
+                      child: _MyListingCard(
+                        listing: listing,
+                        isCanceling:
+                            cancelingListingIds.contains(listing.listingId),
+                        onCancel: () => onCancel(listing),
+                      ),
+                    ),
+                  )
+                  .toList(),
+            ),
     );
   }
 }
@@ -913,23 +1768,75 @@ class _MyListingCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final canCancel = listing.status == 'open' && listing.quantity > 0;
-    return ListTile(
-      contentPadding: EdgeInsets.zero,
-      leading: const Icon(Icons.receipt_long, color: Colors.blueGrey),
-      title: Text('${listing.itemName} • ${listing.status}'),
-      subtitle: Text(
-        '${listing.quantity} remaining at ${Utils.number(listing.pricePerUnit)} gold each',
+    final statusColor = _marketStatusColor(listing.status);
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: _marketPanel,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: _marketBorder.withOpacity(0.75)),
       ),
-      trailing: ElevatedButton.icon(
-        onPressed: canCancel && !isCanceling ? onCancel : null,
-        icon: isCanceling
-            ? const SizedBox(
-                width: 16,
-                height: 16,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              )
-            : const Icon(Icons.cancel),
-        label: Text(isCanceling ? 'Canceling...' : 'Cancel'),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: statusColor.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Icon(Icons.sell, color: statusColor),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      listing.itemName,
+                      style: const TextStyle(
+                        color: _marketText,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 16,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '${listing.quantity} remaining at ${Utils.number(listing.pricePerUnit)} gold each',
+                      style: const TextStyle(color: _marketMuted),
+                    ),
+                  ],
+                ),
+              ),
+              _MarketBadge(label: listing.status, color: statusColor),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Align(
+            alignment: Alignment.centerRight,
+            child: OutlinedButton.icon(
+              style: OutlinedButton.styleFrom(
+                foregroundColor: Colors.redAccent,
+                side: const BorderSide(color: Colors.redAccent),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+              ),
+              onPressed: canCancel && !isCanceling ? onCancel : null,
+              icon: isCanceling
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.cancel),
+              label: Text(isCanceling ? 'Canceling...' : 'Cancel order'),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -957,73 +1864,97 @@ class _MarketSellCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final items = inventory?.items ?? [];
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Sell from inventory',
-                style: Theme.of(context).textTheme.titleLarge),
-            const SizedBox(height: 12),
-            if (items.isEmpty)
-              const Text('No inventory items are available to list.')
-            else ...[
-              DropdownButtonFormField<String>(
-                value: selectedItemId == null ||
-                        !items.any((item) => item.itemId == selectedItemId)
-                    ? null
-                    : selectedItemId,
-                decoration: const InputDecoration(labelText: 'Item'),
-                items: items
-                    .map(
-                      (item) => DropdownMenuItem(
-                        value: item.itemId,
-                        child: Text('${item.name} (x${item.quantity})'),
-                      ),
-                    )
-                    .toList(),
-                onChanged: isSelling ? null : onItemChanged,
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextField(
+    const fieldTextStyle = TextStyle(color: _marketText);
+    final selectedValue = selectedItemId == null ||
+            !items.any((item) => item.itemId == selectedItemId)
+        ? null
+        : selectedItemId;
+    final totalItems = items.fold<int>(0, (sum, item) => sum + item.quantity);
+
+    return _MarketSectionCard(
+      title: 'Merchant counter',
+      subtitle: 'Turn inventory stacks into public sell orders.',
+      icon: Icons.add_business,
+      trailing: _MarketBadge(
+        label: '${items.length} stacks / ${Utils.number(totalItems)} units',
+        color: _marketAccent,
+      ),
+      child: items.isEmpty
+          ? const _MarketEmptyState(
+              icon: Icons.inventory_2_outlined,
+              title: 'No inventory to list',
+              message: 'Gather supplies before opening a market order.',
+            )
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                DropdownButtonFormField<String>(
+                  value: selectedValue,
+                  dropdownColor: _marketPanel,
+                  style: fieldTextStyle,
+                  decoration:
+                      _marketInputDecoration('Item', icon: Icons.inventory),
+                  items: items
+                      .map(
+                        (item) => DropdownMenuItem(
+                          value: item.itemId,
+                          child: Text(
+                            '${item.name} (x${item.quantity})',
+                            style: fieldTextStyle,
+                          ),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: isSelling ? null : onItemChanged,
+                ),
+                const SizedBox(height: 12),
+                _MarketFieldWrap(
+                  columns: 2,
+                  children: [
+                    TextField(
                       controller: quantityController,
                       enabled: !isSelling,
-                      decoration: const InputDecoration(labelText: 'Quantity'),
+                      style: fieldTextStyle,
+                      cursorColor: _marketAccent,
+                      decoration: _marketInputDecoration('Quantity',
+                          icon: Icons.numbers),
                       keyboardType: TextInputType.number,
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: TextField(
+                    TextField(
                       controller: priceController,
                       enabled: !isSelling,
-                      decoration:
-                          const InputDecoration(labelText: 'Gold per item'),
+                      style: fieldTextStyle,
+                      cursorColor: _marketAccent,
+                      decoration: _marketInputDecoration(
+                        'Gold per item',
+                        icon: Icons.monetization_on,
+                      ),
                       keyboardType: TextInputType.number,
                     ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _marketAccent,
+                    foregroundColor: const Color(0xFF111827),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(18),
+                    ),
                   ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              ElevatedButton.icon(
-                onPressed: isSelling ? null : onSell,
-                icon: isSelling
-                    ? const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.add_business),
-                label: Text(isSelling ? 'Listing...' : 'Create sell order'),
-              ),
-            ],
-          ],
-        ),
-      ),
+                  onPressed: isSelling ? null : onSell,
+                  icon: isSelling
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.add_business),
+                  label: Text(isSelling ? 'Listing...' : 'Create sell order'),
+                ),
+              ],
+            ),
     );
   }
 }
@@ -1043,26 +1974,86 @@ class _MarketListingCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final total = listing.quantity * listing.pricePerUnit;
-    return Card(
-      child: ListTile(
-        leading: const Icon(Icons.storefront, color: Colors.blue),
-        title: Text(listing.itemName),
-        subtitle: Text(
-          '${listing.category} • ${listing.quantity} available • Seller: ${listing.sellerId}',
-        ),
-        trailing: Wrap(
-          spacing: 12,
-          crossAxisAlignment: WrapCrossAlignment.center,
-          children: [
-            Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text('${Utils.number(listing.pricePerUnit)} gold each'),
-                Text('${Utils.number(total)} gold total'),
-              ],
-            ),
-            ElevatedButton.icon(
+    final statusColor = _marketStatusColor(listing.status);
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: _marketPanel,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: _marketBorder.withOpacity(0.75)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: _marketAccentBlue.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(18),
+                ),
+                child: const Icon(Icons.storefront, color: _marketAccentBlue),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      listing.itemName,
+                      style: const TextStyle(
+                        color: _marketText,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 17,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '${listing.category} / Seller ${listing.sellerId}',
+                      style: const TextStyle(color: _marketMuted),
+                    ),
+                  ],
+                ),
+              ),
+              _MarketBadge(label: listing.status, color: statusColor),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              _MarketBadge(
+                label: '${listing.quantity} available',
+                color: _marketAccentGreen,
+                icon: Icons.inventory_2,
+              ),
+              _MarketBadge(
+                label: '${Utils.number(listing.pricePerUnit)}g each',
+                color: _marketAccent,
+                icon: Icons.monetization_on,
+              ),
+              _MarketBadge(
+                label: '${Utils.number(total)}g total',
+                color: _marketAccentBlue,
+                icon: Icons.calculate,
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _marketAccentGreen,
+                foregroundColor: const Color(0xFF052E2B),
+                padding: const EdgeInsets.symmetric(vertical: 13),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(18),
+                ),
+              ),
               onPressed: isBuying || !canBuy ? null : onBuy,
               icon: isBuying
                   ? const SizedBox(
@@ -1071,10 +2062,11 @@ class _MarketListingCard extends StatelessWidget {
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
                   : const Icon(Icons.shopping_cart),
-              label: Text(isBuying ? 'Buying...' : (canBuy ? 'Buy 1' : 'Mine')),
+              label: Text(
+                  isBuying ? 'Buying...' : (canBuy ? 'Buy 1' : 'My order')),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -1090,19 +2082,39 @@ class _ErrorState extends StatelessWidget {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.error_outline, size: 48, color: Colors.redAccent),
-            const SizedBox(height: 16),
-            Text(message, textAlign: TextAlign.center),
-            const SizedBox(height: 16),
-            ElevatedButton.icon(
-              onPressed: onRetry,
-              icon: const Icon(Icons.refresh),
-              label: const Text('Retry'),
-            ),
-          ],
+        child: Container(
+          padding: const EdgeInsets.all(22),
+          decoration: BoxDecoration(
+            color: _marketSurface,
+            borderRadius: BorderRadius.circular(26),
+            border: Border.all(color: _marketBorder),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(
+                Icons.error_outline,
+                size: 48,
+                color: Colors.redAccent,
+              ),
+              const SizedBox(height: 16),
+              Text(
+                message,
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: _marketText),
+              ),
+              const SizedBox(height: 16),
+              ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _marketAccent,
+                  foregroundColor: const Color(0xFF111827),
+                ),
+                onPressed: onRetry,
+                icon: const Icon(Icons.refresh),
+                label: const Text('Retry'),
+              ),
+            ],
+          ),
         ),
       ),
     );

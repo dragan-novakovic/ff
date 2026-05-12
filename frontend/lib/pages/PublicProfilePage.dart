@@ -1,6 +1,8 @@
 import 'package:ff/blocs/LoginBloc.dart';
 import 'package:ff/blocs/RankingsBloc.dart';
+import 'package:ff/components/GameScaffold.dart';
 import 'package:ff/models/GameAreas.dart';
+import 'package:ff/utils/Utils.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -27,12 +29,15 @@ class _PublicProfilePageState extends State<PublicProfilePage> {
   Future<void> _load() async {
     _rankingsBloc.setBearerToken(_loginBloc.currentToken);
     await _rankingsBloc.loadPublicProfile(widget.playerId);
+    await _rankingsBloc.loadPlayerRanking(widget.playerId);
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Public Profile')),
+    return GameScaffold(
+      title: 'Citizen Dossier',
+      subtitle: 'Public profile, rank, gear, and combat readiness',
+      icon: Icons.badge_outlined,
       body: Consumer<RankingsBloc>(
         builder: (context, bloc, _) {
           final profile = bloc.profile;
@@ -52,21 +57,40 @@ class _PublicProfilePageState extends State<PublicProfilePage> {
             );
           }
 
+          final ranking = bloc.playerRanking?.playerId == widget.playerId
+              ? bloc.playerRanking
+              : null;
           return RefreshIndicator(
             onRefresh: _load,
             child: ListView(
               padding: const EdgeInsets.all(16),
               children: [
-                _ProfileHeader(profile: profile),
-                const SizedBox(height: 16),
+                _ProfileHero(profile: profile, ranking: ranking),
+                const SizedBox(height: 12),
                 _ProfileStats(profile: profile),
-                const SizedBox(height: 16),
-                _EquippedWeaponCard(weapon: profile.equippedWeapon),
-                const SizedBox(height: 16),
-                ElevatedButton.icon(
-                  onPressed: () => Navigator.pushNamed(context, '/rankings'),
-                  icon: const Icon(Icons.leaderboard),
-                  label: const Text('View rankings'),
+                _EquippedWeaponPanel(weapon: profile.equippedWeapon),
+                _TimelinePanel(profile: profile),
+                GamePanel(
+                  child: Row(
+                    children: [
+                      const Icon(Icons.leaderboard, color: GameColors.amber),
+                      const SizedBox(width: 12),
+                      const Expanded(
+                        child: Text(
+                          'Compare this citizen against the full Hall of Fame.',
+                          style: TextStyle(color: GameColors.textMuted),
+                        ),
+                      ),
+                      TextButton.icon(
+                        onPressed: () => Navigator.pushNamed(
+                          context,
+                          '/rankings',
+                        ),
+                        icon: const Icon(Icons.emoji_events),
+                        label: const Text('Rankings'),
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
@@ -77,44 +101,43 @@ class _PublicProfilePageState extends State<PublicProfilePage> {
   }
 }
 
-class _ProfileHeader extends StatelessWidget {
+class _ProfileHero extends StatelessWidget {
   final PublicPlayerProfile profile;
-  const _ProfileHeader({required this.profile});
+  final RankingEntry? ranking;
+
+  const _ProfileHero({required this.profile, required this.ranking});
 
   @override
   Widget build(BuildContext context) {
-    final rankText = profile.rank > 0 ? '#${profile.rank}' : 'Unranked';
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                CircleAvatar(
-                  child: Text(profile.username.substring(0, 1).toUpperCase()),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(profile.username,
-                          style: Theme.of(context).textTheme.titleLarge),
-                      Text('Player ${profile.playerId}'),
-                    ],
-                  ),
-                ),
-                Chip(label: Text(rankText)),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Text('Joined ${_formatDate(profile.createdOn)}'),
-            Text('Updated ${_formatDate(profile.updatedAt)}'),
-          ],
+    final rank = ranking?.rank ?? profile.rank;
+    final rankText = rank > 0 ? '#$rank' : 'Unranked';
+    return GameHero(
+      eyebrow: 'Public Dossier',
+      title: profile.username,
+      subtitle:
+          'Citizen ${profile.playerId} joined ${_formatDate(profile.createdOn)} and last updated ${_formatDate(profile.updatedAt)}.',
+      icon: Icons.person_pin_circle,
+      accent: GameColors.violet,
+      stats: [
+        GameStat(
+          label: 'rank',
+          value: rankText,
+          icon: Icons.emoji_events,
+          color: GameColors.amber,
         ),
-      ),
+        GameStat(
+          label: 'level',
+          value: profile.level.toString(),
+          icon: Icons.trending_up,
+          color: GameColors.cyan,
+        ),
+        GameStat(
+          label: 'strength',
+          value: Utils.number(profile.strength),
+          icon: Icons.fitness_center,
+          color: GameColors.crimson,
+        ),
+      ],
     );
   }
 }
@@ -125,68 +148,202 @@ class _ProfileStats extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Wrap(
-          spacing: 12,
-          runSpacing: 12,
-          children: [
-            _StatChip(label: 'Level', value: profile.level.toString()),
-            _StatChip(label: 'XP', value: profile.experience.toString()),
-            _StatChip(label: 'Strength', value: profile.strength.toString()),
-            _StatChip(
-              label: 'Energy',
-              value: '${profile.energy}/${profile.maxEnergy}',
-            ),
-          ],
-        ),
+    final energyValue = profile.maxEnergy <= 0
+        ? 0.0
+        : (profile.energy / profile.maxEnergy).clamp(0, 1).toDouble();
+    return GamePanel(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Combat readiness',
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w900,
+                ),
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              GameStatPill(
+                stat: GameStat(
+                  label: 'experience',
+                  value: Utils.number(profile.experience),
+                  icon: Icons.star,
+                  color: GameColors.violet,
+                ),
+              ),
+              GameStatPill(
+                stat: GameStat(
+                  label: 'max energy',
+                  value: Utils.number(profile.maxEnergy),
+                  icon: Icons.battery_charging_full,
+                  color: GameColors.emerald,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          GameProgressBar(
+            label: 'Energy reserve',
+            valueLabel: '${profile.energy}/${profile.maxEnergy}',
+            value: energyValue,
+            color: GameColors.emerald,
+          ),
+        ],
       ),
     );
   }
 }
 
-class _EquippedWeaponCard extends StatelessWidget {
+class _EquippedWeaponPanel extends StatelessWidget {
   final EquippedWeapon? weapon;
-  const _EquippedWeaponCard({required this.weapon});
+  const _EquippedWeaponPanel({required this.weapon});
 
   @override
   Widget build(BuildContext context) {
     final equipped = weapon;
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Equipped weapon',
-                style: Theme.of(context).textTheme.titleLarge),
-            const SizedBox(height: 8),
-            if (equipped == null)
-              const Text('No weapon equipped.')
-            else ...[
-              Text('${equipped.name} • Power ${equipped.weaponPower}'),
-              const SizedBox(height: 8),
+    return GamePanel(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.gavel, color: GameColors.cyan),
+              const SizedBox(width: 10),
               Text(
-                  'Durability ${equipped.durability}/${equipped.maxDurability}'),
-              const SizedBox(height: 8),
-              LinearProgressIndicator(value: equipped.durabilityProgress),
+                'Equipped weapon',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w900,
+                    ),
+              ),
             ],
+          ),
+          const SizedBox(height: 12),
+          if (equipped == null)
+            const Text(
+              'No weapon equipped.',
+              style: TextStyle(color: GameColors.textMuted),
+            )
+          else ...[
+            Text(
+              equipped.name,
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w900,
+                  ),
+            ),
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              children: [
+                GameStatPill(
+                  stat: GameStat(
+                    label: 'weapon power',
+                    value: Utils.number(equipped.weaponPower),
+                    icon: Icons.flash_on,
+                    color: GameColors.crimson,
+                  ),
+                ),
+                GameStatPill(
+                  stat: GameStat(
+                    label: 'category',
+                    value: equipped.category,
+                    icon: Icons.category,
+                    color: GameColors.cyan,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            GameProgressBar(
+              label: 'Durability',
+              valueLabel: '${equipped.durability}/${equipped.maxDurability}',
+              value: equipped.durabilityProgress,
+              color:
+                  equipped.isUsable ? GameColors.emerald : GameColors.crimson,
+            ),
           ],
-        ),
+        ],
       ),
     );
   }
 }
 
-class _StatChip extends StatelessWidget {
-  final String label;
-  final String value;
-  const _StatChip({required this.label, required this.value});
+class _TimelinePanel extends StatelessWidget {
+  final PublicPlayerProfile profile;
+
+  const _TimelinePanel({required this.profile});
 
   @override
   Widget build(BuildContext context) {
-    return Chip(label: Text('$label: $value'));
+    return GamePanel(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Citizen timeline',
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w900,
+                ),
+          ),
+          const SizedBox(height: 12),
+          _TimelineRow(
+            icon: Icons.login,
+            label: 'Joined the republic',
+            value: _formatDate(profile.createdOn),
+          ),
+          _TimelineRow(
+            icon: Icons.sync,
+            label: 'Last profile update',
+            value: _formatDate(profile.updatedAt),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TimelineRow extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+
+  const _TimelineRow({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Row(
+        children: [
+          Icon(icon, color: GameColors.textMuted),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              label,
+              style: const TextStyle(color: GameColors.textMuted),
+            ),
+          ),
+          Text(
+            value,
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 
@@ -197,22 +354,28 @@ class _ErrorState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.error_outline, size: 48, color: Colors.redAccent),
-            const SizedBox(height: 16),
-            Text(message, textAlign: TextAlign.center),
-            const SizedBox(height: 16),
-            ElevatedButton.icon(
-              onPressed: onRetry,
-              icon: const Icon(Icons.refresh),
-              label: const Text('Retry'),
-            ),
-          ],
+    return GameTheme(
+      child: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(
+                Icons.error_outline,
+                size: 48,
+                color: GameColors.crimson,
+              ),
+              const SizedBox(height: 16),
+              Text(message, textAlign: TextAlign.center),
+              const SizedBox(height: 16),
+              ElevatedButton.icon(
+                onPressed: onRetry,
+                icon: const Icon(Icons.refresh),
+                label: const Text('Retry'),
+              ),
+            ],
+          ),
         ),
       ),
     );

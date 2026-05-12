@@ -1,5 +1,7 @@
 import 'package:ff/blocs/GameAreaBlocs.dart';
 import 'package:ff/blocs/LoginBloc.dart';
+import 'package:ff/blocs/PlayerBloc.dart';
+import 'package:ff/components/GameScaffold.dart';
 import 'package:ff/models/GameAreas.dart';
 import 'package:ff/models/User.dart';
 import 'package:ff/utils/Utils.dart';
@@ -17,12 +19,14 @@ class WorkforcePage extends StatefulWidget {
 class _WorkforcePageState extends State<WorkforcePage> {
   late final WorkforceBloc _workforceBloc;
   late final LoginBloc _loginBloc;
+  late final PlayerBloc _playerBloc;
 
   @override
   void initState() {
     super.initState();
     _workforceBloc = Provider.of<WorkforceBloc>(context, listen: false);
     _loginBloc = Provider.of<LoginBloc>(context, listen: false);
+    _playerBloc = Provider.of<PlayerBloc>(context, listen: false);
     _load();
   }
 
@@ -41,6 +45,10 @@ class _WorkforcePageState extends State<WorkforcePage> {
       jobId: job.jobId,
       idempotencyKey: idempotencyKey,
     );
+    if (result != null) {
+      _playerBloc.setBearerToken(_loginBloc.currentToken);
+      await _playerBloc.loadState(widget.user.uid);
+    }
     final message = result?.message ?? _workforceBloc.error;
     if (!mounted || message == null || message.isEmpty) {
       return;
@@ -53,8 +61,10 @@ class _WorkforcePageState extends State<WorkforcePage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Workforce Market')),
+    return GameScaffold(
+      title: 'Labor Exchange',
+      subtitle: 'Company jobs, wages, energy, and production pressure',
+      icon: Icons.engineering,
       body: Consumer<WorkforceBloc>(
         builder: (context, bloc, _) {
           final jobs = bloc.jobMarket?.jobs ?? [];
@@ -62,49 +72,62 @@ class _WorkforcePageState extends State<WorkforcePage> {
             return const Center(child: CircularProgressIndicator());
           }
 
+          final activeJobs = jobs.where((job) => job.isActive).length;
+          final totalWages =
+              jobs.fold<int>(0, (sum, job) => sum + job.wageGold);
+          final totalDemand =
+              jobs.fold<int>(0, (sum, job) => sum + job.dailyLimit);
+
           return RefreshIndicator(
             onRefresh: _load,
             child: ListView(
               padding: const EdgeInsets.all(16),
               children: [
-                Card(
-                  child: ListTile(
-                    leading: const Icon(Icons.work, color: Colors.indigo),
-                    title: const Text('Open company jobs'),
-                    subtitle: const Text(
-                      'Real posted jobs pay from company wallets, credit player wallets, and add company labor credits.',
+                GameHero(
+                  eyebrow: 'Economy Loop',
+                  title: 'Work for player companies',
+                  subtitle:
+                      'Jobs pay from company wallets, credit your wallet, spend energy, and generate labor credits that feed production upgrades.',
+                  icon: Icons.payments_outlined,
+                  accent: GameColors.emerald,
+                  stats: [
+                    GameStat(
+                      label: 'open contracts',
+                      value: activeJobs.toString(),
+                      icon: Icons.work_outline,
+                      color: GameColors.emerald,
                     ),
-                    trailing: IconButton(
-                      tooltip: 'Refresh',
-                      onPressed: _load,
-                      icon: const Icon(Icons.refresh),
+                    GameStat(
+                      label: 'listed wages',
+                      value: Utils.number(totalWages),
+                      icon: Icons.attach_money,
+                      color: GameColors.amber,
                     ),
-                  ),
+                    GameStat(
+                      label: 'daily slots',
+                      value: Utils.number(totalDemand),
+                      icon: Icons.groups_2_outlined,
+                      color: GameColors.cyan,
+                    ),
+                  ],
                 ),
                 if (bloc.error != null)
-                  Card(
-                    color: Colors.orange.withOpacity(0.12),
-                    child: ListTile(
-                      leading:
-                          const Icon(Icons.warning_amber, color: Colors.orange),
-                      title: Text(bloc.error!),
-                    ),
+                  GameNotice(
+                    icon: Icons.warning_amber,
+                    message: bloc.error!,
+                    color: GameColors.amber,
                   ),
                 if (bloc.lastWork != null)
-                  Card(
-                    color: Colors.green.withOpacity(0.12),
-                    child: ListTile(
-                      leading:
-                          const Icon(Icons.check_circle, color: Colors.green),
-                      title: Text(bloc.lastWork!.message),
-                    ),
-                  ),
+                  _WorkResultPanel(result: bloc.lastWork!),
+                const GameSectionTitle(
+                  title: 'Company job board',
+                  subtitle:
+                      'Pick the best wage-to-energy contract before daily slots run out.',
+                ),
                 if (jobs.isEmpty)
-                  const Card(
-                    child: ListTile(
-                      leading: Icon(Icons.work_outline),
-                      title: Text('No active jobs are posted right now.'),
-                    ),
+                  const GameEmptyState(
+                    icon: Icons.work_off_outlined,
+                    message: 'No active jobs are posted right now.',
                   )
                 else
                   ...jobs.map(
@@ -123,6 +146,23 @@ class _WorkforcePageState extends State<WorkforcePage> {
   }
 }
 
+class _WorkResultPanel extends StatelessWidget {
+  final CompanyWorkResult result;
+
+  const _WorkResultPanel({required this.result});
+
+  @override
+  Widget build(BuildContext context) {
+    final record = result.workRecord;
+    return GameNotice(
+      icon: result.completed ? Icons.check_circle : Icons.info_outline,
+      color: result.completed ? GameColors.emerald : GameColors.amber,
+      message:
+          '${result.message} Net wage ${Utils.number(record.netWageGold)} gold, tax ${Utils.number(record.taxGold)}, +${Utils.number(record.productivityReward)} labor credit.',
+    );
+  }
+}
+
 class _WorkforceJobCard extends StatelessWidget {
   final CompanyJobPosting job;
   final bool isWorking;
@@ -137,32 +177,145 @@ class _WorkforceJobCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final canWork = job.isActive && !job.isDailyLimitReached && !isWorking;
-    return Card(
-      child: ListTile(
-        leading: const Icon(Icons.payments, color: Colors.green),
-        title: Text(job.title),
-        subtitle: Text(
-          '${job.companyName} • ${job.description}\n'
-          '${Utils.number(job.wageGold)} gold wage • '
-          '${job.requiredEnergy} energy required • '
-          '${job.todayWorkCount}/${job.dailyLimit} today • '
-          '+${job.productivityReward} labor credit',
-        ),
-        isThreeLine: true,
-        trailing: ElevatedButton.icon(
-          onPressed: canWork ? onWork : null,
-          icon: isWorking
-              ? const SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              : const Icon(Icons.work),
-          label: Text(isWorking
-              ? 'Working...'
-              : job.isDailyLimitReached
-                  ? 'Limit reached'
-                  : 'Work'),
+    final fill = job.dailyLimit <= 0
+        ? 0.0
+        : (job.todayWorkCount / job.dailyLimit).clamp(0, 1).toDouble();
+
+    return GamePanel(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: GameColors.emerald.withOpacity(0.14),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: GameColors.emerald.withOpacity(0.35),
+                  ),
+                ),
+                child: const Icon(Icons.factory, color: GameColors.emerald),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      job.title,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w900,
+                          ),
+                    ),
+                    Text(
+                      job.companyName.isEmpty ? job.companyId : job.companyName,
+                      style: const TextStyle(color: GameColors.textMuted),
+                    ),
+                  ],
+                ),
+              ),
+              _StatusBadge(
+                text: job.isDailyLimitReached ? 'filled' : job.status,
+                color: job.isDailyLimitReached
+                    ? GameColors.amber
+                    : GameColors.emerald,
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            job.description,
+            style: const TextStyle(color: GameColors.textMuted, height: 1.35),
+          ),
+          const SizedBox(height: 14),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              GameStatPill(
+                stat: GameStat(
+                  label: 'net wage source',
+                  value: '${Utils.number(job.wageGold)} gold',
+                  icon: Icons.attach_money,
+                  color: GameColors.amber,
+                ),
+              ),
+              GameStatPill(
+                stat: GameStat(
+                  label: 'energy cost',
+                  value: Utils.number(job.requiredEnergy),
+                  icon: Icons.bolt,
+                  color: GameColors.cyan,
+                ),
+              ),
+              GameStatPill(
+                stat: GameStat(
+                  label: 'labor credit',
+                  value: '+${Utils.number(job.productivityReward)}',
+                  icon: Icons.handyman_outlined,
+                  color: GameColors.violet,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          GameProgressBar(
+            label: 'Daily labor demand',
+            valueLabel: '${job.todayWorkCount}/${job.dailyLimit}',
+            value: fill,
+            color: job.isDailyLimitReached ? GameColors.amber : GameColors.cyan,
+          ),
+          const SizedBox(height: 14),
+          Align(
+            alignment: Alignment.centerRight,
+            child: ElevatedButton.icon(
+              onPressed: canWork ? onWork : null,
+              icon: isWorking
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.work),
+              label: Text(isWorking
+                  ? 'Working...'
+                  : job.isDailyLimitReached
+                      ? 'Limit reached'
+                      : 'Work shift'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _StatusBadge extends StatelessWidget {
+  final String text;
+  final Color color;
+
+  const _StatusBadge({required this.text, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.16),
+        borderRadius: BorderRadius.circular(99),
+        border: Border.all(color: color.withOpacity(0.42)),
+      ),
+      child: Text(
+        text.toUpperCase(),
+        style: TextStyle(
+          color: color,
+          fontWeight: FontWeight.w900,
+          fontSize: 11,
+          letterSpacing: 0.8,
         ),
       ),
     );

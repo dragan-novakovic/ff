@@ -1113,6 +1113,111 @@ void main() {
     expect(update.treasury?.policy.incomeTaxRate, 6);
   });
 
+  test('parses country infrastructure projects and contributions', () {
+    final infrastructure = CountryInfrastructure.fromJson({
+      'countryId': 'freiland',
+      'name': 'Freiland',
+      'code': 'FRL',
+      'projects': [
+        {
+          'projectId': 'freiland:hospital-network',
+          'countryId': 'freiland',
+          'projectType': 'hospital-network',
+          'name': 'Hospital Network',
+          'description': 'Public clinics improve recovery.',
+          'level': 2,
+          'targetGold': 1000,
+          'contributedGold': 250,
+          'targetItemId': 'food',
+          'targetItemName': 'Food',
+          'targetItemCategory': 'food',
+          'targetItemQuantity': 80,
+          'contributedItemQuantity': 40,
+          'bonusType': 'hospital_recovery',
+          'bonusPercentPerLevel': 5,
+          'activeBonusPercent': 10,
+          'displayOrder': 10,
+          'updatedAt': '2026-05-06T12:00:00Z',
+        }
+      ],
+      'recentContributions': [
+        {
+          'contributionId': 'infra-1',
+          'projectId': 'freiland:hospital-network',
+          'countryId': 'freiland',
+          'playerId': 'player-1',
+          'goldAmount': 50,
+          'itemId': 'food',
+          'itemName': 'Food',
+          'itemCategory': 'food',
+          'itemQuantity': 3,
+          'levelsCompleted': 1,
+          'createdAt': '2026-05-06T12:05:00Z',
+        }
+      ],
+      'canContribute': true,
+      'contributionMessage': 'Citizens can contribute.',
+      'updatedAt': '2026-05-06T12:06:00Z',
+    });
+
+    final result = CountryInfrastructureContributionResult.fromJson({
+      'completed': true,
+      'message': 'Infrastructure contribution recorded.',
+      'project': {
+        'projectId': 'freiland:hospital-network',
+        'countryId': 'freiland',
+        'projectType': 'hospital-network',
+        'name': 'Hospital Network',
+        'description': 'Public clinics improve recovery.',
+        'level': 3,
+        'targetGold': 1000,
+        'contributedGold': 0,
+        'targetItemId': 'food',
+        'targetItemName': 'Food',
+        'targetItemCategory': 'food',
+        'targetItemQuantity': 80,
+        'contributedItemQuantity': 0,
+        'bonusType': 'hospital_recovery',
+        'bonusPercentPerLevel': 5,
+        'activeBonusPercent': 15,
+        'displayOrder': 10,
+        'updatedAt': '2026-05-06T12:06:00Z',
+      },
+      'contribution': {
+        'contributionId': 'infra-2',
+        'projectId': 'freiland:hospital-network',
+        'countryId': 'freiland',
+        'playerId': 'player-1',
+        'goldAmount': 750,
+        'itemId': 'food',
+        'itemName': 'Food',
+        'itemCategory': 'food',
+        'itemQuantity': 40,
+        'levelsCompleted': 1,
+        'createdAt': '2026-05-06T12:06:00Z',
+      },
+      'infrastructure': {
+        'countryId': 'freiland',
+        'name': 'Freiland',
+        'code': 'FRL',
+        'projects': [],
+        'recentContributions': [],
+        'canContribute': true,
+        'contributionMessage': 'Citizens can contribute.',
+        'updatedAt': '2026-05-06T12:06:00Z',
+      },
+      'updatedAt': '2026-05-06T12:06:00Z',
+    });
+
+    expect(infrastructure.projects.single.level, 2);
+    expect(infrastructure.projects.single.goldRemaining, 750);
+    expect(infrastructure.projects.single.itemProgress, 0.5);
+    expect(infrastructure.projects.single.bonusLabel, 'Hospital recovery');
+    expect(infrastructure.recentContributions.single.levelsCompleted, 1);
+    expect(result.project?.activeBonusPercent, 15);
+    expect(result.contribution?.goldAmount, 750);
+  });
+
   test('parses player citizenship status and mutation result', () {
     final status = PlayerCitizenshipStatus.fromJson({
       'playerId': 'player-1',

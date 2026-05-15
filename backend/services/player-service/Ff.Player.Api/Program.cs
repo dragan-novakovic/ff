@@ -492,9 +492,10 @@ app.MapPost("/players/{playerId}/hospital/recover", async (
             statusCode: StatusCodes.Status401Unauthorized);
     }
 
-    if (string.IsNullOrWhiteSpace(request.IdempotencyKey))
+    if (string.IsNullOrWhiteSpace(request.IdempotencyKey) ||
+        request.BonusEnergyRestore < 0)
     {
-        return Results.BadRequest(new ErrorResponse("Hospital recovery idempotency key is required."));
+        return Results.BadRequest(new ErrorResponse("Hospital recovery idempotency key and non-negative bonus energy are required."));
     }
 
     return Results.Ok(await players.RecoverAtHospitalAsync(access.PlayerId!, request));

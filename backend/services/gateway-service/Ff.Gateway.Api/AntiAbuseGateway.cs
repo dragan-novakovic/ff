@@ -612,6 +612,14 @@ internal static class AntiAbuseRules
         MaxRequests: 20,
         Description: "Combat fights require an Idempotency-Key and allow 20 attempts per 5 minutes.");
 
+    public static readonly AntiAbuseRule InfrastructureContribute = new(
+        "idempotency.infrastructure_contribute",
+        "infrastructure_contribute",
+        RequiresIdempotency: true,
+        Window: TimeSpan.FromMinutes(10),
+        MaxRequests: 30,
+        Description: "Infrastructure contributions require an Idempotency-Key and allow 30 attempts per 10 minutes.");
+
     public static AntiAbuseRuleDto[] All { get; } =
     [
         ToDto(Work),
@@ -626,7 +634,8 @@ internal static class AntiAbuseRules
         ToDto(TradeCreate),
         ToDto(TradeAccept),
         ToDto(TradeCancel),
-        ToDto(CombatFight)
+        ToDto(CombatFight),
+        ToDto(InfrastructureContribute)
     ];
 
     private static AntiAbuseRuleDto ToDto(AntiAbuseRule rule)

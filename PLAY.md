@@ -249,8 +249,8 @@ The country loop is:
 
 ```text
 Choose citizenship
-  -> understand your country's map, treasury, laws, and diplomacy
-  -> contribute through work, taxes, research, production, politics, and battles
+  -> understand your country's map, treasury, infrastructure, laws, and diplomacy
+  -> contribute through work, taxes, public projects, research, production, politics, and battles
   -> help capture or defend regions
   -> increase country power ranking
 ```
@@ -261,6 +261,7 @@ Important world pages:
 |---|---|
 | **World** | Countries, regions, citizenship |
 | **Country Treasury** | Budget reserves, taxes, recent public ledger changes |
+| **Infrastructure Projects** | Citizen-funded public works that unlock national bonuses |
 | **Territory** | Region ownership, resources, defense readiness, control history |
 | **Country Power Index** | Estimated national strength from live world data |
 | **Politics** | Parties, elections, and office holders |
@@ -275,6 +276,10 @@ Citizenship connects your player to a country. Many country systems make more se
 ### Treasury
 
 Country Treasury shows public reserves, taxes, and recent ledger movement. It helps explain how national money is collected and spent.
+
+### Infrastructure Projects
+
+Infrastructure Projects lets citizens contribute gold and materials to public works such as hospital networks, training academies, logistics hubs, fortifications, and research campuses. Completed levels add country bonuses; for example, hospital infrastructure improves energy recovery for citizens.
 
 ### Territory
 
@@ -406,6 +411,7 @@ Long term:
 | `/recovery-center` | Recovery Center |
 | `/world` | World and citizenship |
 | `/treasury` | Country Treasury |
+| `/infrastructure` | Infrastructure Projects |
 | `/territory` | Territory |
 | `/country-rankings` | Country Power Index |
 | `/country-battles` | War Room |
@@ -423,4 +429,3 @@ Long term:
 | `/inbox` | Inbox |
 | `/account/security` | Account Security |
 | `/admin` | Admin Moderation |
-

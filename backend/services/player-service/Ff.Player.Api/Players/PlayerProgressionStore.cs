@@ -303,11 +303,15 @@ internal sealed class PlayerProgressionStore : IDisposable
                 ('choose-country', 'choose_country', 'Choose your country', 'Pick a country so your citizenship, taxes, battles, and politics have a home.', 'Open World and join any country that looks interesting.', '/world', 1, 10, 5, 0, 0, 10, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
                 ('first-work', 'work', 'Work your first shift', 'Earn your first wage and see wallet persistence in action.', 'Use the Work button on your dashboard.', '/home', 1, 15, 5, 0, 0, 20, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
                 ('first-training', 'train', 'Train your fighter', 'Gain strength so future fights are easier.', 'Use the Train button on your dashboard.', '/home', 1, 10, 10, 1, 0, 30, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-                ('first-production', 'produce', 'Start production', 'Queue a factory job and turn input materials into output goods.', 'Open Factories and start production in one of your factories.', '/factories', 1, 15, 10, 0, 0, 40, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-                ('first-fight', 'fight', 'Fight a mission', 'Try combat to earn rewards and mission progress.', 'Open Missions and simulate any available fight.', '/missions', 1, 20, 15, 0, 5, 50, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-                ('company-action', 'company_action', 'Join company life', 'Create, join, or work for a company to participate in the player economy.', 'Open Companies and create, join, or work a company job.', '/companies', 1, 20, 10, 0, 0, 60, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-                ('unit-action', 'unit_action', 'Join military organization', 'Create or join a military unit for coordinated battle activity.', 'Open Military Units and create or join a unit.', '/military-units', 1, 20, 10, 1, 0, 70, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-                ('party-action', 'party_action', 'Join politics', 'Create or join a party to participate in elections and laws.', 'Open Politics and create or join a political party.', '/politics', 1, 20, 10, 0, 0, 80, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                ('buy-first-food', 'buy_food', 'Buy food for recovery', 'Purchase food from the market so you understand basic supply buying.', 'Open Market and buy a food listing from another citizen.', '/market', 1, 10, 5, 0, 5, 40, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+                ('first-recovery', 'hospital_recover', 'Recover energy', 'Use the hospital to restore energy before more demanding actions.', 'Open Recovery Center or Home and use hospital recovery when energy is not full.', '/recovery-center', 1, 10, 5, 0, 5, 50, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+                ('first-fight', 'fight', 'Fight a mission', 'Try combat to earn rewards and mission progress.', 'Open Missions and simulate any available fight.', '/missions', 1, 20, 15, 0, 5, 60, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+                ('first-production', 'produce', 'Start production', 'Queue a factory job and turn input materials into output goods.', 'Open Factories and start production in one of your factories.', '/factories', 1, 15, 10, 0, 0, 70, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+                ('first-market-listing', 'market_sell', 'List goods for sale', 'Put an item on the market so you learn the selling side of trade.', 'Open Market and create a listing from your inventory.', '/market', 1, 15, 10, 0, 0, 80, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+                ('first-infrastructure-contribution', 'infrastructure_contribution', 'Support national infrastructure', 'Contribute gold or materials to a country infrastructure project that benefits every citizen.', 'Open Infrastructure Projects and help fund any active project in your country.', '/infrastructure', 1, 20, 10, 0, 0, 90, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+                ('company-action', 'company_action', 'Join company life', 'Create, join, or work for a company to participate in the player economy.', 'Open Companies and create, join, or work a company job.', '/companies', 1, 20, 10, 0, 0, 100, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+                ('unit-action', 'unit_action', 'Join military organization', 'Create or join a military unit for coordinated battle activity.', 'Open Military Units and create or join a unit.', '/military-units', 1, 20, 10, 1, 0, 110, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+                ('party-action', 'party_action', 'Join politics', 'Create or join a party to participate in elections and laws.', 'Open Politics and create or join a political party.', '/politics', 1, 20, 10, 0, 0, 120, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
             ON CONFLICT (quest_id) DO UPDATE
             SET action_type = EXCLUDED.action_type,
                 title = EXCLUDED.title,
@@ -343,11 +347,12 @@ internal sealed class PlayerProgressionStore : IDisposable
                 ('company-regular', 'company_work', 'Company Regular', 'Complete five company workforce shifts.', 'Companies & Workforce', 'Silver Workforce Medal', 'silver', 5, 35, 130, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
                 ('company-life', 'company_action', 'Company Life', 'Create, join, or otherwise take a company action.', 'Companies & Workforce', 'Company Citizen Medal', 'bronze', 1, 15, 140, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
                 ('country-citizen', 'choose_country', 'Citizen', 'Join or change citizenship through the world system.', 'Territory & Citizenship', 'Citizenship Medal', 'bronze', 1, 15, 150, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-                ('onboarding-graduate', 'onboarding_complete', 'Onboarding Graduate', 'Complete the onboarding questline.', 'Onboarding', 'Graduate Medal', 'gold', 1, 50, 160, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-                ('party-member', 'party_action', 'Party Member', 'Create or join a political party.', 'Politics & Laws', 'Civic Medal', 'bronze', 1, 20, 170, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-                ('law-maker', 'law_vote', 'Law Maker', 'Cast a vote or participate in a law proposal.', 'Politics & Laws', 'Congress Medal', 'silver', 1, 25, 180, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-                ('press-voice', 'newspaper_publish', 'Press Voice', 'Publish your first newspaper article.', 'Media & Newspapers', 'Press Medal', 'bronze', 1, 20, 190, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-                ('campaign-helper', 'campaign_action', 'Campaign Helper', 'Take part in a political or military campaign.', 'Battles & Campaigns', 'Campaign Medal', 'silver', 1, 25, 200, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                ('infrastructure-builder', 'infrastructure_contribution', 'Infrastructure Builder', 'Contribute to a national infrastructure project.', 'Territory & Citizenship', 'Builder Medal', 'bronze', 1, 20, 160, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+                ('onboarding-graduate', 'onboarding_complete', 'Onboarding Graduate', 'Complete the onboarding questline.', 'Onboarding', 'Graduate Medal', 'gold', 1, 50, 170, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+                ('party-member', 'party_action', 'Party Member', 'Create or join a political party.', 'Politics & Laws', 'Civic Medal', 'bronze', 1, 20, 180, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+                ('law-maker', 'law_vote', 'Law Maker', 'Cast a vote or participate in a law proposal.', 'Politics & Laws', 'Congress Medal', 'silver', 1, 25, 190, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+                ('press-voice', 'newspaper_publish', 'Press Voice', 'Publish your first newspaper article.', 'Media & Newspapers', 'Press Medal', 'bronze', 1, 20, 200, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+                ('campaign-helper', 'campaign_action', 'Campaign Helper', 'Take part in a political or military campaign.', 'Battles & Campaigns', 'Campaign Medal', 'silver', 1, 25, 210, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
             ON CONFLICT (achievement_id) DO UPDATE
             SET action_type = EXCLUDED.action_type,
                 title = EXCLUDED.title,
@@ -1579,7 +1584,9 @@ internal sealed class PlayerProgressionStore : IDisposable
                 State: state);
         }
 
-        var energyRestored = Math.Min(HospitalEnergyRestore, Math.Max(0, maxEnergy - currentEnergy));
+        var requestedBonusEnergy = Math.Max(0, request.BonusEnergyRestore);
+        var restoreAmount = HospitalEnergyRestore + requestedBonusEnergy;
+        var energyRestored = Math.Min(restoreAmount, Math.Max(0, maxEnergy - currentEnergy));
         if (energyRestored <= 0)
         {
             await transaction.RollbackAsync();
@@ -3489,7 +3496,7 @@ public sealed record RestoreEnergyRequest(
     string Message,
     string IdempotencyKey);
 
-public sealed record HospitalRecoveryRequest(string IdempotencyKey);
+public sealed record HospitalRecoveryRequest(string IdempotencyKey, int BonusEnergyRestore = 0);
 
 public sealed record MissionProgressResponse(
     string PlayerId,

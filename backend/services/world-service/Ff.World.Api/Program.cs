@@ -39,6 +39,7 @@ app.MapGet("/countries/{countryId}", async (string countryId, WorldStore world) 
 }).WithName("GetCountry");
 
 app.MapTreasuryEndpoints();
+app.MapInfrastructureEndpoints();
 
 app.MapGet("/regions", async (string? countryId, WorldStore world) =>
     Results.Ok(await world.GetRegionsAsync(countryId))).WithName("GetRegions");
@@ -229,6 +230,7 @@ internal sealed partial class WorldStore : IDisposable
         await SeedResourceSitesAsync();
         await SeedTerritoryAsync();
         await SeedTreasuryAsync();
+        await SeedInfrastructureAsync();
         await SeedBattlesAsync();
         await SeedCampaignsAsync();
         await SeedPoliticsAsync();

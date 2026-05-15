@@ -2112,6 +2112,261 @@ class CountryTaxCollection {
   }
 }
 
+class CountryInfrastructure {
+  final String countryId;
+  final String name;
+  final String code;
+  final List<CountryInfrastructureProject> projects;
+  final List<CountryInfrastructureContribution> recentContributions;
+  final bool canContribute;
+  final String contributionMessage;
+  final DateTime updatedAt;
+
+  CountryInfrastructure({
+    required this.countryId,
+    required this.name,
+    required this.code,
+    required this.projects,
+    required this.recentContributions,
+    required this.canContribute,
+    required this.contributionMessage,
+    required this.updatedAt,
+  });
+
+  factory CountryInfrastructure.fromJson(Map<String, dynamic> json) {
+    return CountryInfrastructure(
+      countryId:
+          _requiredString(json, 'countryId', fallbackField: 'country_id'),
+      name: _requiredString(json, 'name'),
+      code: _requiredString(json, 'code'),
+      projects: _requiredList(json, 'projects')
+          .map((project) =>
+              CountryInfrastructureProject.fromJson(_requiredMap(project)))
+          .toList(),
+      recentContributions: _requiredList(json, 'recentContributions')
+          .map((contribution) => CountryInfrastructureContribution.fromJson(
+              _requiredMap(contribution)))
+          .toList(),
+      canContribute: _requiredBool(json, 'canContribute'),
+      contributionMessage: _requiredString(json, 'contributionMessage'),
+      updatedAt:
+          _requiredDateTime(json, 'updatedAt', fallbackField: 'updated_at'),
+    );
+  }
+}
+
+class CountryInfrastructureProject {
+  final String projectId;
+  final String countryId;
+  final String projectType;
+  final String name;
+  final String description;
+  final int level;
+  final int targetGold;
+  final int contributedGold;
+  final String targetItemId;
+  final String targetItemName;
+  final String targetItemCategory;
+  final int targetItemQuantity;
+  final int contributedItemQuantity;
+  final String bonusType;
+  final int bonusPercentPerLevel;
+  final int activeBonusPercent;
+  final int displayOrder;
+  final DateTime updatedAt;
+
+  CountryInfrastructureProject({
+    required this.projectId,
+    required this.countryId,
+    required this.projectType,
+    required this.name,
+    required this.description,
+    required this.level,
+    required this.targetGold,
+    required this.contributedGold,
+    required this.targetItemId,
+    required this.targetItemName,
+    required this.targetItemCategory,
+    required this.targetItemQuantity,
+    required this.contributedItemQuantity,
+    required this.bonusType,
+    required this.bonusPercentPerLevel,
+    required this.activeBonusPercent,
+    required this.displayOrder,
+    required this.updatedAt,
+  });
+
+  int get goldRemaining =>
+      (targetGold - contributedGold).clamp(0, targetGold).toInt();
+
+  int get itemRemaining => (targetItemQuantity - contributedItemQuantity)
+      .clamp(0, targetItemQuantity)
+      .toInt();
+
+  double get goldProgress => targetGold <= 0
+      ? 1
+      : (contributedGold / targetGold).clamp(0, 1).toDouble();
+
+  double get itemProgress => targetItemQuantity <= 0
+      ? 1
+      : (contributedItemQuantity / targetItemQuantity).clamp(0, 1).toDouble();
+
+  String get bonusLabel {
+    switch (bonusType) {
+      case 'hospital_recovery':
+        return 'Hospital recovery';
+      case 'training_readiness':
+        return 'Training readiness';
+      case 'logistics_efficiency':
+        return 'Logistics efficiency';
+      case 'defense_readiness':
+        return 'Defense readiness';
+      case 'research_output':
+        return 'Research output';
+      default:
+        return bonusType.replaceAll('_', ' ');
+    }
+  }
+
+  factory CountryInfrastructureProject.fromJson(Map<String, dynamic> json) {
+    return CountryInfrastructureProject(
+      projectId:
+          _requiredString(json, 'projectId', fallbackField: 'project_id'),
+      countryId:
+          _requiredString(json, 'countryId', fallbackField: 'country_id'),
+      projectType:
+          _requiredString(json, 'projectType', fallbackField: 'project_type'),
+      name: _requiredString(json, 'name'),
+      description: _requiredString(json, 'description'),
+      level: _requiredInt(json, 'level'),
+      targetGold:
+          _requiredInt(json, 'targetGold', fallbackField: 'target_gold'),
+      contributedGold: _requiredInt(json, 'contributedGold',
+          fallbackField: 'contributed_gold'),
+      targetItemId: _requiredString(json, 'targetItemId',
+          fallbackField: 'target_item_id'),
+      targetItemName: _requiredString(json, 'targetItemName',
+          fallbackField: 'target_item_name'),
+      targetItemCategory: _requiredString(json, 'targetItemCategory',
+          fallbackField: 'target_item_category'),
+      targetItemQuantity: _requiredInt(json, 'targetItemQuantity',
+          fallbackField: 'target_item_quantity'),
+      contributedItemQuantity: _requiredInt(json, 'contributedItemQuantity',
+          fallbackField: 'contributed_item_quantity'),
+      bonusType:
+          _requiredString(json, 'bonusType', fallbackField: 'bonus_type'),
+      bonusPercentPerLevel: _requiredInt(json, 'bonusPercentPerLevel',
+          fallbackField: 'bonus_percent_per_level'),
+      activeBonusPercent: _requiredInt(json, 'activeBonusPercent',
+          fallbackField: 'active_bonus_percent'),
+      displayOrder:
+          _requiredInt(json, 'displayOrder', fallbackField: 'display_order'),
+      updatedAt:
+          _requiredDateTime(json, 'updatedAt', fallbackField: 'updated_at'),
+    );
+  }
+}
+
+class CountryInfrastructureContribution {
+  final String contributionId;
+  final String projectId;
+  final String countryId;
+  final String playerId;
+  final int goldAmount;
+  final String itemId;
+  final String itemName;
+  final String itemCategory;
+  final int itemQuantity;
+  final int levelsCompleted;
+  final DateTime createdAt;
+
+  CountryInfrastructureContribution({
+    required this.contributionId,
+    required this.projectId,
+    required this.countryId,
+    required this.playerId,
+    required this.goldAmount,
+    required this.itemId,
+    required this.itemName,
+    required this.itemCategory,
+    required this.itemQuantity,
+    required this.levelsCompleted,
+    required this.createdAt,
+  });
+
+  factory CountryInfrastructureContribution.fromJson(
+      Map<String, dynamic> json) {
+    return CountryInfrastructureContribution(
+      contributionId: _requiredString(json, 'contributionId',
+          fallbackField: 'contribution_id'),
+      projectId:
+          _requiredString(json, 'projectId', fallbackField: 'project_id'),
+      countryId:
+          _requiredString(json, 'countryId', fallbackField: 'country_id'),
+      playerId: _requiredString(json, 'playerId', fallbackField: 'player_id'),
+      goldAmount:
+          _requiredInt(json, 'goldAmount', fallbackField: 'gold_amount'),
+      itemId: _optionalString(json, 'itemId',
+          defaultValue: _optionalString(json, 'item_id', defaultValue: '')),
+      itemName: _optionalString(json, 'itemName',
+          defaultValue: _optionalString(json, 'item_name', defaultValue: '')),
+      itemCategory: _optionalString(json, 'itemCategory',
+          defaultValue:
+              _optionalString(json, 'item_category', defaultValue: '')),
+      itemQuantity:
+          _requiredInt(json, 'itemQuantity', fallbackField: 'item_quantity'),
+      levelsCompleted: _requiredInt(json, 'levelsCompleted',
+          fallbackField: 'levels_completed'),
+      createdAt:
+          _requiredDateTime(json, 'createdAt', fallbackField: 'created_at'),
+    );
+  }
+}
+
+class CountryInfrastructureContributionResult {
+  final bool completed;
+  final String message;
+  final CountryInfrastructureProject? project;
+  final CountryInfrastructureContribution? contribution;
+  final CountryInfrastructure? infrastructure;
+  final InventorySummary? inventory;
+  final DateTime updatedAt;
+
+  CountryInfrastructureContributionResult({
+    required this.completed,
+    required this.message,
+    required this.project,
+    required this.contribution,
+    required this.infrastructure,
+    required this.inventory,
+    required this.updatedAt,
+  });
+
+  factory CountryInfrastructureContributionResult.fromJson(
+      Map<String, dynamic> json) {
+    return CountryInfrastructureContributionResult(
+      completed: _requiredBool(json, 'completed'),
+      message: _requiredString(json, 'message'),
+      project: json['project'] == null
+          ? null
+          : CountryInfrastructureProject.fromJson(
+              _requiredMap(json['project'])),
+      contribution: json['contribution'] == null
+          ? null
+          : CountryInfrastructureContribution.fromJson(
+              _requiredMap(json['contribution'])),
+      infrastructure: json['infrastructure'] == null
+          ? null
+          : CountryInfrastructure.fromJson(
+              _requiredMap(json['infrastructure'])),
+      inventory: json['inventory'] == null
+          ? null
+          : InventorySummary.fromJson(_requiredMap(json['inventory'])),
+      updatedAt: _optionalDateTime(json, 'updatedAt') ?? DateTime.now().toUtc(),
+    );
+  }
+}
+
 class WorldRegion {
   final String regionId;
   final String countryId;

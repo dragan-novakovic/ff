@@ -1454,6 +1454,44 @@ class BackendApiClient {
     return _countryTreasuryFromJson(data);
   }
 
+  Future<CountryInfrastructure> fetchCountryInfrastructure(
+      String countryId) async {
+    final data =
+        await _get('/world/countries/$countryId/infrastructure-projects');
+    if (data is! Map<String, dynamic>) {
+      throw BackendApiException('Invalid country infrastructure response.');
+    }
+
+    return _countryInfrastructureFromJson(data);
+  }
+
+  Future<CountryInfrastructureContributionResult>
+      contributeCountryInfrastructure({
+    required String playerId,
+    required String countryId,
+    required String projectId,
+    required int goldAmount,
+    required int itemQuantity,
+    required String idempotencyKey,
+    String? itemId,
+  }) async {
+    final data = await _post(
+      '/players/$playerId/world/countries/$countryId/infrastructure-projects/$projectId/contribute',
+      {
+        'goldAmount': goldAmount,
+        'itemQuantity': itemQuantity,
+        if (itemId != null && itemId.isNotEmpty) 'itemId': itemId,
+      },
+      extraHeaders: {'Idempotency-Key': idempotencyKey},
+    );
+    if (data is! Map<String, dynamic>) {
+      throw BackendApiException(
+          'Invalid country infrastructure contribution response.');
+    }
+
+    return _countryInfrastructureContributionResultFromJson(data);
+  }
+
   Future<CountryTaxPolicyUpdateResult> updateCountryTaxPolicy({
     required String countryId,
     required int incomeTaxRate,
@@ -3252,6 +3290,25 @@ class BackendApiClient {
   CountryTreasury _countryTreasuryFromJson(Map<String, dynamic> data) {
     try {
       return CountryTreasury.fromJson(data);
+    } on FormatException catch (e) {
+      throw BackendApiException(e.message);
+    }
+  }
+
+  CountryInfrastructure _countryInfrastructureFromJson(
+      Map<String, dynamic> data) {
+    try {
+      return CountryInfrastructure.fromJson(data);
+    } on FormatException catch (e) {
+      throw BackendApiException(e.message);
+    }
+  }
+
+  CountryInfrastructureContributionResult
+      _countryInfrastructureContributionResultFromJson(
+          Map<String, dynamic> data) {
+    try {
+      return CountryInfrastructureContributionResult.fromJson(data);
     } on FormatException catch (e) {
       throw BackendApiException(e.message);
     }

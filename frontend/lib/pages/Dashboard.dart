@@ -189,6 +189,7 @@ class DashboardState extends State<Dashboard> {
     final result = await _playerBloc.recoverAtHospital(widget.uid);
     if (result != null) {
       await _loadDailyObjectives();
+      await _loadOnboardingQuestline();
       await _loadEconomyWallet();
     }
     if (!mounted) {
@@ -672,6 +673,10 @@ Widget dashboardDrawer(
                         subtitle: 'Treasury',
                         route: '/treasury'),
                     navTile(context, user,
+                        title: 'Infrastructure',
+                        subtitle: 'Public Projects',
+                        route: '/infrastructure'),
+                    navTile(context, user,
                         title: 'Map',
                         subtitle: 'Territory',
                         route: '/territory'),
@@ -1046,6 +1051,8 @@ IconData _drawerDestinationIcon(String subtitle, String? route) {
       return Icons.public_outlined;
     case '/treasury':
       return Icons.account_balance_outlined;
+    case '/infrastructure':
+      return Icons.construction_outlined;
     case '/territory':
       return Icons.map_outlined;
     case '/country-rankings':

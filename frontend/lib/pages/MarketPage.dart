@@ -1,5 +1,6 @@
 import 'package:ff/blocs/GameAreaBlocs.dart';
 import 'package:ff/blocs/LoginBloc.dart';
+import 'package:ff/blocs/OnboardingQuestlineBloc.dart';
 import 'package:ff/blocs/RealtimeUpdatesBloc.dart';
 import 'package:ff/models/GameAreas.dart';
 import 'package:ff/models/User.dart';
@@ -52,6 +53,7 @@ class _MarketPageState extends State<MarketPage> {
   late final MarketBloc _marketBloc;
   late final InventoryBloc _inventoryBloc;
   late final LoginBloc _loginBloc;
+  late final OnboardingQuestlineBloc _onboardingBloc;
   late final RealtimeUpdatesBloc _realtimeBloc;
   final TextEditingController _sellQuantityController =
       TextEditingController(text: '1');
@@ -74,6 +76,8 @@ class _MarketPageState extends State<MarketPage> {
     _marketBloc = Provider.of<MarketBloc>(context, listen: false);
     _inventoryBloc = Provider.of<InventoryBloc>(context, listen: false);
     _loginBloc = Provider.of<LoginBloc>(context, listen: false);
+    _onboardingBloc =
+        Provider.of<OnboardingQuestlineBloc>(context, listen: false);
     _realtimeBloc = RealtimeUpdatesBloc();
     _load();
     _startRealtime();
@@ -113,10 +117,12 @@ class _MarketPageState extends State<MarketPage> {
       'market-buy-${widget.user.uid}-${listing.listingId}-${DateTime.now().microsecondsSinceEpoch}',
     );
     if (result != null) {
+      _onboardingBloc.setBearerToken(_loginBloc.currentToken);
       await Future.wait([
         _marketBloc.load(),
         _marketBloc.loadPlayerListings(widget.user.uid),
         _inventoryBloc.load(widget.user.uid),
+        _onboardingBloc.load(widget.user.uid),
       ]);
     }
     if (!mounted) {
@@ -153,10 +159,12 @@ class _MarketPageState extends State<MarketPage> {
           'market-sell-${widget.user.uid}-$itemId-${DateTime.now().microsecondsSinceEpoch}',
     );
     if (result != null) {
+      _onboardingBloc.setBearerToken(_loginBloc.currentToken);
       await Future.wait([
         _marketBloc.load(),
         _marketBloc.loadPlayerListings(widget.user.uid),
         _inventoryBloc.load(widget.user.uid),
+        _onboardingBloc.load(widget.user.uid),
       ]);
     }
     if (!mounted) {

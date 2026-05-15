@@ -10,6 +10,7 @@ import 'package:ff/pages/CompaniesPage.dart';
 import 'package:ff/pages/CompanyContractsPage.dart';
 import 'package:ff/pages/CongressPage.dart';
 import 'package:ff/pages/CountryBattlesPage.dart';
+import 'package:ff/pages/CountryInfrastructurePage.dart';
 import 'package:ff/pages/CountryPowerRankingsPage.dart';
 import 'package:ff/pages/CountryTreasuryPage.dart';
 import 'package:ff/pages/DailyCampaignBoardPage.dart';
@@ -159,6 +160,9 @@ class _MyAppState extends State<MyApp> {
             ),
         '/treasury': (context) => AuthenticatedGamePage(
               builder: (user) => CountryTreasuryPage(user: user),
+            ),
+        '/infrastructure': (context) => AuthenticatedGamePage(
+              builder: (user) => CountryInfrastructurePage(user: user),
             ),
         '/territory': (context) => AuthenticatedGamePage(
               builder: (user) => TerritoryPage(user: user),

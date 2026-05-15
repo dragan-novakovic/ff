@@ -1120,11 +1120,14 @@ class WorldBloc extends ChangeNotifier {
   CountryCatalog? catalog;
   RegionList? regions;
   CountryTreasury? treasury;
+  CountryInfrastructure? infrastructure;
+  CountryInfrastructureContributionResult? lastInfrastructureContribution;
   PlayerCitizenshipStatus? citizenshipStatus;
   CitizenshipMutationResult? lastMutation;
   String? error;
   bool isLoading = false;
   bool isUpdatingPolicy = false;
+  bool isContributingInfrastructure = false;
   final Set<String> updatingCountryIds = {};
 
   PlayerCitizenship? get citizenship => citizenshipStatus?.citizenship;
@@ -1137,11 +1140,14 @@ class WorldBloc extends ChangeNotifier {
     catalog = null;
     regions = null;
     treasury = null;
+    infrastructure = null;
+    lastInfrastructureContribution = null;
     citizenshipStatus = null;
     lastMutation = null;
     error = null;
     isLoading = false;
     isUpdatingPolicy = false;
+    isContributingInfrastructure = false;
     updatingCountryIds.clear();
     notifyListeners();
   }
@@ -1164,6 +1170,10 @@ class WorldBloc extends ChangeNotifier {
       treasury = currentCitizenship == null
           ? null
           : await _apiClient.fetchCountryTreasury(currentCitizenship.countryId);
+      infrastructure = currentCitizenship == null
+          ? null
+          : await _apiClient
+              .fetchCountryInfrastructure(currentCitizenship.countryId);
     } on BackendApiException catch (e) {
       error = e.message;
     } on Exception {
@@ -1227,6 +1237,10 @@ class WorldBloc extends ChangeNotifier {
           ? null
           : await _apiClient
               .fetchCountryTreasury(result.citizenship!.countryId);
+      infrastructure = result.citizenship == null
+          ? null
+          : await _apiClient
+              .fetchCountryInfrastructure(result.citizenship!.countryId);
       catalog = await _apiClient.fetchCountries();
       return result;
     } on BackendApiException catch (e) {
@@ -1274,6 +1288,72 @@ class WorldBloc extends ChangeNotifier {
       return null;
     } finally {
       isUpdatingPolicy = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> loadInfrastructure(String playerId) async {
+    isLoading = true;
+    error = null;
+    notifyListeners();
+
+    try {
+      citizenshipStatus = await _apiClient.fetchPlayerCitizenship(playerId);
+      final currentCitizenship = citizenshipStatus?.citizenship;
+      infrastructure = currentCitizenship == null
+          ? null
+          : await _apiClient
+              .fetchCountryInfrastructure(currentCitizenship.countryId);
+    } on BackendApiException catch (e) {
+      error = e.message;
+    } on Exception {
+      error = 'Could not load infrastructure projects.';
+    } finally {
+      isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<CountryInfrastructureContributionResult?> contributeInfrastructure({
+    required String playerId,
+    required String countryId,
+    required String projectId,
+    required int goldAmount,
+    required int itemQuantity,
+    String? itemId,
+  }) async {
+    if (isContributingInfrastructure) {
+      return null;
+    }
+
+    isContributingInfrastructure = true;
+    error = null;
+    notifyListeners();
+
+    try {
+      final result = await _apiClient.contributeCountryInfrastructure(
+        playerId: playerId,
+        countryId: countryId,
+        projectId: projectId,
+        goldAmount: goldAmount,
+        itemQuantity: itemQuantity,
+        itemId: itemId,
+        idempotencyKey:
+            'infrastructure-$playerId-$projectId-${DateTime.now().microsecondsSinceEpoch}',
+      );
+      lastInfrastructureContribution = result;
+      infrastructure = result.infrastructure ??
+          await _apiClient.fetchCountryInfrastructure(countryId);
+      catalog = await _apiClient.fetchCountries();
+      return result;
+    } on BackendApiException catch (e) {
+      error = e.message;
+      return null;
+    } on Exception {
+      error = 'Could not contribute to infrastructure.';
+      return null;
+    } finally {
+      isContributingInfrastructure = false;
       notifyListeners();
     }
   }

@@ -792,6 +792,7 @@ app.MapBattleGatewayEndpoints();
 app.MapMilitaryUnitGatewayEndpoints();
 app.MapCampaignGatewayEndpoints();
 app.MapTreasuryGatewayEndpoints();
+app.MapInfrastructureGatewayEndpoints();
 app.MapPoliticsGatewayEndpoints();
 app.MapLawGatewayEndpoints();
 app.MapDiplomacyGatewayEndpoints();
@@ -1075,6 +1076,7 @@ app.MapPost("/players/{playerId}/hospital/recover", async (
     HttpRequest request,
     PlayerServiceClient players,
     EconomyServiceClient economy,
+    WorldServiceClient world,
     IConfiguration configuration,
     DevTokenValidator tokens,
     AntiAbuseStore antiAbuse) =>
@@ -1118,6 +1120,36 @@ app.MapPost("/players/{playerId}/hospital/recover", async (
     var state = stateResult.Value!;
     var actionId = $"hospital:{access.PlayerId!.ToLowerInvariant()}:{idempotencyKey.ToLowerInvariant()}";
     var hospitalGoldCost = Math.Max(0, state.HospitalGoldCost);
+    var infrastructureBonusPercent = 0;
+    var taxContextResult = await TreasuryGatewayEndpoints.GetPlayerTaxContextAsync(
+        world,
+        configuration,
+        access.PlayerId!,
+        authorization);
+    if (taxContextResult.Error is not null)
+    {
+        return taxContextResult.Error;
+    }
+
+    var taxContext = taxContextResult.Value;
+    if (taxContext is not null)
+    {
+        var infrastructure = await world.GetJsonAsync<CountryInfrastructureResponseDto>(
+            $"countries/{Uri.EscapeDataString(taxContext.Citizenship.CountryId)}/infrastructure-projects",
+            authorization);
+        if (infrastructure.Error is not null)
+        {
+            return infrastructure.Error;
+        }
+
+        infrastructureBonusPercent = infrastructure.Value!.Projects
+            .Where(project => string.Equals(project.BonusType, "hospital_recovery", StringComparison.OrdinalIgnoreCase))
+            .Sum(project => project.ActiveBonusPercent);
+    }
+
+    var bonusEnergyRestore = infrastructureBonusPercent <= 0
+        ? 0
+        : Math.Max(0, state.HospitalEnergyRestore * infrastructureBonusPercent / 100);
     WalletDebitResponseDto? debitResult = null;
     if (hospitalGoldCost > 0)
     {
@@ -1147,7 +1179,9 @@ app.MapPost("/players/{playerId}/hospital/recover", async (
     var recovery = await players.PostJsonAsync<HospitalRecoveryRequestDto, PlayerActionResponseDto>(
         $"players/{escapedPlayerId}/hospital/recover",
         authorization,
-        new HospitalRecoveryRequestDto(IdempotencyKey: $"{actionId}:recover"),
+        new HospitalRecoveryRequestDto(
+            IdempotencyKey: $"{actionId}:recover",
+            BonusEnergyRestore: bonusEnergyRestore),
         InternalToken(configuration));
     if (recovery.Error is not null)
     {
@@ -1197,6 +1231,10 @@ app.MapPost("/players/{playerId}/hospital/recover", async (
     var message = hospitalGoldCost > 0
         ? $"{action.Message} Paid {hospitalGoldCost} gold."
         : action.Message;
+    if (bonusEnergyRestore > 0)
+    {
+        message = $"{message} Country hospital infrastructure added {bonusEnergyRestore} bonus energy.";
+    }
     var objectiveTrack = await TrackDailyObjectiveAsync(
         players,
         access.PlayerId!,
@@ -1207,6 +1245,18 @@ app.MapPost("/players/{playerId}/hospital/recover", async (
     if (objectiveTrack.Error is not null)
     {
         return objectiveTrack.Error;
+    }
+
+    var onboardingTrack = await OnboardingGatewayTracker.TrackAsync(
+        players,
+        access.PlayerId!,
+        authorization,
+        configuration,
+        "hospital_recover",
+        $"onboarding:hospital-recover:{access.PlayerId!.ToLowerInvariant()}");
+    if (onboardingTrack.Error is not null)
+    {
+        return onboardingTrack.Error;
     }
 
     return Results.Ok(action with
@@ -2638,6 +2688,33 @@ app.MapPost("/players/{playerId}/market/listings/{listingId}/buy", async (
         app.Logger,
         relatedId: reservedListing.ListingId);
 
+    var onboardingMarketTrade = await OnboardingGatewayTracker.TrackAsync(
+        players,
+        access.PlayerId!,
+        authorization,
+        configuration,
+        "market_trade",
+        $"onboarding:market-trade:{access.PlayerId!.ToLowerInvariant()}:{reservationId.ToLowerInvariant()}");
+    if (onboardingMarketTrade.Error is not null)
+    {
+        return onboardingMarketTrade.Error;
+    }
+
+    if (string.Equals(reservedListing.Category, "food", StringComparison.OrdinalIgnoreCase))
+    {
+        var onboardingFood = await OnboardingGatewayTracker.TrackAsync(
+            players,
+            access.PlayerId!,
+            authorization,
+            configuration,
+            "buy_food",
+            $"onboarding:buy-food:{access.PlayerId!.ToLowerInvariant()}:{reservationId.ToLowerInvariant()}");
+        if (onboardingFood.Error is not null)
+        {
+            return onboardingFood.Error;
+        }
+    }
+
     return Results.Ok(purchaseResult);
 }).WithName("BuyMarketListing");
 
@@ -2647,6 +2724,7 @@ app.MapPost("/players/{playerId}/market/listings", async (
     HttpRequest httpRequest,
     MarketServiceClient market,
     EconomyServiceClient economy,
+    PlayerServiceClient players,
     NotificationServiceClient notifications,
     IConfiguration configuration,
     DevTokenValidator tokens,
@@ -2776,6 +2854,18 @@ app.MapPost("/players/{playerId}/market/listings", async (
         saleMessage,
         activated.ListingId,
         $"activity:market-listing:{access.PlayerId!.ToLowerInvariant()}:{activated.ListingId.ToLowerInvariant()}");
+
+    var onboardingSell = await OnboardingGatewayTracker.TrackAsync(
+        players,
+        access.PlayerId!,
+        authorization,
+        configuration,
+        "market_sell",
+        $"onboarding:market-sell:{access.PlayerId!.ToLowerInvariant()}:{activated.ListingId.ToLowerInvariant()}");
+    if (onboardingSell.Error is not null)
+    {
+        return onboardingSell.Error;
+    }
 
     return Results.Ok(new MarketSellListingResponse(
         Completed: true,
@@ -4161,7 +4251,8 @@ internal sealed record PlayerStateForHospitalDto(
     int Energy,
     int MaxEnergy,
     DateTimeOffset? HospitalCooldownUntil,
-    int HospitalGoldCost);
+    int HospitalGoldCost,
+    int HospitalEnergyRestore);
 
 internal sealed record PublicPlayerIdentityDto(
     string Uid,
@@ -4731,7 +4822,7 @@ internal sealed record RestoreEnergyRequestDto(
     string Message,
     string IdempotencyKey);
 
-internal sealed record HospitalRecoveryRequestDto(string IdempotencyKey);
+internal sealed record HospitalRecoveryRequestDto(string IdempotencyKey, int BonusEnergyRestore);
 
 internal sealed record PlayerActionResponseDto(
     bool Completed,
